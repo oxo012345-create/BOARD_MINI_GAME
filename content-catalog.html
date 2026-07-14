@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>술게임 콘텐츠 카탈로그</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d0d12; --card:#191922; --line:#30303c; --ink:#f6f3ff; --muted:#aaa6bb; --hot:#ff5f82; --violet:#9c7cff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at top,#231934 0,#0d0d12 38%); color:var(--ink); font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif; }
+    header { position:sticky; top:0; z-index:10; padding:18px 22px; background:#0d0d12e8; backdrop-filter:blur(18px); border-bottom:1px solid var(--line); }
+    h1 { margin:0 0 12px; font-size:clamp(22px,4vw,36px); }
+    header p { margin:0 0 14px; color:var(--muted); }
+    input { width:min(600px,100%); padding:13px 15px; border-radius:12px; border:1px solid var(--line); background:#15151d; color:white; font-size:16px; }
+    nav { display:flex; gap:8px; overflow:auto; padding-top:12px; }
+    nav a { white-space:nowrap; color:white; text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:8px 12px; font-size:13px; }
+    main { width:min(1320px,100%); margin:auto; padding:28px 20px 80px; }
+    section { scroll-margin-top:150px; margin:0 0 48px; }
+    h2 { font-size:24px; margin:0 0 8px; }
+    .meta { color:var(--muted); margin-bottom:18px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+    .card { background:linear-gradient(145deg,#1d1d28,#16161e); border:1px solid var(--line); border-radius:15px; padding:14px; min-height:58px; }
+    .card b { color:#fff; }
+    .card small { color:var(--muted); display:block; margin-top:5px; }
+    .pair { display:flex; align-items:center; gap:8px; }
+    .pair span { flex:1; text-align:center; border-radius:9px; padding:8px 4px; background:#242430; }
+    .pair i { color:var(--hot); font-style:normal; }
+    .genre { margin:20px 0 28px; }
+    .genre h3 { color:#d8cbff; }
+    .quiz strong { color:#ffd06c; }
+    .answer { color:#8de5ba; }
+    .images { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+    .image-card { padding:0; overflow:hidden; }
+    .photo { height:190px; background:#101016; overflow:hidden; display:grid; place-items:center; position:relative; }
+    .photo img { width:100%; height:100%; object-fit:cover; transition:.35s transform; }
+    .zoomed img { transform:scale(3.2); }
+    .image-card.revealed .zoomed img { transform:scale(1); }
+    .photo .loading { color:var(--muted); padding:20px; text-align:center; }
+    .caption { padding:12px 14px; }
+    .caption a { color:#bba8ff; font-size:12px; }
+    .badge { display:inline-block; border-radius:999px; background:#3b2450; color:#f1d8ff; padding:4px 8px; font-size:11px; margin-left:6px; }
+    .warning { border:1px solid #72512d; background:#2a2117; color:#ffd99a; padding:14px; border-radius:12px; margin-bottom:18px; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>술게임 콘텐츠 카탈로그</h1>
+    <p>제시어를 검색하고, 사진 퀴즈 이미지를 검수하는 화면입니다.</p>
+    <input id="search" type="search" placeholder="예: 떡볶이, ㄷㅂ, 소개팅" />
+    <nav id="nav"></nav>
+  </header>
+  <main id="app"></main>
+  <script src="content-data.js"></script>
+  <script>
+    const d = window.GAME_CONTENT;
+    const app = document.querySelector('#app');
+    const nav = document.querySelector('#nav');
+    const sections = [];
+    const esc = value => String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    function addSection(title, note, html) {
+      const id = `s${sections.length+1}`;
+      sections.push({id,title});
+      app.insertAdjacentHTML('beforeend', `<section id="${id}"><h2>${sections.length}. ${esc(title)}</h2><div class="meta">${note}</div>${html}</section>`);
+    }
+    const cards = (items, render=x=>esc(x)) => `<div class="grid">${items.map((x,i)=>`<div class="card searchable" data-search="${esc(JSON.stringify(x))}">${render(x,i)}</div>`).join('')}</div>`;
+    addSection('오리지널 라이어게임', '10장르 × 장르별 30개 = 300개', Object.entries(d.liarOriginal).map(([genre,items])=>`<div class="genre"><h3>${genre} <span class="badge">${items.length}</span></h3>${cards(items)}</div>`).join(''));
+    addSection('바보 라이어게임', `${d.dumbLiar.length}쌍`, cards(d.dumbLiar, p=>`<div class="pair"><span>${esc(p[0])}</span><i>VS</i><span>${esc(p[1])}</span></div>`));
+    addSection('몸으로 말하는 라이어', `${d.bodyLiar.length}개`, cards(d.bodyLiar));
+    addSection('얼굴로 말하는 라이어', `${d.faceLiar.length}개`, cards(d.faceLiar));
+    addSection('초성퀴즈', '7장르 × 장르별 30문제 = 210문제', Object.entries(d.initialQuiz).map(([genre,items])=>`<div class="genre"><h3>${genre} <span class="badge">${items.length}</span></h3>${cards(items,q=>`<div class="quiz"><strong>${esc(q.initial)}</strong><small class="answer">${esc(q.answer)}</small></div>`)}</div>`).join(''));
+    addSection('무한 훈민정음', `${d.infiniteInitials.length}개 초성`, cards(d.infiniteInitials));
+    addSection('취향일치', `${d.tasteMatch.length}개`, cards(d.tasteMatch,p=>`<div class="pair"><span>${esc(p[0])}</span><i>VS</i><span>${esc(p[1])}</span></div>`));
+    addSection('중급 상식퀴즈', '중급 난이도 100문제', cards(d.triviaMedium,q=>`<b>${esc(q.question)}</b><small class="answer">정답: ${esc(q.answer)}</small>`));
+    addSection('가짜 추억 찾기', `${d.fakeMemoryWords.length}개 제시 단어`, cards(d.fakeMemoryWords));
+    addSection('색깔 찾기', '추가 조건 없이 색상만 제시', cards(d.colors));
+    addSection('초성 물건 찾기', '현대 한글 초성 전체', cards(d.objectInitials));
+    addSection('확대 사진 퀴즈', `${d.zoomObjects.length}장 후보 · 사진을 누르면 전체 모습 공개`, `<div class="warning">각 정답에 해당하는 정확한 백과 문서 또는 공개 사진을 고정했습니다. 앱 탑재 전 원문 페이지의 라이선스와 출처 표시 조건을 확인해야 합니다.</div><div id="zoom-images" class="grid images"></div>`);
+    addSection('범인은 질문을 모른다', `${d.unknownQuestion.length}문제`, cards(d.unknownQuestion));
+    addSection('텔레그레이션', `그림으로 표현하기 좋은 중급 단어 ${d.telestrationWords.length}개`, cards(d.telestrationWords));
+    addSection('인물퀴즈', `${d.peopleQuiz.length}명`, `<div class="warning">인물 사진의 초상·저작권은 사용처에 따라 별도 확인이 필요합니다. 카드는 원문 페이지로 연결됩니다.</div><div id="people-images" class="grid images"></div>`);
+    addSection('줄줄이 말해요', `일반 80개 + 어려움 20개 = ${d.chainPrompts.length}개`, cards(d.chainPrompts,(x,i)=>`${esc(x)}${i>=80?'<span class="badge">어려움</span>':''}`));
+    addSection('네 글자 이어말하기', `보통 160개 + 어려움 40개 = ${d.fourSyllable.length}개`, cards(d.fourSyllable,q=>`<div class="pair"><span>${esc(q.front)}</span><i>→</i><span>${esc(q.back)}</span></div><small>${esc(q.word)} · ${q.difficulty}</small>`));
+    addSection('이어말하기', `${d['이어말하기'].length}개 카테고리`, cards(d['이어말하기']));
+    addSection('캐릭터퀴즈', `${d.characters.length}개`, `<div class="warning">작품명과 캐릭터명이 일치하는 대표 이미지만 다시 선택했습니다. 캐릭터 이미지는 보호되는 저작물이므로 서비스 배포 전 권리자의 사용 허가가 필요합니다.</div><div id="character-images" class="grid images"></div>`);
+    addSection('단체 초성퀴즈', `${d.groupInitials.length}개`, cards(d.groupInitials));
+    addSection('비밀미션', `${d.secretMissions.length}개`, cards(d.secretMissions));
+    addSection('모션게임', '기존 20개 유지', cards(d.motions));
+    addSection('금지어', '기존 30개 유지', cards(d.forbiddenWords));
+    nav.innerHTML = sections.map(s=>`<a href="#${s.id}">${esc(s.title)}</a>`).join('');
+
+    const imageAliases = {
+      '공유':'공유 배우 공지철', '뉴턴':'아이작 뉴턴 초상화', '지수':'블랙핑크 지수',
+      '비':'가수 비 정지훈', '카리나':'에스파 카리나',
+      '칫솔모':'칫솔', '화장솜':'Cotton pad', '도어손잡이':'문 손잡이', '맹구':'맹구 짱구는 못말려',
+      '버즈라이트이어':'버즈 라이트이어', '크롱':'크롱 뽀로로', '고길동':'고길동 둘리',
+      '몽키디루피':'Monkey D. Luffy', '주디홉스':'Judy Hopps', '닉와일드':'Nick Wilde',
+      '쿵야':'쿵야 캐릭터', '카카오프렌즈라이언':'라이언 카카오프렌즈',
+      '춘식이':'춘식이 캐릭터', '잔망루피':'잔망 루피',
+      '철수':'김철수 짱구는 못말려', '훈이':'훈이 짱구는 못말려', '유리':'한유리 짱구는 못말려',
+      '진구':'노진구 도라에몽', '퉁퉁이':'만퉁퉁 도라에몽', '비실이':'왕비실 도라에몽',
+      '이슬이':'신이슬 도라에몽', '꼬부기':'꼬부기 포켓몬', '루이지':'루이지 슈퍼마리오',
+      '쿠파':'쿠파 슈퍼마리오', '소닉':'소닉 더 헤지혹', '스폰지밥':'네모바지 스폰지밥',
+      '티거':'티거 곰돌이 푸', '엘사':'엘사 겨울왕국', '안나':'안나 겨울왕국',
+      '올라프':'올라프 겨울왕국', '우디':'우디 토이스토리', '포':'포 쿵푸팬더',
+      '뽀로로':'뽀로로 캐릭터', '루피':'루피 뽀로로', '패티':'패티 뽀로로',
+      '둘리':'아기공룡 둘리', '나루토':'우즈마키 나루토', '코난':'에도가와 코난 명탐정 코난',
+      '세일러문':'세일러문 츠키노 우사기', '가필드':'가필드 고양이 캐릭터',
+      '톰':'톰과 제리 톰 고양이', '제리':'톰과 제리 제리 생쥐', '심바':'심바 라이온 킹',
+      '무파사':'무파사 라이온 킹', '티몬':'티몬 라이온 킹', '품바':'품바 라이온 킹',
+      '라푼젤':'라푼젤 디즈니 캐릭터', '백설공주':'백설공주 디즈니 캐릭터',
+      '신데렐라':'신데렐라 디즈니 캐릭터', '인어공주':'에리얼 인어공주 디즈니',
+      '피터팬':'피터팬 디즈니 캐릭터', '팅커벨':'팅커벨 디즈니 캐릭터',
+      '알라딘':'알라딘 디즈니 캐릭터', '지니':'지니 알라딘 디즈니',
+      '헤라클레스':'헤라클레스 디즈니 캐릭터', '베이맥스':'베이맥스 빅히어로',
+      '스티치':'스티치 릴로 앤 스티치', '모아나':'모아나 디즈니 캐릭터',
+      '미니언':'미니언즈 캐릭터', '그루':'그루 슈퍼배드 캐릭터',
+      '빨간모자':'빨간 모자 동화 캐릭터', '도로시':'도로시 오즈의 마법사',
+      '어피치':'어피치 카카오프렌즈', '프랑켄슈타인':'프랑켄슈타인 괴물 캐릭터',
+      '이상한나라의앨리스':'앨리스 이상한 나라의 앨리스 캐릭터'
+    };
+    Object.assign(imageAliases, {
+      '키보드':'computer keyboard close-up', '마우스':'computer mouse close-up',
+      '이어폰':'earphones close-up', '충전기':'phone charger close-up', '리모컨':'remote control close-up',
+      '칫솔':'toothbrush close-up', '면도기':'razor close-up', '지퍼':'zipper macro',
+      '단추':'clothing button macro', '운동화':'sneaker close-up', '슬리퍼':'slippers close-up',
+      '안경':'eyeglasses close-up', '손목시계':'wristwatch close-up', '동전':'coin macro',
+      '지폐':'banknote close-up', '카드':'credit card close-up', '병뚜껑':'bottle cap macro',
+      '빨대':'drinking straw close-up', '숟가락':'spoon close-up', '포크':'fork close-up',
+      '젓가락':'chopsticks close-up', '프라이팬':'frying pan close-up', '냄비':'cooking pot close-up',
+      '컵':'drinking cup close-up', '텀블러':'tumbler cup close-up', '휴지':'toilet paper close-up',
+      '수건':'towel fabric close-up', '베개':'pillow close-up', '스펀지':'cleaning sponge macro',
+      '칫솔모':'toothbrush bristles macro', '수박':'watermelon close-up', '딸기':'strawberry macro',
+      '바나나':'banana close-up', '키위':'kiwifruit cross section', '귤':'mandarin orange close-up',
+      '라면':'ramen noodles close-up', '김밥':'gimbap close-up', '치킨':'fried chicken close-up',
+      '피자':'pizza close-up', '햄버거':'hamburger close-up', '초밥':'sushi close-up',
+      '붕어빵':'bungeoppang close-up', '팝콘':'popcorn macro', '과자':'snack chips close-up',
+      '아이스크림':'ice cream close-up', '연필':'pencil tip macro', '지우개':'eraser close-up',
+      '볼펜':'ballpoint pen tip macro', '가위':'scissors close-up', '자물쇠':'padlock close-up',
+      '열쇠':'key close-up', '도어손잡이':'door handle close-up', '콘센트':'electrical outlet close-up',
+      '멀티탭':'power strip close-up', '빗':'hair comb close-up', '고데기':'hair straightener close-up',
+      '향수병':'perfume bottle close-up', '화장솜':'cotton pad close-up', '립스틱':'lipstick close-up',
+      '물티슈':'wet wipes close-up', '계란':'egg close-up', '파인애플':'pineapple skin macro',
+      '옥수수':'corn cob close-up', '브로콜리':'broccoli macro', '버섯':'mushroom close-up',
+      '마늘':'garlic close-up', '양파':'onion close-up', '토마토':'tomato close-up',
+      '호두':'walnut close-up', '땅콩':'peanut close-up', '쿠키':'cookie close-up',
+      '도넛':'doughnut close-up', '와플':'waffle close-up', '케이크':'cake close-up',
+      '사탕':'candy close-up'
+    });
+    const wikiPages = {
+      '공유':['ko','공유 (배우)'], '뉴턴':['ko','아이작 뉴턴'], '지수':['en','Jisoo'],
+      '비':['en','Rain (entertainer)'], '카리나':['ko','카리나 (가수)'],
+      '진구':['en','Nobita Nobi'], '퉁퉁이':['en','Takeshi Goda'], '비실이':['en','Suneo Honekawa'],
+      '이슬이':['en','Shizuka Minamoto'], '꼬부기':['en','Squirtle'], '루이지':['en','Luigi'],
+      '쿠파':['en','Bowser'], '소닉':['en','Sonic the Hedgehog'], '스폰지밥':['en','SpongeBob SquarePants'],
+      '티거':['en','Tigger'], '엘사':['en','Elsa (Frozen)'], '안나':['en','Anna (Frozen)'],
+      '올라프':['en','Olaf (Frozen)'], '우디':['en','Sheriff Woody'], '포':['en','Po (Kung Fu Panda)'],
+      '뽀로로':['en','Pororo'], '둘리':['en','Dooly the Little Dinosaur'], '나루토':['en','Naruto Uzumaki'],
+      '코난':['en','Conan Edogawa'], '세일러문':['en','Sailor Moon (character)'],
+      '가필드':['en','Garfield (character)'], '톰':['en','Tom Cat'], '제리':['en','Jerry Mouse'],
+      '심바':['en','Simba'], '무파사':['en','Mufasa'], '티몬':['en','Timon and Pumbaa'],
+      '품바':['en','Timon and Pumbaa'], '라푼젤':['en','Rapunzel (Tangled)'],
+      '백설공주':['en','Snow White (Disney character)'], '신데렐라':['en','Cinderella (Disney character)'],
+      '인어공주':['en','Ariel (The Little Mermaid)'], '피터팬':['en','Peter Pan (character)'],
+      '팅커벨':['en','Tinker Bell'], '알라딘':['en','Aladdin (Disney character)'],
+      '지니':['en','Genie (Disney)'], '헤라클레스':['en','Hercules (1997 film)'],
+      '베이맥스':['en','Baymax'], '스티치':['en','Stitch (Lilo & Stitch)'],
+      '모아나':['en','Moana (character)'], '주디홉스':['en','Judy Hopps'], '닉와일드':['en','Nick Wilde'],
+      '미니언':['en','Minions (Despicable Me)'], '그루':['en','Felonious Gru'],
+      '빨간모자':['en','Little Red Riding Hood'], '도로시':['en','Dorothy Gale'],
+      '프랑켄슈타인':['en',"Frankenstein's monster"], '이상한나라의앨리스':['en',"Alice (Alice's Adventures in Wonderland)"]
+    };
+    Object.assign(wikiPages, {
+      '파이리':['en','Charmander'], '뚱이':['en','Patrick Star'], '징징이':['en','Squidward Tentacles'],
+      '버즈라이트이어':['en','Buzz Lightyear'], '타요':['en','Tayo the Little Bus'],
+      '몽키디루피':['en','Monkey D. Luffy'], '손오공':['en','Goku'], '스누피':['en','Snoopy']
+    });
+    Object.assign(wikiPages, {
+      '키보드':['en','Computer keyboard'], '마우스':['en','Computer mouse'], '이어폰':['en','Headphones'],
+      '충전기':['en','Battery charger'], '리모컨':['en','Remote control'], '칫솔':['en','Toothbrush'],
+      '면도기':['en','Razor'], '지퍼':['en','Zipper'], '단추':['en','Button (clothing)'],
+      '운동화':['en','Sneakers'], '슬리퍼':['en','Slipper'], '안경':['en','Glasses'],
+      '손목시계':['en','Watch'], '동전':['en','Coin'], '지폐':['en','Banknote'],
+      '카드':['en','Payment card'], '병뚜껑':['en','Bottle cap'], '빨대':['en','Drinking straw'],
+      '숟가락':['en','Spoon'], '포크':['en','Fork'], '젓가락':['en','Chopsticks'],
+      '프라이팬':['en','Frying pan'], '냄비':['en','Cookware and bakeware'], '컵':['en','Cup'],
+      '텀블러':['en','Tumbler (glass)'], '휴지':['en','Toilet paper'], '수건':['en','Towel'],
+      '베개':['en','Pillow'], '스펀지':['en','Sponge (tool)'], '칫솔모':['en','Toothbrush'],
+      '수박':['en','Watermelon'], '딸기':['en','Strawberry'], '바나나':['en','Banana'],
+      '키위':['en','Kiwifruit'], '귤':['en','Mandarin orange'], '라면':['en','Instant noodles'],
+      '김밥':['en','Gimbap'], '치킨':['en','Korean fried chicken'], '피자':['en','Pizza'],
+      '햄버거':['en','Hamburger'], '초밥':['en','Sushi'], '붕어빵':['en','Bungeo-ppang'],
+      '팝콘':['en','Popcorn'], '과자':['en','Potato chip'], '아이스크림':['en','Ice cream'],
+      '연필':['en','Pencil'], '지우개':['en','Eraser'], '볼펜':['en','Ballpoint pen'],
+      '가위':['en','Scissors'], '자물쇠':['en','Padlock'], '열쇠':['en','Key (lock)'],
+      '도어손잡이':['en','Door handle'], '콘센트':['en','AC power plugs and sockets'],
+      '멀티탭':['en','Power strip'], '빗':['en','Comb'], '고데기':['en','Hair iron'],
+      '향수병':['en','Perfume'], '화장솜':['en','Cotton pad'], '립스틱':['en','Lipstick'],
+      '물티슈':['en','Wet wipe'], '계란':['en','Egg as food'], '파인애플':['en','Pineapple'],
+      '옥수수':['en','Maize'], '브로콜리':['en','Broccoli'], '버섯':['en','Edible mushroom'],
+      '마늘':['en','Garlic'], '양파':['en','Onion'], '토마토':['en','Tomato'],
+      '호두':['en','Walnut'], '땅콩':['en','Peanut'], '쿠키':['en','Cookie'],
+      '도넛':['en','Doughnut'], '와플':['en','Waffle'], '케이크':['en','Cake'], '사탕':['en','Candy']
+    });
+    const noAutoImage = new Set(['철수','유리','훈이','루피','패티','어피치']);
+    const fixedImages = {
+      '향수병': {
+        src:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Perfume%20Bottle.jpg?width=500',
+        source:'https://commons.wikimedia.org/wiki/File:Perfume_Bottle.jpg'
+      },
+      '철수':{src:'https://static.wikia.nocookie.net/crayonshinchan/images/d/d1/Kazama.png/revision/latest/scale-to-width-down/302?cb=20200811030303',source:'https://crayonshinchan.fandom.com/wiki/Toru_Kazama'},
+      '유리':{src:'https://static.wikia.nocookie.net/crayonshinchan/images/4/40/Pennt.png/revision/latest/scale-to-width-down/408?cb=20200811055030',source:'https://crayonshinchan.fandom.com/wiki/Nene_Sakurada'},
+      '훈이':{src:'https://static.wikia.nocookie.net/crayonshinchan/images/e/ec/Masao.png/revision/latest/scale-to-width-down/406?cb=20200811111456',source:'https://crayonshinchan.fandom.com/wiki/Masao_Sato'},
+      '퉁퉁이':{src:'https://static.wikia.nocookie.net/doraemon/images/4/45/Jaian_2005_ID.png/revision/latest/scale-to-width-down/500?cb=20181215062535&path-prefix=en',source:'https://doraemon.fandom.com/wiki/Takeshi_Gouda'},
+      '비실이':{src:'https://static.wikia.nocookie.net/doraemon/images/7/77/Suneo_2005_anime_ID.png/revision/latest/scale-to-width-down/500?cb=20191226041540&path-prefix=en',source:'https://doraemon.fandom.com/wiki/Suneo_Honekawa'},
+      '이슬이':{src:'https://static.wikia.nocookie.net/doraemon/images/7/71/C0E297DC-08AE-43E6-841D-41E95B2FC8D0.jpeg/revision/latest/scale-to-width-down/500?cb=20181218213552&path-prefix=en',source:'https://doraemon.fandom.com/wiki/Shizuka_Minamoto'},
+      '루이지':{src:'https://mario.wiki.gallery/images/thumb/7/76/SMPJ_Luigi.png/291px-SMPJ_Luigi.png',source:'https://www.mariowiki.com/Luigi'},
+      '징징이':{src:'https://static.wikia.nocookie.net/spongebob/images/4/49/Squidward_unhappy_stock_art.png/revision/latest/scale-to-width-down/500?cb=20251102234328',source:'https://spongebob.fandom.com/wiki/Squidward_Tentacles'},
+      '안나':{src:'https://static.wikia.nocookie.net/frozen/images/1/1c/Anna_-_Queen_Anna.png/revision/latest?cb=20200413131450',source:'https://frozen.fandom.com/wiki/Anna'},
+      '루피':{src:'https://static.wikia.nocookie.net/pororo/images/e/e0/LoopyCurrentOutfit.jpg/revision/latest/scale-to-width-down/322?cb=20240921185312',source:'https://pororo.fandom.com/wiki/Loopy'},
+      '패티':{src:'https://static.wikia.nocookie.net/pororo/images/1/16/PettyCurrentOutfit.jpg/revision/latest/scale-to-width-down/438?cb=20220224155611',source:'https://pororo.fandom.com/wiki/Petty'},
+      '둘리':{src:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Kim_Soojung_Dooly_Museum_06_%2819141838026%29.jpg/500px-Kim_Soojung_Dooly_Museum_06_%2819141838026%29.jpg',source:'https://commons.wikimedia.org/wiki/File:Kim_Soojung_Dooly_Museum_06_(19141838026).jpg'},
+      '주디홉스':{src:'https://static.wikia.nocookie.net/disney/images/d/da/Profile_-_Judy_Hopps.jpeg/revision/latest/scale-to-width-down/375?cb=20260427193834',source:'https://disney.fandom.com/wiki/Judy_Hopps'},
+      '닉와일드':{src:'https://static.wikia.nocookie.net/disney/images/5/50/Profile_-_Nick_Wilde.jpeg/revision/latest/scale-to-width-down/334?cb=20260427193945',source:'https://disney.fandom.com/wiki/Nick_Wilde'},
+      '어피치':{src:'https://static.wikia.nocookie.net/kakaofriends/images/f/f3/Apeach.png/revision/latest/scale-to-width-down/500?cb=20240626130334',source:'https://kakaofriends.fandom.com/wiki/Apeach'}
+    };
+    Object.assign(fixedImages, {
+      '피터팬':{src:'https://static.wikia.nocookie.net/disney/images/8/85/1085519-peter_pan_782_super.jpg/revision/latest/scale-to-width-down/214?cb=20150917033958',source:'https://disney.fandom.com/wiki/Peter_Pan'},
+      '팅커벨':{src:'https://static.wikia.nocookie.net/disney/images/7/76/Profile_-_Tinker_Bell.jpeg/revision/latest/scale-to-width-down/369?cb=20260521224537',source:'https://disney.fandom.com/wiki/Tinker_Bell'},
+      '티몬':{src:'https://static.wikia.nocookie.net/disney/images/4/45/Profile_-_Timon.jpeg/revision/latest/scale-to-width-down/500?cb=20250211134324',source:'https://disney.fandom.com/wiki/Timon'},
+      '품바':{src:'https://static.wikia.nocookie.net/disney/images/e/e6/Profile_-_Pumbaa.jpeg/revision/latest/scale-to-width-down/500?cb=20190312043302',source:'https://disney.fandom.com/wiki/Pumbaa'},
+      '셜록홈즈':{src:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Portrait_of_Sherlock_Holmes_by_Sidney_Paget.jpg/500px-Portrait_of_Sherlock_Holmes_by_Sidney_Paget.jpg',source:'https://commons.wikimedia.org/wiki/File:Portrait_of_Sherlock_Holmes_by_Sidney_Paget.jpg'},
+      '피노키오':{src:'https://static.wikia.nocookie.net/disney/images/8/85/595152-pinocchio2_large.jpg/revision/latest?cb=20120408232314',source:'https://disney.fandom.com/wiki/Pinocchio'},
+      '뽀로로':{src:'https://static.wikia.nocookie.net/pororo/images/2/26/PororoCurrentOutfit.jpg/revision/latest/scale-to-width-down/414?cb=20220224154302',source:'https://pororo.fandom.com/wiki/Pororo'},
+      '헬로키티':{src:'https://static.wikia.nocookie.net/hellokitty/images/5/52/Sanrio_Characters_Hello_Kitty_Image026.png/revision/latest/scale-to-width-down/432?cb=20250110105831',source:'https://hellokitty.fandom.com/wiki/Hello_Kitty'},
+      '토토로':{src:'https://static.wikia.nocookie.net/studio-ghibli/images/d/df/Totoro_in_the_rain.png/revision/latest/scale-to-width-down/351?cb=20200831205004',source:'https://ghibli.fandom.com/wiki/Totoro'},
+      '곰돌이푸':{src:'https://static.wikia.nocookie.net/disney/images/0/03/Profile_-_Winnie_the_Pooh.png/revision/latest/scale-to-width-down/500?cb=20250323022729',source:'https://disney.fandom.com/wiki/Winnie_the_Pooh'},
+      '피글렛':{src:'https://static.wikia.nocookie.net/disney/images/5/5d/Profile_-_Piglet.png/revision/latest/scale-to-width-down/500?cb=20190424074931',source:'https://disney.fandom.com/wiki/Piglet'},
+      '소닉':{src:'https://static.wikia.nocookie.net/sonic/images/1/10/SRCSonic.png/revision/latest/scale-to-width-down/354?cb=20251202132714',source:'https://sonic.fandom.com/wiki/Sonic_the_Hedgehog'},
+      '스폰지밥':{src:'https://static.wikia.nocookie.net/spongebob/images/6/6b/Spongebob_happy_stock_art_1.octet-stream.png/revision/latest/scale-to-width-down/500?cb=20260401183834',source:'https://spongebob.fandom.com/wiki/SpongeBob_SquarePants_(character)'},
+      '뽀빠이':{src:'https://static.wikia.nocookie.net/popeye/images/1/18/Popeye13.jpg/revision/latest?cb=20120816200338',source:'https://popeye.fandom.com/wiki/Popeye'}
+    });
+    Object.assign(fixedImages, {
+      '도로시':{src:'https://static.wikia.nocookie.net/ozwikia/images/1/1d/834-8349054_wizard-of-oz-over-the-rainbow-mens-heather.png/revision/latest/scale-to-width-down/391?cb=20250404163132',source:'https://oz.fandom.com/wiki/Dorothy_Gale_(MGM)'},
+      '프랑켄슈타인':{src:'https://static.wikia.nocookie.net/universalmonsters/images/a/a7/Frankenstein%27s_monster_%28Boris_Karloff%29.jpg/revision/latest?cb=20111016185451',source:'https://universalmonsters.fandom.com/wiki/File:Frankenstein%27s_monster_(Boris_Karloff).jpg'},
+      '이상한나라의앨리스':{src:'https://static.wikia.nocookie.net/disney/images/7/75/Profile_-_Alice.jpeg/revision/latest/scale-to-width-down/430?cb=20250104014515',source:'https://disney.fandom.com/wiki/Alice'}
+    });
+    Object.assign(fixedImages, {
+      '티거':{src:'https://static.wikia.nocookie.net/disney/images/6/60/Profile_-_Tigger.png/revision/latest/scale-to-width-down/377?cb=20230430081828',source:'https://disney.fandom.com/wiki/Tigger'},
+      '타요':{src:'https://static.wikia.nocookie.net/tayothelittlebus/images/d/d7/Tayo_clear.png/revision/latest/scale-to-width-down/500?cb=20230126015306',source:'https://tayothelittlebus.fandom.com/wiki/Tayo'},
+      '둘리':{src:'https://lh3.googleusercontent.com/Xadnh8P8oQjC_yISu6Bz2YDiZSIeVSJ4G1I1NdW-yhT0u7ydm3ZlAkNJpT8CeCqtfhTOIOFO4YjLALIh4nsHIjh90jfiMbG6DBWfbdwq=s660',source:'https://doodles.google/doodle/dooly-the-little-dinosaurs-birthday/'},
+      '빨간모자':{src:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Little_Red_Riding_Hood_Otto_Kubel.jpg/500px-Little_Red_Riding_Hood_Otto_Kubel.jpg',source:'https://commons.wikimedia.org/wiki/File:Little_Red_Riding_Hood_Otto_Kubel.jpg'},
+      '루미':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/3/31/Rumi_Portrait.png/revision/latest/scale-to-width-down/375?cb=20250725045033',source:'https://kpop-demon-hunters.fandom.com/wiki/Rumi'},
+      '미라':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/9/90/Mira_Portrait.png/revision/latest/scale-to-width-down/375?cb=20250725045110',source:'https://kpop-demon-hunters.fandom.com/wiki/Mira'},
+      '조이':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/9/98/Zoey_Portrait.png/revision/latest/scale-to-width-down/375?cb=20250725045053',source:'https://kpop-demon-hunters.fandom.com/wiki/Zoey'},
+      '진우':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/f/f6/Jinu_Headshot_Wendell.jpg/revision/latest/scale-to-width-down/395?cb=20260409003106',source:'https://kpop-demon-hunters.fandom.com/wiki/Jinu'},
+      '더피타이거':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/7/73/Derpy_Portrait_temp.png/revision/latest/scale-to-width-down/500?cb=20251013232446',source:'https://kpop-demon-hunters.fandom.com/wiki/Derpy_and_Sussie'},
+      '서씨':{src:'https://static.wikia.nocookie.net/kpop-demon-hunters/images/5/5c/Sussie_Portrait_temp.png/revision/latest?cb=20251013231808',source:'https://kpop-demon-hunters.fandom.com/wiki/Derpy_and_Sussie'},
+      '치이카와':{src:'https://static.wikia.nocookie.net/chiikawa/images/2/2c/AdorableCutieChiikawa.png/revision/latest?cb=20240709065538',source:'https://chiikawa.fandom.com/wiki/Chiikawa'},
+      '하치와레':{src:'https://static.wikia.nocookie.net/chiikawa/images/6/61/SweetBabyHachiware2.png/revision/latest?cb=20260214172321',source:'https://chiikawa.fandom.com/wiki/Hachiware'},
+      '우사기':{src:'https://static.wikia.nocookie.net/chiikawa/images/4/43/YahaUsagi.png/revision/latest?cb=20240709065537',source:'https://chiikawa.fandom.com/wiki/Usagi'},
+      '모몽가':{src:'https://static.wikia.nocookie.net/chiikawa/images/a/a0/Momonga.png/revision/latest?cb=20240921205329',source:'https://chiikawa.fandom.com/wiki/Momonga'},
+      '쿠리만쥬':{src:'https://static.wikia.nocookie.net/chiikawa/images/9/93/TastyKurimanju.png/revision/latest?cb=20240709071623',source:'https://chiikawa.fandom.com/wiki/Kuri-Manj%C5%AB'},
+      '랏코':{src:'https://static.wikia.nocookie.net/chiikawa/images/6/63/FightOnRakko.png/revision/latest?cb=20240709071629',source:'https://chiikawa.fandom.com/wiki/Rakko'},
+      '시사':{src:'https://static.wikia.nocookie.net/chiikawa/images/1/12/RamenPleaseShisa.png/revision/latest?cb=20240709071629',source:'https://chiikawa.fandom.com/wiki/Shisa'},
+      '폼폼푸린':{src:'https://static.wikia.nocookie.net/hellokitty/images/3/30/Sanrio_Characters_Pompompurin_Image006.png/revision/latest?cb=20170401200050',source:'https://hellokitty.fandom.com/wiki/Pompompurin'},
+      '시나모롤':{src:'https://static.wikia.nocookie.net/hellokitty/images/a/a5/Mv-cinnamon.png/revision/latest/scale-to-width-down/500?cb=20250930161135',source:'https://hellokitty.fandom.com/wiki/Cinnamoroll'},
+      '포차코':{src:'https://static.wikia.nocookie.net/hellokitty/images/f/f4/List-Pochacco.png/revision/latest/scale-to-width-down/500?cb=20251005042623',source:'https://hellokitty.fandom.com/wiki/Pochacco'},
+      '쿠로미':{src:'https://static.wikia.nocookie.net/hellokitty/images/6/6d/List-kuromi.png/revision/latest/scale-to-width-down/500?cb=20250922232527',source:'https://hellokitty.fandom.com/wiki/Kuromi'},
+      '마이멜로디':{src:'https://static.wikia.nocookie.net/hellokitty/images/2/23/Sanrio_Characters_My_Melody_Image030.png/revision/latest?cb=20170407005355',source:'https://hellokitty.fandom.com/wiki/My_Melody'},
+      '키키와라라':{src:'https://static.wikia.nocookie.net/hellokitty/images/c/c6/Sanrio_Characters_Little_Twin_Stars_Image078.png/revision/latest?cb=20170522025859',source:'https://hellokitty.fandom.com/wiki/Little_Twin_Stars'},
+      '한교동':{src:'https://static.wikia.nocookie.net/hellokitty/images/d/d9/Sanrio_Characters_Hangyodon_Image004.png/revision/latest?cb=20170403193609',source:'https://hellokitty.fandom.com/wiki/Hangyodon'},
+      '턱시도샘':{src:'https://static.wikia.nocookie.net/hellokitty/images/3/3c/List-Tuxedo.png/revision/latest/scale-to-width-down/500?cb=20251004154625',source:'https://hellokitty.fandom.com/wiki/Tuxedo_Sam'},
+      '바츠마루':{src:'https://static.wikia.nocookie.net/hellokitty/images/b/b1/List-badtzmaru-1.png/revision/latest/scale-to-width-down/500?cb=20250927221332',source:'https://hellokitty.fandom.com/wiki/Bad_Badtz-Maru'},
+      '케로피':{src:'https://static.wikia.nocookie.net/hellokitty/images/c/c4/List-kerokerokeroppi.png/revision/latest/scale-to-width-down/461?cb=20251102192805',source:'https://hellokitty.fandom.com/wiki/Kerokerokeroppi'},
+      '구데타마':{src:'https://static.wikia.nocookie.net/hellokitty/images/b/b5/Sanrio_Characters_Gudetama_Image005.png/revision/latest?cb=20170403223437',source:'https://hellokitty.fandom.com/wiki/Gudetama'},
+      '불안이':{src:'https://static.wikia.nocookie.net/pixar/images/2/20/Anxiety.jpg/revision/latest/scale-to-width-down/466?cb=20250717042014',source:'https://pixar.fandom.com/wiki/Anxiety'},
+      '부럽이':{src:'https://static.wikia.nocookie.net/pixar/images/6/65/Profile_-_Envy.jpg/revision/latest/scale-to-width-down/448?cb=20250716212211',source:'https://pixar.fandom.com/wiki/Envy'},
+      '따분이':{src:'https://static.wikia.nocookie.net/pixar/images/e/e4/Ennui_Full_Design.jpg/revision/latest/scale-to-width-down/500?cb=20240309030825',source:'https://pixar.fandom.com/wiki/Ennui'},
+      '당황이':{src:'https://static.wikia.nocookie.net/pixar/images/d/dc/Profile_-_Embarrassment.jpg/revision/latest/scale-to-width-down/500?cb=20250716212345',source:'https://pixar.fandom.com/wiki/Embarrassment'},
+      '블루이':{src:'https://static.wikia.nocookie.net/blueypedia/images/3/3e/Bluey-Celebrating.png/revision/latest/scale-to-width-down/342?cb=20260320043302',source:'https://blueypedia.fandom.com/wiki/Bluey_Heeler'},
+      '빙고':{src:'https://static.wikia.nocookie.net/blueypedia/images/2/27/Bingo_Website.png/revision/latest/scale-to-width-down/320?cb=20260407030649',source:'https://blueypedia.fandom.com/wiki/Bingo_Heeler'}
+    });
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    async function getJson(url, retries=2) {
+      for (let attempt=0; attempt<=retries; attempt++) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) return await response.json();
+        } catch {}
+        if (attempt < retries) await delay(350 * (attempt + 1));
+      }
+      return null;
+    }
+    async function commonsImage(query) {
+      query = imageAliases[query] || query;
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=420&format=json&origin=*`;
+      const json = await getJson(url);
+      const page = json.query?.pages ? Object.values(json.query.pages)[0] : null;
+      const info = page?.imageinfo?.[0];
+      return info ? {src:info.thumburl||info.url, source:info.descriptionurl||`https://commons.wikimedia.org/?curid=${page.pageid}`} : null;
+    }
+    async function wikiImage(name) {
+      if (fixedImages[name]) return fixedImages[name];
+      if (noAutoImage.has(name)) return null;
+      const fixed = wikiPages[name];
+      const query = fixed?.[1] || imageAliases[name] || name;
+      const lang = fixed?.[0] || 'ko';
+      try {
+        const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+        const json = await getJson(url, 1);
+        if (json?.thumbnail?.source) return {src:json.thumbnail.source,source:json.content_urls?.desktop?.page||url};
+      } catch {}
+      if (fixed) return null;
+      return commonsImage(query);
+    }
+    function imageCard(name, index, zoom=false, mode='wiki') {
+      return `<article class="card image-card searchable" data-search="${esc(name)}" data-name="${esc(name)}" data-zoom="${zoom}"><div class="photo ${zoom?'zoomed':''}"><span class="loading">${index+1}. ${esc(name)}<br>사진 불러오는 중…</span></div><div class="caption"><b>${esc(name)}</b><br><a class="source" hidden target="_blank" rel="noreferrer">이미지 원문·사용조건</a></div></article>`;
+    }
+    async function loadGallery(id, names, mode, zoom=false) {
+      const root = document.querySelector(id);
+      root.innerHTML = names.map((n,i)=>imageCard(n,i,zoom,mode)).join('');
+      const cards = [...root.querySelectorAll('.image-card')];
+      let cursor=0;
+      async function worker(){
+        while(cursor<cards.length){
+          const card=cards[cursor++], name=card.dataset.name;
+          try {
+            const result = mode==='wiki' ? await wikiImage(name) : await commonsImage(name);
+            const photo=card.querySelector('.photo');
+            if(result){
+              photo.innerHTML=`<img alt="${esc(name)}" loading="lazy" src="${esc(result.src)}">`;
+              const a=card.querySelector('a.source'); a.href=result.source; a.hidden=false;
+            } else photo.innerHTML='<span class="loading">정확한 공개 사진 미확보</span>';
+          } catch { card.querySelector('.photo').innerHTML='<span class="loading">사진 불러오기 실패</span>'; }
+        }
+      }
+      await Promise.all([worker(),worker(),worker(),worker()]);
+      if(zoom) cards.forEach(card=>card.addEventListener('click',()=>card.classList.toggle('revealed')));
+    }
+    document.querySelector('#search').addEventListener('input',e=>{
+      const q=e.target.value.trim().toLowerCase();
+      document.querySelectorAll('.searchable').forEach(el=>el.classList.toggle('hidden',q&&!el.dataset.search.toLowerCase().includes(q)));
+    });
+    loadGallery('#zoom-images',d.zoomObjects,'wiki',true);
+    loadGallery('#people-images',d.peopleQuiz,'wiki');
+    loadGallery('#character-images',d.characters,'wiki');
+  </script>
+</body>
+</html>

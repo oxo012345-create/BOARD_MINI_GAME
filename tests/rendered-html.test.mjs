@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+async function withDevServer(run) {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const cli = fileURLToPath(new URL("../node_modules/vinext/dist/cli.js", import.meta.url));
+  const port = 4300 + Math.floor(Math.random() * 400);
+  const child = spawn(process.execPath, [cli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+    cwd: root,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const baseUrl = `http://127.0.0.1:${port}`;
+  try {
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) throw new Error(`vinext dev exited early:\n${output}`);
+      try {
+        const response = await fetch(baseUrl);
+        if (response.ok) return await run(baseUrl, response);
+      } catch { /* server is still starting */ }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    throw new Error(`vinext dev did not become ready:\n${output}`);
+  } finally {
+    child.kill("SIGTERM");
+  }
+}
+
+test("server-renders the Hanpan mobile app shell", async () => {
+  await withDevServer(async (baseUrl, response) => {
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+    const html = await response.text();
+    assert.match(html, /<title>한판 — 같이 노는 술게임<\/title>/);
+    assert.match(html, /한판/);
+    assert.match(html, /새 방 만들기/);
+    assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
+
+    const roomResponse = await fetch(`${baseUrl}/api/rooms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player: { id: "test-host", name: "테스터", avatar: "😎" } }),
+    });
+    assert.equal(roomResponse.status, 201);
+    const body = await roomResponse.json();
+    assert.match(body.room.code, /^\d{4}$/);
+    assert.equal(body.room.players[0].name, "테스터");
+  });
+});
+
+test("keeps the requested game set and removes excluded modes", async () => {
+  const [page, layout, hosting] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+  ]);
+  for (const required of ["오리지널 라이어", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기"]) {
+    assert.match(page, new RegExp(required));
+  }
+  for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼"]) {
+    assert.doesNotMatch(page, new RegExp(removed));
+  }
+  assert.match(layout, /lang="ko"/);
+  const hostingConfig = JSON.parse(hosting);
+  assert.match(hostingConfig.project_id, /^appgprj_/);
+  assert.equal(hostingConfig.d1, "DB");
+  assert.equal(hostingConfig.r2, null);
+});
