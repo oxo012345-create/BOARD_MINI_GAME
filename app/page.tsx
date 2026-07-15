@@ -95,7 +95,7 @@ function getList<T>(data: GameContent, key: string, fallback: T[]): T[] {
 }
 
 function makeModifier(data: GameContent, players: Player[]): Modifier | undefined {
-  if (Math.random() > 0.42) return undefined;
+  if (players.length < 2 || Math.random() > 0.42) return undefined;
   const type = pick(["동물의 왕국", "비밀미션", "모션게임", "금지어", "웃음 참기", "용용체", "이응 게임"]);
   if (type === "비밀미션") {
     return { title: "나만의 비밀미션", text: pick(getList(data, "secretMissions", ["누군가에게 칭찬받기"])), targetId: pick(players).id };
@@ -113,7 +113,8 @@ function makeModifier(data: GameContent, players: Player[]): Modifier | undefine
 
 function makeRound(meta: GameMeta, data: GameContent, players: Player[]): GameRound {
   const base: GameRound = { id: meta.id, title: meta.title, prompt: "준비!", startedAt: Date.now() };
-  const liar = players.length ? pick(players) : undefined;
+  const selectedPlayer = players.length ? pick(players) : undefined;
+  const liar = players.length > 1 ? selectedPlayer : undefined;
   if (["liar", "body-liar", "face-liar"].includes(meta.id)) {
     const source = meta.id === "liar"
       ? (() => { const groups = data.liarOriginal as Record<string, string[]> | undefined; const category = groups ? pick(Object.keys(groups)) : "음식"; return { word: pick(groups?.[category] ?? ["떡볶이"]), category }; })()
@@ -140,7 +141,7 @@ function makeRound(meta: GameMeta, data: GameContent, players: Player[]): GameRo
     return { ...base, prompt: item.question, answer: item.answer, modifier: makeModifier(data, players) };
   }
   if (meta.id === "memory") {
-    return { ...base, prompt: "진짜 세 개, 가짜 하나", storytellerId: liar?.id, memoryWord: pick(getList(data, "fakeMemoryWords", ["수학여행"])), memoryReady: false, modifier: makeModifier(data, players) };
+    return { ...base, prompt: "진짜 세 개, 가짜 하나", storytellerId: selectedPlayer?.id, memoryWord: pick(getList(data, "fakeMemoryWords", ["수학여행"])), memoryReady: false, modifier: makeModifier(data, players) };
   }
   if (meta.id === "ten-seconds") return { ...base, prompt: "감으로 정확히 10초를 맞혀보세요", answer: "10.00초", modifier: makeModifier(data, players) };
   if (meta.id === "color") return { ...base, prompt: pick(getList(data, "colors", ["파랑"])), modifier: makeModifier(data, players) };
@@ -409,7 +410,7 @@ export default function Home() {
           <div className="section-heading"><h2>참가자</h2><span>{room.players.length}명</span></div>
           <div className="player-list">{room.players.map((player) => <div className="player-row" key={player.id}><span className="player-avatar">{player.avatar}</span><span>{player.name}</span>{player.id === room.hostId && <span className="host-badge">방장</span>}{player.id === playerId && <span className="me-label">나</span>}</div>)}</div>
         </section>
-        <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={room.players.length < 2} onClick={() => void updateRoom({ ...room, view: "hub" })}>{room.players.length < 2 ? "한 명만 더 기다려요" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>
+        <div className="sticky-action">{isHost ? <button className="button primary xl" onClick={() => void updateRoom({ ...room, view: "hub" })}>{room.players.length === 1 ? "혼자 시작하기" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
     );
@@ -434,7 +435,7 @@ export default function Home() {
     return (
       <main className="app-shell result-shell">
         <TopBar title="결과" onLeave={() => void leaveRoom()} />
-        <section className="result-card"><div className="result-mark">✓</div><div className="eyebrow">이번 판 끝</div><h1>{currentGame.title}</h1>{currentGame.answer && <div className="answer-block"><span>정답</span><strong>{currentGame.answer}</strong></div>}{liarName && <div className="answer-block danger"><span>{currentGame.id === "unknown" ? "범인" : "라이어"}</span><strong>{liarName}</strong></div>}{currentGame.id === "memory" && <p>가짜 추억을 만든 사람은 <strong>{room.players.find((p) => p.id === currentGame.storytellerId)?.name}</strong>이었어요.</p>}<p className="manual-result">누가 걸렸는지는 우리끼리 판정!</p></section>
+        <section className="result-card"><div className="result-mark">✓</div><div className="eyebrow">이번 판 끝</div><h1>{currentGame.title}</h1>{currentGame.answer && <div className="answer-block"><span>정답</span><strong>{currentGame.answer}</strong></div>}{liarName && <div className="answer-block danger"><span>{currentGame.id === "unknown" ? "범인" : "라이어"}</span><strong>{liarName}</strong></div>}{currentGame.id === "memory" && <p>가짜 추억을 만든 사람은 <strong>{room.players.find((p) => p.id === currentGame.storytellerId)?.name}</strong>이었어요.</p>}<p className="manual-result">{room.players.length === 1 ? "혼자 연습한 이번 판도 바로 완료!" : "누가 걸렸는지는 우리끼리 판정!"}</p></section>
         <div className="result-actions">{isHost ? <><button className="button primary xl" onClick={() => gameMeta && startGame(gameMeta)}>같은 게임 다시하기</button><button className="button secondary xl" onClick={() => void updateRoom({ ...room, view: "hub", game: undefined })}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>

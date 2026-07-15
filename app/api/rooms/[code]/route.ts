@@ -1,4 +1,4 @@
-import { readRoom, writeRoom, type Player, type RoomState } from "../../_lib/rooms";
+import { deleteRoom, readRoom, writeRoom, type Player, type RoomState } from "../../_lib/rooms";
 
 function normalizeCode(code: string) {
   return code.replace(/\D/g, "").slice(0, 4);
@@ -84,7 +84,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "leave") {
       room.players = room.players.filter((item) => item.id !== payload.playerId);
-      if (room.players.length === 0) return Response.json({ room: null });
+      if (room.players.length === 0) {
+        await deleteRoom(room.code);
+        return Response.json({ room: null });
+      }
       if (room.hostId === payload.playerId) room.hostId = room.players[0].id;
       await writeRoom(room);
       return Response.json({ room });

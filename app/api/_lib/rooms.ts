@@ -62,6 +62,15 @@ export async function writeRoom(state: RoomState) {
   return Number(result.meta.changes ?? 0) === 1;
 }
 
+export async function deleteRoom(code: string) {
+  await ensureRoomsTable();
+  const result = await getD1()
+    .prepare("DELETE FROM rooms WHERE code = ?")
+    .bind(code)
+    .run();
+  return Number(result.meta.changes ?? 0) === 1;
+}
+
 export async function removeExpiredRooms() {
   await ensureRoomsTable();
   await getD1()

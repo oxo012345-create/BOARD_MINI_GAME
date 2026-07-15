@@ -52,6 +52,50 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const body = await roomResponse.json();
     assert.match(body.room.code, /^\d{4}$/);
     assert.equal(body.room.players[0].name, "테스터");
+
+    const soloStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set-state", playerId: "test-host", state: { ...body.room, view: "hub" } }),
+    });
+    assert.equal(soloStartResponse.status, 200);
+    const soloStartBody = await soloStartResponse.json();
+    assert.equal(soloStartBody.room.players.length, 1);
+    assert.equal(soloStartBody.room.view, "hub");
+
+    const soloGameState = {
+      ...soloStartBody.room,
+      view: "game",
+      roundNumber: 1,
+      game: { id: "trivia", title: "중급 상식 퀴즈", prompt: "호주의 수도는?", answer: "캔버라", startedAt: Date.now() },
+    };
+    const soloGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set-state", playerId: "test-host", state: soloGameState }),
+    });
+    assert.equal(soloGameResponse.status, 200);
+    const soloGameBody = await soloGameResponse.json();
+    assert.equal(soloGameBody.room.view, "game");
+    assert.equal(soloGameBody.room.roundNumber, 1);
+
+    const soloResultResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set-state", playerId: "test-host", state: { ...soloGameBody.room, view: "result" } }),
+    });
+    assert.equal(soloResultResponse.status, 200);
+    const soloResultBody = await soloResultResponse.json();
+    assert.equal(soloResultBody.room.view, "result");
+
+    const leaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "leave", playerId: "test-host" }),
+    });
+    assert.equal(leaveResponse.status, 200);
+    assert.equal((await leaveResponse.json()).room, null);
+    assert.equal((await fetch(`${baseUrl}/api/rooms/${body.room.code}`)).status, 404);
   });
 });
 
@@ -67,6 +111,9 @@ test("keeps the requested game set and removes excluded modes", async () => {
   for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼"]) {
     assert.doesNotMatch(page, new RegExp(removed));
   }
+  assert.match(page, /혼자 시작하기/);
+  assert.doesNotMatch(page, /한 명만 더 기다려요|room\.players\.length < 2/);
+  assert.match(page, /players\.length > 1 \? selectedPlayer : undefined/);
   assert.match(layout, /lang="ko"/);
   const hostingConfig = JSON.parse(hosting);
   assert.match(hostingConfig.project_id, /^appgprj_/);
