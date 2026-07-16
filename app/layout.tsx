@@ -37,7 +37,6 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#0d0f12" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <script src="/content-data.js" defer />
       </head>
       <body>{children}</body>
     </html>

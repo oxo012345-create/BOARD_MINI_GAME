@@ -1,20 +1,24 @@
-import { createRoom, removeExpiredRooms, type Player, type RoomState } from "../_lib/rooms";
+import { checkRateLimit, createRoom, removeExpiredRooms, toClientRoom, type Player, type RoomState } from "../_lib/rooms";
+import { createSession, sessionCookie } from "../_lib/session";
 
-function cleanPlayer(value: unknown): Player | null {
+function cleanProfile(value: unknown): Pick<Player, "name" | "avatar"> | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Partial<Player>;
-  const id = String(raw.id ?? "").slice(0, 80);
   const name = String(raw.name ?? "").trim().slice(0, 10);
   const avatar = String(raw.avatar ?? "🙂").slice(0, 4);
-  if (!id || !name) return null;
-  return { id, name, avatar, joinedAt: Date.now() };
+  if (!name) return null;
+  return { name, avatar };
 }
 
 export async function POST(request: Request) {
   try {
+    const rate = await checkRateLimit(request, "create", 8, 60);
+    if (!rate.allowed) return Response.json({ error: "방을 너무 많이 만들었어요. 잠시 후 다시 시도해 주세요." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
     const payload = (await request.json()) as { player?: unknown };
-    const player = cleanPlayer(payload.player);
-    if (!player) return Response.json({ error: "이름을 입력해 주세요." }, { status: 400 });
+    const profile = cleanProfile(payload.player);
+    if (!profile) return Response.json({ error: "이름을 입력해 주세요." }, { status: 400 });
+    const session = await createSession();
+    const player: Player = { ...profile, id: session.playerId, sessionHash: session.tokenHash, joinedAt: Date.now(), status: "active" };
 
     await removeExpiredRooms();
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -26,7 +30,7 @@ export async function POST(request: Request) {
         view: "lobby",
         roundNumber: 0,
       };
-      if (await createRoom(room)) return Response.json({ room }, { status: 201 });
+      if (await createRoom(room)) return Response.json({ room: toClientRoom(room, player.id) }, { status: 201, headers: { "Set-Cookie": sessionCookie(code, session.token) } });
     }
     return Response.json({ error: "방을 만들지 못했어요. 다시 시도해 주세요." }, { status: 503 });
   } catch (error) {

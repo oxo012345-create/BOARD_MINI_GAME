@@ -5,7 +5,7 @@
 import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Player = { id: string; name: string; avatar: string; joinedAt: number };
+type Player = { id: string; name: string; avatar: string; joinedAt: number; status: "active" | "waiting" };
 type Modifier = { title: string; text: string; targetId?: string };
 type GameRound = {
   id: string;
@@ -19,9 +19,12 @@ type GameRound = {
   memoryWord?: string;
   memoryEntries?: string[];
   memoryReady?: boolean;
-  imageQuery?: string;
+  imageId?: string;
+  imageSource?: string;
   startedAt: number;
   modifier?: Modifier;
+  privateRole?: { danger: boolean; label: string; value: string };
+  isStoryteller?: boolean;
 };
 type Room = {
   code: string;
@@ -30,8 +33,9 @@ type Room = {
   view: "lobby" | "hub" | "game" | "result";
   roundNumber: number;
   game?: GameRound;
+  meId?: string;
+  authenticated: boolean;
 };
-type GameContent = Record<string, unknown>;
 type GameMeta = {
   id: string;
   title: string;
@@ -39,10 +43,6 @@ type GameMeta = {
   description: string;
   category: "solo" | "coop";
 };
-
-declare global {
-  interface Window { GAME_CONTENT?: GameContent }
-}
 
 const AVATARS = ["😎", "🥳", "🤠", "👻", "🐥", "🐰", "🐻", "🦊"];
 const SOLO_GAMES: GameMeta[] = [
@@ -74,13 +74,6 @@ const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES];
 
 const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
-function getOrCreatePlayerId() {
-  if (typeof window === "undefined") return "";
-  const storedId = localStorage.getItem("hanpan-player-id") || crypto.randomUUID();
-  localStorage.setItem("hanpan-player-id", storedId);
-  return storedId;
-}
-
 function getStoredValue(key: string, fallback = "") {
   return typeof window === "undefined" ? fallback : localStorage.getItem(key) || fallback;
 }
@@ -90,115 +83,17 @@ function getRoomCodeFromUrl() {
   return new URLSearchParams(location.search).get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 }
 
-function getList<T>(data: GameContent, key: string, fallback: T[]): T[] {
-  return Array.isArray(data[key]) ? data[key] as T[] : fallback;
-}
-
-function makeModifier(data: GameContent, players: Player[]): Modifier | undefined {
-  if (players.length < 2 || Math.random() > 0.42) return undefined;
-  const type = pick(["동물의 왕국", "비밀미션", "모션게임", "금지어", "웃음 참기", "용용체", "이응 게임"]);
-  if (type === "비밀미션") {
-    return { title: "나만의 비밀미션", text: pick(getList(data, "secretMissions", ["누군가에게 칭찬받기"])), targetId: pick(players).id };
-  }
-  if (type === "모션게임") {
-    const leader = pick(players);
-    return { title: "모션게임 시작!", text: `${leader.name}의 ${pick(getList(data, "motions", ["손가락하트"]))} 동작을 몰래 따라 하세요.` };
-  }
-  if (type === "금지어") return { title: "금지어 추가", text: `지금부터 “${pick(getList(data, "forbiddenWords", ["진짜"]))}” 금지!` };
-  if (type === "동물의 왕국") return { title: type, text: "말하기 전에 자기만의 동물 울음소리를 내세요." };
-  if (type === "웃음 참기") return { title: type, text: "지금부터 웃는 사람이 바로 걸립니다." };
-  if (type === "용용체") return { title: type, text: "모든 문장을 ~용으로 끝내세용." };
-  return { title: type, text: "모든 말의 받침을 ㅇ으로 바꿔 말하세요." };
-}
-
-function makeRound(meta: GameMeta, data: GameContent, players: Player[]): GameRound {
-  const base: GameRound = { id: meta.id, title: meta.title, prompt: "준비!", startedAt: Date.now() };
-  const selectedPlayer = players.length ? pick(players) : undefined;
-  const liar = players.length > 1 ? selectedPlayer : undefined;
-  if (["liar", "body-liar", "face-liar"].includes(meta.id)) {
-    const source = meta.id === "liar"
-      ? (() => { const groups = data.liarOriginal as Record<string, string[]> | undefined; const category = groups ? pick(Object.keys(groups)) : "음식"; return { word: pick(groups?.[category] ?? ["떡볶이"]), category }; })()
-      : { word: pick(getList<string>(data, meta.id === "body-liar" ? "bodyLiar" : "faceLiar", ["웃음 참기"])), category: meta.id === "body-liar" ? "동작" : "표정" };
-    return { ...base, prompt: source.word, answer: source.word, category: source.category, liarId: liar?.id, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "dumb-liar") {
-    const pair = pick(getList<string[]>(data, "dumbLiar", [["강아지", "고양이"]]));
-    return { ...base, prompt: pair[0], answer: `${pair[0]} / ${pair[1]}`, liarWord: pair[1], liarId: liar?.id, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "initial") {
-    const groups = data.initialQuiz as Record<string, Array<{ initial: string; answer: string }>> | undefined;
-    const category = groups ? pick(Object.keys(groups)) : "음식";
-    const item = pick(groups?.[category] ?? [{ initial: "ㄸㅂㅇ", answer: "떡볶이" }]);
-    return { ...base, prompt: item.initial, answer: item.answer, category, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "hunmin") return { ...base, prompt: pick(getList(data, "infiniteInitials", ["ㄱㅂ"])), modifier: makeModifier(data, players) };
-  if (meta.id === "taste") {
-    const options = pick(getList<string[]>(data, "tasteMatch", [["짜장면", "짬뽕"]]));
-    return { ...base, prompt: `${options[0]}  vs  ${options[1]}`, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "trivia") {
-    const item = pick(getList<{ question: string; answer: string }>(data, "triviaMedium", [{ question: "호주의 수도는?", answer: "캔버라" }]));
-    return { ...base, prompt: item.question, answer: item.answer, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "memory") {
-    return { ...base, prompt: "진짜 세 개, 가짜 하나", storytellerId: selectedPlayer?.id, memoryWord: pick(getList(data, "fakeMemoryWords", ["수학여행"])), memoryReady: false, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "ten-seconds") return { ...base, prompt: "감으로 정확히 10초를 맞혀보세요", answer: "10.00초", modifier: makeModifier(data, players) };
-  if (meta.id === "color") return { ...base, prompt: pick(getList(data, "colors", ["파랑"])), modifier: makeModifier(data, players) };
-  if (meta.id === "object-initial") return { ...base, prompt: pick(getList(data, "objectInitials", ["ㄱ"])), modifier: makeModifier(data, players) };
-  if (meta.id === "unknown") {
-    const question = pick(getList(data, "unknownQuestion", ["무인도에 가져갈 물건은?"]));
-    return { ...base, prompt: question, answer: question, liarId: liar?.id, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "telestration") return { ...base, prompt: pick(getList(data, "telestrationWords", ["도깨비"])), modifier: makeModifier(data, players) };
-  if (meta.id === "chain") return { ...base, prompt: pick(getList(data, "chainPrompts", ["탕으로 끝나는 음식"])), modifier: makeModifier(data, players) };
-  if (meta.id === "four") {
-    const item = pick(getList<{ front: string; back: string; word: string }>(data, "fourSyllable", [{ front: "계좌", back: "번호", word: "계좌번호" }]));
-    return { ...base, prompt: `${item.front} ○○`, answer: item.word, modifier: makeModifier(data, players) };
-  }
-  if (meta.id === "syllable") return { ...base, prompt: pick(getList(data, "이어말하기", ["아이돌"])), modifier: makeModifier(data, players) };
-  if (meta.id === "group-initial") return { ...base, prompt: pick(getList(data, "groupInitials", ["ㄷㅂ"])), modifier: makeModifier(data, players) };
-  const imageKey = meta.id === "people" ? "peopleQuiz" : meta.id === "character" ? "characters" : "zoomObjects";
-  const imageQuery = pick(getList(data, imageKey, [meta.id === "people" ? "유재석" : meta.id === "character" ? "짱구" : "키보드"]));
-  return { ...base, prompt: meta.id === "zoom" ? "이 물건은 무엇일까요?" : "사진 속 주인공은 누구일까요?", answer: imageQuery, imageQuery, modifier: makeModifier(data, players) };
-}
-
-function QuizImage({ name, zoom }: { name: string; zoom?: boolean }) {
-  const [src, setSrc] = useState("");
+function QuizImage({ imageId, zoom }: { imageId: string; zoom?: boolean }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const response = await fetch(`https://ko.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`);
-        const json = await response.json() as { thumbnail?: { source?: string } };
-        if (json.thumbnail?.source && active) setSrc(json.thumbnail.source);
-        else throw new Error("no thumbnail");
-      } catch {
-        try {
-          const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(name)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=700&format=json&origin=*`;
-          const response = await fetch(url);
-          const json = await response.json() as { query?: { pages?: Record<string, { imageinfo?: Array<{ thumburl?: string; url?: string }> }> } };
-          const page = json.query?.pages ? Object.values(json.query.pages)[0] : undefined;
-          const image = page?.imageinfo?.[0];
-          if (active && (image?.thumburl || image?.url)) setSrc(image.thumburl || image.url || "");
-          else if (active) setFailed(true);
-        } catch { if (active) setFailed(true); }
-      }
-    };
-    void load();
-    return () => { active = false; };
-  }, [name]);
   return (
     <div className={`quiz-image ${zoom ? "is-zoomed" : ""}`}>
-      {src && !failed ? <img src={src} alt="퀴즈 이미지" onError={() => setFailed(true)} /> : failed ? <div className="image-fallback">이미지를 불러오지 못했어요<br /><small>다른 게임을 선택해 주세요</small></div> : <div className="image-loader" aria-label="이미지 불러오는 중" />}
+      {!failed ? <img src={`/api/game-image/${imageId}`} alt="퀴즈 이미지" onError={() => setFailed(true)} /> : <div className="image-fallback">이미지를 불러오지 못했어요<br /><small>다른 게임을 선택해 주세요</small></div>}
     </div>
   );
 }
 
 export default function Home() {
   const [room, setRoom] = useState<Room | null>(null);
-  const [playerId] = useState(getOrCreatePlayerId);
   const [name, setName] = useState(() => getStoredValue("hanpan-name"));
   const [avatar, setAvatar] = useState(() => getStoredValue("hanpan-avatar", AVATARS[0]));
   const [joinCode, setJoinCode] = useState(getRoomCodeFromUrl);
@@ -213,10 +108,8 @@ export default function Home() {
   const [timerStart, setTimerStart] = useState<number | null>(null);
   const [timerResult, setTimerResult] = useState<number | null>(null);
   const leavingRef = useRef(false);
-  const data = typeof window !== "undefined" ? window.GAME_CONTENT ?? {} : {};
-
-  const me = room?.players.find((player) => player.id === playerId);
-  const isHost = Boolean(room && room.hostId === playerId);
+  const me = room?.players.find((player) => player.id === room.meId);
+  const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
   const roundNumber = room?.roundNumber;
@@ -231,7 +124,7 @@ export default function Home() {
       fetch(`/api/rooms/${targetRoom}`, { cache: "no-store" }).then(async (response) => {
         if (!response.ok) throw new Error();
         const body = await response.json() as { room: Room };
-        if (body.room.players.some((player) => player.id === playerId)) setRoom(body.room);
+        if (body.room.authenticated) setRoom(body.room);
         else if (code) setIntent("join");
         else localStorage.removeItem("hanpan-room");
       }).catch(() => {
@@ -239,7 +132,7 @@ export default function Home() {
         if (code) setIntent("join");
       });
     }
-  }, [playerId]);
+  }, []);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -248,7 +141,13 @@ export default function Home() {
         const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
         if (!response.ok) return;
         const body = await response.json() as { room: Room };
-        if (!leavingRef.current) setRoom(body.room);
+        if (!leavingRef.current && body.room.authenticated) setRoom(body.room);
+        else if (!body.room.authenticated) {
+          localStorage.removeItem("hanpan-room");
+          setRoom(null);
+          setJoinCode(roomCode);
+          setIntent("join");
+        }
       } catch { /* 다음 주기에 다시 연결 */ }
     }, 1400);
     return () => window.clearInterval(poll);
@@ -288,11 +187,11 @@ export default function Home() {
   };
 
   const enterRoom = async () => {
-    if (!playerId || name.trim().length < 1) return showNotice("이름을 입력해 주세요.");
+    if (name.trim().length < 1) return showNotice("이름을 입력해 주세요.");
     if (intent === "join" && joinCode.length !== 4) return showNotice("4자리 방 코드를 입력해 주세요.");
     setBusy(true);
     try {
-      const player = { id: playerId, name: name.trim(), avatar };
+      const player = { name: name.trim(), avatar };
       const response = intent === "create"
         ? await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player }) })
         : await fetch(`/api/rooms/${joinCode}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "join", player }) });
@@ -308,26 +207,29 @@ export default function Home() {
     finally { setBusy(false); }
   };
 
-  const updateRoom = async (next: Room) => {
+  const setRoomView = async (view: "hub" | "result") => {
     if (!room || !isHost) return showNotice("방장만 진행할 수 있어요.");
-    setRoom(next);
     try {
-      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set-state", playerId, state: next }) });
+      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set-view", view }) });
       const body = await response.json() as { room?: Room; error?: string };
       if (!response.ok || !body.room) throw new Error(body.error || "진행 상태를 저장하지 못했어요.");
       setRoom(body.room);
     } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); }
   };
 
-  const startGame = (meta: GameMeta) => {
-    if (!room) return;
-    const next: Room = { ...room, view: "game", roundNumber: room.roundNumber + 1, game: makeRound(meta, data, room.players) };
-    void updateRoom(next);
+  const startGame = async (meta: GameMeta) => {
+    if (!room || !isHost) return showNotice("방장만 진행할 수 있어요.");
+    try {
+      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start-game", gameId: meta.id }) });
+      const body = await response.json() as { room?: Room; error?: string };
+      if (!response.ok || !body.room) throw new Error(body.error || "게임을 시작하지 못했어요.");
+      setRoom(body.room);
+    } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); }
   };
 
   const leaveRoom = async () => {
     leavingRef.current = true;
-    if (room) void fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave", playerId }) });
+    if (room) void fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }), keepalive: true });
     localStorage.removeItem("hanpan-room");
     history.replaceState(null, "", location.pathname);
     setRoom(null);
@@ -347,7 +249,7 @@ export default function Home() {
     if (!room || memoryInputs.some((value) => !value.trim())) return showNotice("네 문장을 모두 적어 주세요.");
     setBusy(true);
     try {
-      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit-memory", playerId, entries: memoryInputs }) });
+      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit-memory", entries: memoryInputs }) });
       const body = await response.json() as { room?: Room; error?: string };
       if (!response.ok || !body.room) throw new Error(body.error || "제출하지 못했어요.");
       setRoom(body.room);
@@ -357,12 +259,8 @@ export default function Home() {
 
   const gameMeta = useMemo(() => ALL_GAMES.find((item) => item.id === currentGame?.id), [currentGame?.id]);
   const privateRole = useMemo(() => {
-    if (!currentGame || !me) return null;
-    if (["liar", "body-liar", "face-liar"].includes(currentGame.id)) return currentGame.liarId === me.id ? { danger: true, label: "당신은 라이어", value: "들키지 않게 연기하세요" } : { danger: false, label: currentGame.category || "제시어", value: currentGame.prompt };
-    if (currentGame.id === "dumb-liar") return { danger: false, label: "내 제시어", value: currentGame.liarId === me.id ? currentGame.liarWord || "?" : currentGame.prompt };
-    if (currentGame.id === "unknown") return currentGame.liarId === me.id ? { danger: true, label: "당신은 범인", value: "질문을 모른 채 자연스럽게 대답하세요" } : { danger: false, label: "비밀 질문", value: currentGame.prompt };
-    return null;
-  }, [currentGame, me]);
+    return currentGame?.privateRole ?? null;
+  }, [currentGame]);
 
   if (!room) {
     return (
@@ -408,10 +306,20 @@ export default function Home() {
         <section className="qr-card">{qr ? <img src={qr} alt={`방 ${room.code} 참가 QR 코드`} /> : <div className="image-loader" />}<p>QR을 찍거나 코드로 참가하세요</p></section>
         <section className="players-section">
           <div className="section-heading"><h2>참가자</h2><span>{room.players.length}명</span></div>
-          <div className="player-list">{room.players.map((player) => <div className="player-row" key={player.id}><span className="player-avatar">{player.avatar}</span><span>{player.name}</span>{player.id === room.hostId && <span className="host-badge">방장</span>}{player.id === playerId && <span className="me-label">나</span>}</div>)}</div>
+          <div className="player-list">{room.players.map((player) => <div className="player-row" key={player.id}><span className="player-avatar">{player.avatar}</span><span>{player.name}</span>{player.id === room.hostId && <span className="host-badge">방장</span>}{player.id === room.meId && <span className="me-label">나</span>}{player.status === "waiting" && <span className="me-label">다음 판 참가</span>}</div>)}</div>
         </section>
-        <div className="sticky-action">{isHost ? <button className="button primary xl" onClick={() => void updateRoom({ ...room, view: "hub" })}>{room.players.length === 1 ? "혼자 시작하기" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>
+        <div className="sticky-action">{isHost ? <button className="button primary xl" onClick={() => void setRoomView("hub")}>{room.players.length === 1 ? "혼자 시작하기" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>
         {notice && <div className="toast" role="status">{notice}</div>}
+      </main>
+    );
+  }
+
+  if (me?.status === "waiting") {
+    return (
+      <main className="app-shell">
+        <TopBar title="다음 판 대기" onLeave={() => void leaveRoom()} />
+        <section className="waiting-card"><span className="big-emoji">👋</span><h2>현재 게임이 진행 중이에요</h2><p>이번 판이 끝나면 자동으로 함께 참가해요.</p></section>
+        <div className="waiting"><span className="pulse" />다음 게임을 기다리는 중</div>
       </main>
     );
   }
@@ -435,15 +343,15 @@ export default function Home() {
     return (
       <main className="app-shell result-shell">
         <TopBar title="결과" onLeave={() => void leaveRoom()} />
-        <section className="result-card"><div className="result-mark">✓</div><div className="eyebrow">이번 판 끝</div><h1>{currentGame.title}</h1>{currentGame.answer && <div className="answer-block"><span>정답</span><strong>{currentGame.answer}</strong></div>}{liarName && <div className="answer-block danger"><span>{currentGame.id === "unknown" ? "범인" : "라이어"}</span><strong>{liarName}</strong></div>}{currentGame.id === "memory" && <p>가짜 추억을 만든 사람은 <strong>{room.players.find((p) => p.id === currentGame.storytellerId)?.name}</strong>이었어요.</p>}<p className="manual-result">{room.players.length === 1 ? "혼자 연습한 이번 판도 바로 완료!" : "누가 걸렸는지는 우리끼리 판정!"}</p></section>
-        <div className="result-actions">{isHost ? <><button className="button primary xl" onClick={() => gameMeta && startGame(gameMeta)}>같은 게임 다시하기</button><button className="button secondary xl" onClick={() => void updateRoom({ ...room, view: "hub", game: undefined })}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
+        <section className="result-card"><div className="result-mark">✓</div><div className="eyebrow">이번 판 끝</div><h1>{currentGame.title}</h1>{currentGame.answer && <div className="answer-block"><span>정답</span><strong>{currentGame.answer}</strong></div>}{liarName && <div className="answer-block danger"><span>{currentGame.id === "unknown" ? "범인" : "라이어"}</span><strong>{liarName}</strong></div>}{currentGame.id === "memory" && <p>가짜 추억을 만든 사람은 <strong>{room.players.find((p) => p.id === currentGame.storytellerId)?.name}</strong>이었어요.</p>}{currentGame.imageSource && <p><a href={currentGame.imageSource} target="_blank" rel="noreferrer">사진 출처 보기</a></p>}<p className="manual-result">{room.players.length === 1 ? "혼자 연습한 이번 판도 바로 완료!" : "누가 걸렸는지는 우리끼리 판정!"}</p></section>
+        <div className="result-actions">{isHost ? <><button className="button primary xl" onClick={() => gameMeta && void startGame(gameMeta)}>같은 게임 다시하기</button><button className="button secondary xl" onClick={() => void setRoomView("hub")}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
     );
   }
 
   if (currentGame) {
-    const isStoryteller = currentGame.storytellerId === playerId;
+    const isStoryteller = Boolean(currentGame.isStoryteller);
     const canFinish = currentGame.id !== "memory" || currentGame.memoryReady;
     const publicPrompt = privateRole
       ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요"
@@ -465,7 +373,7 @@ export default function Home() {
           <section className="prompt-card timer-card"><div className="eyebrow">화면을 보지 마세요</div><h2>{timerResult === null ? currentGame.prompt : `${timerResult.toFixed(2)}초`}</h2><p>{timerResult === null ? "시작을 누른 뒤 감으로 10초에 멈추세요." : `10초와 ${(Math.abs(10 - timerResult)).toFixed(2)}초 차이`}</p><button className="timer-button" onClick={() => { if (timerStart === null) { setTimerStart(Date.now()); setTimerResult(null); } else { setTimerResult((Date.now() - timerStart) / 1000); setTimerStart(null); } }}>{timerStart === null ? timerResult === null ? "시작" : "다시" : "멈춤"}</button></section>
         ) : (
           <section className="prompt-card">
-            {currentGame.imageQuery && <QuizImage key={currentGame.imageQuery} name={currentGame.imageQuery} zoom={currentGame.id === "zoom"} />}
+            {currentGame.imageId && <QuizImage key={currentGame.imageId} imageId={currentGame.imageId} zoom={currentGame.id === "zoom"} />}
             <div className="eyebrow">{privateRole ? "역할을 확인했다면" : currentGame.category || (gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어")}</div>
             <h2 className={!privateRole && publicPrompt.length <= 8 ? "prompt-big" : ""}>{publicPrompt}</h2>
             {currentGame.id === "hunmin" && <p>비밀 술래와 순번 없이 막히는 사람이 나올 때까지!</p>}
@@ -478,8 +386,8 @@ export default function Home() {
         )}
 
         {currentGame.answer && !privateRole && !["ten-seconds"].includes(currentGame.id) && <details className="answer-reveal"><summary>정답 확인</summary><strong>{currentGame.answer}</strong></details>}
-        {modifierVisible && currentGame.modifier && (!currentGame.modifier.targetId || currentGame.modifier.targetId === playerId) && <aside className="modifier-banner"><button aria-label="닫기" onClick={() => setModifierVisible(false)}>×</button><span>깜짝 룰</span><strong>{currentGame.modifier.title}</strong><p>{currentGame.modifier.text}</p></aside>}
-        <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={!canFinish} onClick={() => void updateRoom({ ...room, view: "result" })}>{canFinish ? "결과 보기" : "추억 작성 대기 중"}</button> : <div className="waiting"><span className="pulse" />우리끼리 판정하고 있어요</div>}</div>
+        {modifierVisible && currentGame.modifier && <aside className="modifier-banner"><button aria-label="닫기" onClick={() => setModifierVisible(false)}>×</button><span>깜짝 룰</span><strong>{currentGame.modifier.title}</strong><p>{currentGame.modifier.text}</p></aside>}
+        <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={!canFinish} onClick={() => void setRoomView("result")}>{canFinish ? "결과 보기" : "추억 작성 대기 중"}</button> : <div className="waiting"><span className="pulse" />우리끼리 판정하고 있어요</div>}</div>
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
     );

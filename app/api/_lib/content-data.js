@@ -188,7 +188,7 @@ const secretMissionTemplates = [
 const motions = split('팔짱끼기,턱만지기,머리카락정리하기,양손깍지끼기,코만지기,귀만지기,어깨돌리기,손목돌리기,기지개켜기,박수한번치기,테이블두드리기,손가락하트,브이하기,한쪽눈감기,양손모으기,고개기울이기,입술내밀기,볼부풀리기,손흔들기,엄지손가락들기');
 const forbiddenWords = split('진짜,아니,근데,대박,약간,그냥,맞아,뭐야,왜,어떻게,오케이,인정,미안,잠깐,나도,몰라,너무,완전,지금,오늘,술,게임,정답,사진,이름,사람,우리,너,나,이것');
 
-window.GAME_CONTENT = {
+export const GAME_CONTENT = {
   liarOriginal,dumbLiar,bodyLiar,faceLiar,initialQuiz,infiniteInitials,tasteMatch,triviaMedium,
   fakeMemoryWords,colors,objectInitials,zoomObjects,unknownQuestion,telestrationWords,
   peopleQuiz,chainPrompts,fourSyllable,이어말하기,characters,groupInitials,
