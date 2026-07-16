@@ -67,6 +67,16 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(soloStartBody.room.players.length, 1);
     assert.equal(soloStartBody.room.view, "hub");
 
+    const briefingResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "trivia" }),
+    });
+    assert.equal(briefingResponse.status, 200);
+    const briefingBody = await briefingResponse.json();
+    assert.equal(briefingBody.room.view, "briefing");
+    assert.match(briefingBody.room.game.briefing, /3초/);
+
     const soloGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -84,6 +94,24 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(publicRoomBody.room.authenticated, false);
     assert.equal(publicRoomBody.room.game.answer, undefined);
     assert.equal(JSON.stringify(publicRoomBody.room).includes("sessionHash"), false);
+
+    const revealResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "reveal-answer" }),
+    });
+    const revealBody = await revealResponse.json();
+    assert.equal(revealBody.room.game.answerRevealed, true);
+    assert.ok(revealBody.room.game.answer);
+
+    const nextQuestionResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const nextQuestionBody = await nextQuestionResponse.json();
+    assert.equal(nextQuestionBody.room.game.history.length, 2);
+    assert.equal(nextQuestionBody.room.game.history[0].answer, undefined);
 
     const unauthorized = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -112,15 +140,75 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const soloResultBody = await soloResultResponse.json();
     assert.equal(soloResultBody.room.view, "result");
     assert.ok(soloResultBody.room.game.answer);
+    assert.equal(soloResultBody.room.game.history.length, 2);
+    assert.ok(soloResultBody.room.game.history.every((item) => item.answer));
 
     const nextGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
-      body: JSON.stringify({ action: "start-game", gameId: "hunmin" }),
+      body: JSON.stringify({ action: "start-game", gameId: "initial" }),
     });
     assert.equal(nextGameResponse.status, 200);
     const nextGameBody = await nextGameResponse.json();
     assert.equal(nextGameBody.room.players.find((player) => player.name === "중간참가자").status, "active");
+
+    const hostVoteResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "vote-correct" }),
+    });
+    const hostVoteBody = await hostVoteResponse.json();
+    assert.equal(hostVoteBody.room.game.correctVotes.length, 1);
+    assert.equal(hostVoteBody.room.game.history.length, 1);
+
+    const guestVoteResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: guestCookie },
+      body: JSON.stringify({ action: "vote-correct" }),
+    });
+    const guestVoteBody = await guestVoteResponse.json();
+    assert.equal(guestVoteBody.room.game.correctVotes.length, 0);
+    assert.equal(guestVoteBody.room.game.history.length, 2);
+
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "color" }),
+    });
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "color" }),
+    });
+    const photoForm = new FormData();
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z5xkAAAAASUVORK5CYII=", "base64");
+    photoForm.append("photo", new Blob([png], { type: "image/png" }), "test.png");
+    const photoResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}/photos`, { method: "POST", headers: { Cookie: hostCookie }, body: photoForm });
+    assert.equal(photoResponse.status, 200);
+    const photoBody = await photoResponse.json();
+    assert.equal(photoBody.room.game.photoSubmissions.length, 1);
+    const photoKey = photoBody.room.game.photoSubmissions[0].key;
+    const storedPhoto = await fetch(`${baseUrl}/api/rooms/${body.room.code}/photos/${photoKey}`, { headers: { Cookie: hostCookie } });
+    assert.equal(storedPhoto.status, 200);
+    assert.equal(storedPhoto.headers.get("content-type"), "image/png");
+
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "liar" }),
+    });
+    const dumbLiarResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "liar", mode: "dumb" }),
+    });
+    const dumbLiarHost = await dumbLiarResponse.json();
+    const dumbLiarGuest = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: guestCookie } })).json();
+    assert.equal(dumbLiarHost.room.game.privateRole.danger, false);
+    assert.equal(dumbLiarGuest.room.game.privateRole.danger, false);
+    assert.notEqual(dumbLiarHost.room.game.privateRole.value, dumbLiarGuest.room.game.privateRole.value);
+    assert.ok([dumbLiarHost, dumbLiarGuest].some((item) => item.room.game.privateRole.label.includes("라이어")));
+    assert.equal(dumbLiarHost.room.game.liarId, undefined);
 
     const guestLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -128,6 +216,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
       body: JSON.stringify({ action: "leave" }),
     });
     assert.equal(guestLeaveResponse.status, 200);
+    const afterGuestLeave = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    assert.equal(afterGuestLeave.room.players.some((player) => player.name === "중간참가자"), false);
 
     const leaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -141,15 +231,16 @@ test("server-renders the Hanpan mobile app shell", async () => {
 });
 
 test("keeps the requested game set and removes excluded modes", async () => {
-  const [page, layout, hosting] = await Promise.all([
+  const [page, layout, hosting, surprise] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/_lib/surprise.ts", import.meta.url), "utf8"),
   ]);
-  for (const required of ["오리지널 라이어", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기"]) {
+  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기"]) {
     assert.match(page, new RegExp(required));
   }
-  for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼"]) {
+  for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다"]) {
     assert.doesNotMatch(page, new RegExp(removed));
   }
   assert.match(page, /혼자 시작하기/);
@@ -158,8 +249,10 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(rounds, /players\.length > 1 \? selectedPlayer : undefined/);
   assert.doesNotMatch(page, /wikipedia\.org\/api|commons\.wikimedia\.org\/w\/api/);
   assert.match(layout, /lang="ko"/);
+  assert.match(surprise, /TWO TOUCH/);
+  assert.match(surprise, /10 \* 60 \* 1000/);
   const hostingConfig = JSON.parse(hosting);
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.equal(hostingConfig.d1, "DB");
-  assert.equal(hostingConfig.r2, null);
+  assert.equal(hostingConfig.r2, "UPLOADS");
 });

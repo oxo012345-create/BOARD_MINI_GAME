@@ -1,10 +1,13 @@
 import { env } from "cloudflare:workers";
+import { assignedTelestrationChain, type GameRound } from "./rounds";
+import { clientSurprise, type SurpriseState } from "./surprise";
 
 export type Player = {
   id: string;
   name: string;
   avatar: string;
   joinedAt: number;
+  lastSeen: number;
   sessionHash: string;
   status: "active" | "waiting";
 };
@@ -13,9 +16,10 @@ export type RoomState = {
   code: string;
   hostId: string;
   players: Player[];
-  view: "lobby" | "hub" | "game" | "result";
+  view: "lobby" | "hub" | "briefing" | "game" | "result";
   roundNumber: number;
   game?: Record<string, unknown>;
+  surprise?: SurpriseState;
 };
 
 type PublicPlayer = Omit<Player, "sessionHash">;
@@ -25,17 +29,19 @@ export type ClientRoom = Omit<RoomState, "players" | "game"> & {
   meId?: string;
   authenticated: boolean;
   game?: Record<string, unknown>;
+  surprise?: Record<string, unknown>;
 };
 
 export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
-  const game = room.game ? { ...room.game } : undefined;
+  const game = room.game ? JSON.parse(JSON.stringify(room.game)) as Record<string, unknown> : undefined;
   if (game) {
+    const internal = room.game as GameRound;
     const answer = typeof game.answer === "string" ? game.answer : undefined;
     const liarId = typeof game.liarId === "string" ? game.liarId : undefined;
     const liarWord = typeof game.liarWord === "string" ? game.liarWord : undefined;
     const storytellerId = typeof game.storytellerId === "string" ? game.storytellerId : undefined;
     const imageSource = typeof game.imageSource === "string" ? game.imageSource : undefined;
-    const modifier = game.modifier as { targetId?: string } | undefined;
+    const liarMode = game.liarMode;
 
     delete game.answer;
     delete game.liarId;
@@ -43,30 +49,57 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.storytellerId;
     delete game.memoryWord;
     delete game.imageSource;
-    if (modifier?.targetId && modifier.targetId !== viewerId) delete game.modifier;
+    delete game.fakeSlot;
+    delete game.fakeMemoryIndex;
+    delete game.fakeMemoryText;
+    delete game.telestrationChains;
+    delete game.telestrationOrder;
+    delete game.selections;
 
     if (room.view === "result") {
       if (answer) game.answer = answer;
       if (liarId) game.liarId = liarId;
       if (storytellerId) game.storytellerId = storytellerId;
       if (imageSource) game.imageSource = imageSource;
+      if (liarWord) game.liarWord = liarWord;
+      if (internal.fakeMemoryIndex) game.fakeMemoryIndex = internal.fakeMemoryIndex;
+      if (internal.fakeMemoryText) game.fakeMemoryText = internal.fakeMemoryText;
+      if (internal.telestrationChains) game.telestrationResults = internal.telestrationChains;
+      if (internal.selections) game.selections = internal.selections;
     } else if (viewerId) {
-      if (["liar", "body-liar", "face-liar"].includes(String(game.id))) {
+      if (["liar", "body-liar", "face-liar", "unknown"].includes(String(game.id))) {
         game.privateRole = liarId === viewerId
-          ? { danger: true, label: "당신은 라이어", value: "들키지 않게 연기하세요" }
+          ? { danger: false, label: `${String(game.category ?? "장르")} · 라이어`, value: liarMode === "dumb" ? liarWord ?? "?" : "당신은 라이어입니다" }
           : { danger: false, label: String(game.category ?? "제시어"), value: String(game.prompt ?? "") };
       } else if (game.id === "dumb-liar") {
         game.privateRole = { danger: false, label: "내 제시어", value: liarId === viewerId ? liarWord ?? "?" : String(game.prompt ?? "") };
-      } else if (game.id === "unknown") {
-        game.privateRole = liarId === viewerId
-          ? { danger: true, label: "당신은 범인", value: "질문을 모른 채 자연스럽게 대답하세요" }
-          : { danger: false, label: "비밀 질문", value: String(game.prompt ?? "") };
       }
       if (storytellerId === viewerId) {
         game.isStoryteller = true;
-        game.memoryWord = room.game?.memoryWord;
+        game.fakeSlot = internal.fakeSlot;
+      }
+      if (internal.memoryWord) game.memoryWord = internal.memoryWord;
+      if (internal.selections) {
+        game.selectionStatus = Object.keys(internal.selections);
+        game.myChoice = internal.selections[viewerId];
+      }
+      if (internal.telestrationChains) {
+        const chain = assignedTelestrationChain(internal, viewerId);
+        const round = internal.telestrationRound ?? 1;
+        game.telestrationTask = chain ? {
+          round,
+          deadline: internal.telestrationDeadline,
+          submitted: internal.telestrationSubmitted?.includes(viewerId) ?? false,
+          prompt: round === 1 ? chain.prompt : undefined,
+          previousStrokes: round > 1 ? [...chain.steps].reverse().find((step) => step.strokes)?.strokes ?? [] : undefined,
+          action: round === 4 ? "guess" : "draw",
+        } : undefined;
       }
     }
+    if (room.view !== "result" && Array.isArray(internal.history)) {
+      game.history = internal.history.map((item) => ({ prompt: item.prompt, imageId: item.imageId }));
+    }
+    if (room.view !== "result" && game.id === "trivia" && internal.answerRevealed && answer) game.answer = answer;
     if (room.view !== "result") {
       if (["liar", "dumb-liar"].includes(String(game.id))) game.prompt = "내 단어를 확인하고 자연스럽게 설명하세요";
       if (game.id === "body-liar") game.prompt = "차례대로 몸으로 표현하세요";
@@ -78,13 +111,34 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
   return {
     code: room.code,
     hostId: room.hostId,
-    players: room.players.map((player) => ({ id: player.id, name: player.name, avatar: player.avatar, joinedAt: player.joinedAt, status: player.status })),
+    players: room.players.map((player) => ({ id: player.id, name: player.name, avatar: player.avatar, joinedAt: player.joinedAt, lastSeen: player.lastSeen, status: player.status })),
     view: room.view,
     roundNumber: room.roundNumber,
     game,
+    surprise: clientSurprise(room.surprise, room.players, viewerId),
     meId: viewerId,
     authenticated: Boolean(viewerId),
   };
+}
+
+export function touchAndPrunePlayers(room: RoomState, viewerId?: string) {
+  const now = Date.now();
+  let changed = false;
+  if (viewerId) {
+    const viewer = room.players.find((player) => player.id === viewerId);
+    if (viewer && now - (viewer.lastSeen || viewer.joinedAt) > 15_000) {
+      viewer.lastSeen = now;
+      changed = true;
+    }
+  }
+  const before = room.players.length;
+  room.players = room.players.filter((player) => player.id === viewerId || now - (player.lastSeen || player.joinedAt) < 30 * 60 * 1000);
+  if (room.players.length !== before) changed = true;
+  if (room.players.length && !room.players.some((player) => player.id === room.hostId)) {
+    room.hostId = room.players[0].id;
+    changed = true;
+  }
+  return changed;
 }
 
 type RoomRow = { state: string };

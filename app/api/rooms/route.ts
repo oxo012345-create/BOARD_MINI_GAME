@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const profile = cleanProfile(payload.player);
     if (!profile) return Response.json({ error: "이름을 입력해 주세요." }, { status: 400 });
     const session = await createSession();
-    const player: Player = { ...profile, id: session.playerId, sessionHash: session.tokenHash, joinedAt: Date.now(), status: "active" };
+    const player: Player = { ...profile, id: session.playerId, sessionHash: session.tokenHash, joinedAt: Date.now(), lastSeen: Date.now(), status: "active" };
 
     await removeExpiredRooms();
     for (let attempt = 0; attempt < 20; attempt += 1) {
