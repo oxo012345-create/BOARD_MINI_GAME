@@ -75,7 +75,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(briefingResponse.status, 200);
     const briefingBody = await briefingResponse.json();
     assert.equal(briefingBody.room.view, "briefing");
-    assert.match(briefingBody.room.game.briefing, /3초/);
+    assert.match(briefingBody.room.game.briefing, /술래의 오른쪽/);
 
     const soloGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -87,6 +87,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(soloGameBody.room.view, "game");
     assert.equal(soloGameBody.room.roundNumber, 1);
     assert.equal(soloGameBody.room.game.answer, undefined);
+    assert.equal(soloGameBody.room.game.deadline, undefined);
+    assert.ok(soloGameBody.room.game.dealerId);
 
     const publicRoomResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`);
     assert.equal(publicRoomResponse.status, 200);
@@ -151,24 +153,113 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(nextGameResponse.status, 200);
     const nextGameBody = await nextGameResponse.json();
     assert.equal(nextGameBody.room.players.find((player) => player.name === "중간참가자").status, "active");
+    assert.equal(nextGameBody.room.game.deadline, undefined);
+    assert.ok(nextGameBody.room.game.dealerId);
+    assert.notEqual(nextGameBody.room.game.playerOrder[0], nextGameBody.room.game.dealerId);
+    const firstInitialCategory = nextGameBody.room.game.category;
 
-    const hostVoteResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+    const initialRevealResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
-      body: JSON.stringify({ action: "vote-correct" }),
+      body: JSON.stringify({ action: "reveal-answer" }),
     });
-    const hostVoteBody = await hostVoteResponse.json();
-    assert.equal(hostVoteBody.room.game.correctVotes.length, 1);
-    assert.equal(hostVoteBody.room.game.history.length, 1);
+    const initialRevealBody = await initialRevealResponse.json();
+    assert.ok(initialRevealBody.room.game.answer);
 
-    const guestVoteResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+    const initialNextResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const initialNextBody = await initialNextResponse.json();
+    assert.equal(initialNextBody.room.game.history.length, 2);
+    assert.notEqual(initialNextBody.room.game.category, firstInitialCategory);
+
+    const timerGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "ten-seconds" }),
+    });
+    assert.equal(timerGameResponse.status, 200);
+    const timerSubmitResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "submit-timer", seconds: 10.12 }),
+    });
+    assert.equal(timerSubmitResponse.status, 200);
+    const duplicateTimerResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "submit-timer", seconds: 9.99 }),
+    });
+    assert.equal(duplicateTimerResponse.status, 409);
+
+    const chainGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "chain" }),
+    });
+    const chainGameBody = await chainGameResponse.json();
+    const chainPrompt = chainGameBody.room.game.prompt;
+    assert.ok(chainGameBody.room.game.deadline - Date.now() <= 5_000);
+    const chainNextResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const chainNextBody = await chainNextResponse.json();
+    assert.equal(chainNextBody.room.game.prompt, chainPrompt);
+    assert.equal(chainNextBody.room.game.successfulPlayerIds.length, 1);
+    const chainPassResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const chainPassBody = await chainPassResponse.json();
+    assert.equal(chainPassBody.room.view, "result");
+    assert.equal(chainPassBody.room.game.teamOutcome, "passed");
+
+    const telestrationStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "telestration" }),
+    });
+    const telestrationHostStart = await telestrationStartResponse.json();
+    const telestrationGuestStart = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: guestCookie } })).json();
+    const hostPrompt = telestrationHostStart.room.game.telestrationTask.prompt;
+    const guestPrompt = telestrationGuestStart.room.game.telestrationTask.prompt;
+    for (let round = 1; round <= 3; round += 1) {
+      const hostDraw = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: hostCookie },
+        body: JSON.stringify({ action: "submit-telestration", strokes: [] }),
+      });
+      assert.equal(hostDraw.status, 200);
+      const guestDraw = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: guestCookie },
+        body: JSON.stringify({ action: "submit-telestration", strokes: [] }),
+      });
+      assert.equal(guestDraw.status, 200);
+    }
+    const hostGuessState = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    const guestGuessState = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: guestCookie } })).json();
+    assert.equal(hostGuessState.room.game.telestrationTask.action, "guess");
+    assert.equal(hostGuessState.room.game.telestrationTask.deadline, undefined);
+    assert.equal(guestGuessState.room.game.telestrationTask.deadline, undefined);
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "submit-telestration", guess: guestPrompt }),
+    });
+    const telestrationFinishResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: guestCookie },
-      body: JSON.stringify({ action: "vote-correct" }),
+      body: JSON.stringify({ action: "submit-telestration", guess: hostPrompt }),
     });
-    const guestVoteBody = await guestVoteResponse.json();
-    assert.equal(guestVoteBody.room.game.correctVotes.length, 0);
-    assert.equal(guestVoteBody.room.game.history.length, 2);
+    const telestrationFinishBody = await telestrationFinishResponse.json();
+    assert.equal(telestrationFinishBody.room.view, "result");
+    assert.equal(telestrationFinishBody.room.game.telestrationCorrectCount, 2);
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -210,18 +301,28 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.ok([dumbLiarHost, dumbLiarGuest].some((item) => item.room.game.privateRole.label.includes("라이어")));
     assert.equal(dumbLiarHost.room.game.liarId, undefined);
 
-    const guestLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+    const hostLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: guestCookie },
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
       body: JSON.stringify({ action: "leave" }),
     });
-    assert.equal(guestLeaveResponse.status, 200);
-    const afterGuestLeave = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
-    assert.equal(afterGuestLeave.room.players.some((player) => player.name === "중간참가자"), false);
+    assert.equal(hostLeaveResponse.status, 200);
+    const promotedGuest = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: guestCookie } })).json();
+    assert.equal(promotedGuest.room.hostId, promotedGuest.room.meId);
+    assert.equal(promotedGuest.room.view, "game");
+
+    const lobbyResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: guestCookie },
+      body: JSON.stringify({ action: "set-view", view: "lobby" }),
+    });
+    const lobbyBody = await lobbyResponse.json();
+    assert.equal(lobbyBody.room.view, "lobby");
+    assert.equal(lobbyBody.room.players.length, 1);
 
     const leaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      headers: { "Content-Type": "application/json", Cookie: guestCookie },
       body: JSON.stringify({ action: "leave" }),
     });
     assert.equal(leaveResponse.status, 200);
@@ -240,7 +341,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
   for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기"]) {
     assert.match(page, new RegExp(required));
   }
-  for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다"]) {
+  for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다", "누가 걸렸는지는 우리끼리 판정", "마이크 판정 없음", "점수표 없음", "팀전 없음", "우리끼리 판정하고 있어요", "vote-correct"]) {
     assert.doesNotMatch(page, new RegExp(removed));
   }
   assert.match(page, /혼자 시작하기/);
@@ -251,6 +352,10 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(layout, /lang="ko"/);
   assert.match(surprise, /TWO TOUCH/);
   assert.match(surprise, /10 \* 60 \* 1000/);
+  assert.match(surprise, /5 \* 60 \* 1000/);
+  assert.match(page, /RANDOM_GAMES = ALL_GAMES\.filter\(\(game\) => game\.id !== "syllable"\)/);
+  assert.match(rounds, /telestrationDeadline = nextRound === 4 \? undefined/);
+  assert.match(page, /누르는 동안만 보여요/);
   const hostingConfig = JSON.parse(hosting);
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.equal(hostingConfig.d1, "DB");

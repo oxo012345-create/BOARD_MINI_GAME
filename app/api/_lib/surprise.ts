@@ -2,7 +2,7 @@ import { GAME_CONTENT } from "./content-data.js";
 import type { Player, RoomState } from "./rooms";
 
 export type SurpriseState = {
-  phase: "active" | "rest";
+  phase: "waiting" | "active" | "rest";
   ruleId?: string;
   title?: string;
   text?: string;
@@ -16,6 +16,7 @@ export type SurpriseState = {
 
 const ACTIVE_MS = 10 * 60 * 1000;
 const REST_MS = 10 * 60 * 1000;
+const FIRST_RULE_DELAY_MS = 5 * 60 * 1000;
 const CONTENT = GAME_CONTENT as Record<string, unknown>;
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
@@ -53,6 +54,10 @@ export function tickSurprise(room: RoomState) {
   const now = Date.now();
   if (!room.surprise) {
     if (room.view !== "game") return false;
+    room.surprise = { phase: "waiting", startedAt: now, endsAt: now + FIRST_RULE_DELAY_MS };
+    return true;
+  }
+  if (room.surprise.phase === "waiting" && now >= room.surprise.endsAt) {
     room.surprise = newRule(room.players);
     return true;
   }
@@ -73,6 +78,7 @@ export function tickSurprise(room: RoomState) {
 
 export function clientSurprise(state: SurpriseState | undefined, players: Player[], viewerId?: string) {
   if (!state) return undefined;
+  if (state.phase === "waiting") return { phase: state.phase, startedAt: state.startedAt, endsAt: state.endsAt };
   if (state.phase === "rest") {
     return {
       phase: state.phase,

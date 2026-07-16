@@ -1,5 +1,5 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoom, type Player, type RoomState } from "../../_lib/rooms";
-import { advanceQuestion, advanceTelestration, assignedTelestrationChain, GAME_IDS, GAME_INFO, makeRound, type GameRound, type Stroke } from "../../_lib/rounds";
+import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, type GameRound, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
 
@@ -34,6 +34,11 @@ function cleanStrokes(value: unknown): Stroke[] {
 function finishTelestrationRound(game: GameRound, players: Player[]) {
   const expected = (game.telestrationOrder ?? []).filter((id) => players.some((player) => player.id === id));
   if (!expected.length || !expected.every((id) => game.telestrationSubmitted?.includes(id))) return false;
+  if ((game.telestrationRound ?? 1) >= 4) {
+    game.telestrationComplete = true;
+    game.telestrationCorrectCount = getTelestrationCorrectCount(game);
+    return true;
+  }
   return advanceTelestration(game, players);
 }
 
@@ -45,7 +50,7 @@ function handleTelestrationTimeout(room: RoomState) {
     if (submitted.has(player.id)) continue;
     const chain = assignedTelestrationChain(game, player.id);
     if (!chain) continue;
-    chain.steps.push((game.telestrationRound ?? 1) === 4 ? { playerId: player.id, guess: "시간 초과" } : { playerId: player.id, strokes: [] });
+    chain.steps.push({ playerId: player.id, strokes: [] });
     submitted.add(player.id);
   }
   game.telestrationSubmitted = [...submitted];
@@ -142,9 +147,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "set-view") {
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
-      if (payload.view !== "hub" && payload.view !== "result") return Response.json({ error: "잘못된 화면 상태예요." }, { status: 400 });
-      room.view = payload.view;
-      if (payload.view === "hub") {
+      if (!["lobby", "hub", "result"].includes(String(payload.view))) return Response.json({ error: "잘못된 화면 상태예요." }, { status: 400 });
+      const nextView = String(payload.view) as RoomState["view"];
+      room.view = nextView;
+      if (nextView === "hub" || nextView === "lobby") {
         room.game = undefined;
         room.players.forEach((player) => { player.status = "active"; });
       }
@@ -152,12 +158,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     }
 
     if (payload.action === "leave") {
+      const activeGame = room.game as GameRound | undefined;
+      removePlayerFromRound(activeGame, viewer.id);
       room.players = room.players.filter((item) => item.id !== viewer.id);
       if (room.players.length === 0) {
         await deleteRoom(room.code);
         return Response.json({ room: null }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
       }
       if (room.hostId === viewer.id) room.hostId = (room.players.find((player) => player.status === "active") ?? room.players[0]).id;
+      if (activeGame?.id === "telestration") {
+        finishTelestrationRound(activeGame, room.players);
+        if (activeGame.telestrationComplete) room.view = "result";
+      }
       await writeRoom(room);
       return Response.json({ room: toClientRoom(room) }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
     }
@@ -165,22 +177,33 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
 
-    if (payload.action === "vote-correct") {
-      if (game.id !== "initial") return Response.json({ error: "이 게임에서는 사용할 수 없어요." }, { status: 400 });
-      game.correctVotes = [...new Set([...(game.correctVotes ?? []), viewer.id])];
-      if (game.correctVotes.length >= Math.min(2, room.players.length)) advanceQuestion(game, room.players);
-      return persistAndRespond(room, viewer.id);
-    }
-
     if (payload.action === "reveal-answer") {
-      if (!isHost || game.id !== "trivia") return Response.json({ error: "방장만 정답을 공개할 수 있어요." }, { status: 403 });
+      if (!isHost || !["initial", "trivia"].includes(game.id)) return Response.json({ error: "방장만 정답을 공개할 수 있어요." }, { status: 403 });
       game.answerRevealed = true;
       return persistAndRespond(room, viewer.id);
     }
 
     if (payload.action === "next-question") {
-      if (!isHost || !["trivia", "people", "group-initial"].includes(game.id)) return Response.json({ error: "방장만 다음 문제로 넘어갈 수 있어요." }, { status: 403 });
-      advanceQuestion(game, room.players);
+      if (!isHost) return Response.json({ error: "방장만 다음 문제로 넘어갈 수 있어요." }, { status: 403 });
+      if (["initial", "trivia"].includes(game.id)) {
+        if (!game.answerRevealed) return Response.json({ error: "정답을 먼저 공개해 주세요." }, { status: 409 });
+        advanceQuestion(game, room.players);
+      } else if (game.id === "group-initial") {
+        advanceQuestion(game, room.players);
+      } else if (["people", "chain", "four", "character"].includes(game.id)) {
+        if (advanceCoopQuestion(game, room.players)) room.view = "result";
+      } else if (game.id === "syllable") {
+        advanceSyllableQuestion(game);
+      } else {
+        return Response.json({ error: "이 게임에서는 사용할 수 없어요." }, { status: 400 });
+      }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "fail-game") {
+      if (!isHost || !["people", "chain", "four", "character"].includes(game.id)) return Response.json({ error: "방장만 실패를 확정할 수 있어요." }, { status: 403 });
+      failCoopQuestion(game);
+      room.view = "result";
       return persistAndRespond(room, viewer.id);
     }
 
@@ -204,9 +227,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "submit-timer") {
       if (game.id !== "ten-seconds") return Response.json({ error: "이 게임에서는 사용할 수 없어요." }, { status: 400 });
+      if ((game.timerResults ?? []).some((item) => item.playerId === viewer.id)) return Response.json({ error: "이미 이번 판에 도전했어요." }, { status: 409 });
       const seconds = Number(payload.seconds);
       if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 60) return Response.json({ error: "기록을 다시 측정해 주세요." }, { status: 400 });
-      if (!(game.timerResults ?? []).some((item) => item.playerId === viewer.id)) game.timerResults = [...(game.timerResults ?? []), { playerId: viewer.id, seconds: Math.round(seconds * 100) / 100, submittedAt: Date.now() }];
+      game.timerResults = [...(game.timerResults ?? []), { playerId: viewer.id, seconds: Math.round(seconds * 100) / 100, submittedAt: Date.now() }];
       return persistAndRespond(room, viewer.id);
     }
 
@@ -219,6 +243,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       chain.steps.push(round === 4 ? { playerId: viewer.id, guess: String(payload.guess ?? "").trim().slice(0, 30) || "정답 없음" } : { playerId: viewer.id, strokes: cleanStrokes(payload.strokes) });
       game.telestrationSubmitted = [...(game.telestrationSubmitted ?? []), viewer.id];
       finishTelestrationRound(game, room.players);
+      if (game.telestrationComplete) room.view = "result";
       return persistAndRespond(room, viewer.id);
     }
 

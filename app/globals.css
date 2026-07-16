@@ -101,7 +101,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   z-index: 60;
   top: 0;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(58px, auto) minmax(0, 1fr) auto;
   align-items: center;
   min-height: 52px;
   margin: calc(-18px - env(safe-area-inset-top)) -18px 24px;
@@ -110,8 +110,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   border-bottom: 1px solid rgba(255, 255, 255, .05);
   backdrop-filter: blur(18px);
 }
-.topbar > strong { font-size: 14px; }
-.topbar > button { justify-self: end; min-width: 52px; min-height: 40px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.topbar > strong { overflow: hidden; padding: 0 8px; text-align: center; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.room-code-mini { color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.topbar-actions { display: flex; justify-content: flex-end; gap: 2px; }
+.topbar-actions button { min-height: 40px; padding: 0 7px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; white-space: nowrap; }
 
 .room-code-card { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border: 1px solid rgba(217, 255, 87, .25); border-radius: var(--radius); background: rgba(217, 255, 87, .07); }
 .room-code-card div { display: flex; align-items: baseline; gap: 16px; }
@@ -158,10 +160,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 
 .game-shell { padding-bottom: calc(128px + env(safe-area-inset-bottom)); }
 .round-label { margin: 2px 0 10px; color: #5f6670; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
-.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); text-align: center; cursor: pointer; }
-.role-card > span { display: block; color: var(--accent); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
-.role-card > strong { display: block; margin: 17px 0 13px; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
-.role-card > small { color: var(--muted); font-size: 10px; }
+.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; text-align: center; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.role-card > span { display: block; color: var(--accent); -webkit-text-fill-color: var(--accent); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+.role-card > strong { display: block; margin: 17px 0 13px; color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
+.role-card > small { color: #aab0b8 !important; -webkit-text-fill-color: #aab0b8; font-size: 10px; }
 .role-card.danger.revealed { border-style: solid; border-color: rgba(255,107,114,.45); background: rgba(255,107,114,.08); }
 .role-card.danger.revealed > span { color: var(--danger); }
 .prompt-card { padding: 24px 20px; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); box-shadow: var(--shadow); text-align: center; }
@@ -263,31 +265,40 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .mode-picker strong, .mode-picker small { display: block; }
 .mode-picker small { margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 
-/* 10분 깜짝 룰 사이드 팝업 */
-.surprise-drawer { position: fixed; z-index: 90; top: calc(76px + env(safe-area-inset-top)); right: max(0px, calc((100vw - 520px) / 2)); width: min(360px, calc(100vw - 22px)); border: 1px solid rgba(217, 255, 87, .42); border-right: 0; border-radius: 20px 0 0 20px; background: rgba(24, 29, 20, .98); box-shadow: 0 18px 48px rgba(0, 0, 0, .48); overflow: hidden; transition: width .24s ease; backdrop-filter: blur(18px); }
-.surprise-drawer > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 54px; padding: 11px 16px; border: 0; background: transparent; color: var(--accent); font-weight: 900; cursor: pointer; }
+/* 10분 깜짝 룰 이동형 팝업 */
+.surprise-drawer { position: fixed; z-index: 90; width: min(360px, calc(100vw - 22px)); border: 1px solid rgba(217, 255, 87, .42); border-radius: 20px; background: rgba(24, 29, 20, .98); box-shadow: 0 18px 48px rgba(0, 0, 0, .48); overflow: hidden; transition: width .2s ease; backdrop-filter: blur(18px); }
+.surprise-drawer.left { left: max(0px, calc((100vw - 520px) / 2)); right: auto; border-left: 0; border-radius: 0 20px 20px 0; }
+.surprise-drawer.right { right: max(0px, calc((100vw - 520px) / 2)); left: auto; border-right: 0; border-radius: 20px 0 0 20px; }
+.surprise-drawer.center { left: 50%; right: auto; transform: translateX(-50%); }
+.surprise-drawer > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 54px; padding: 11px 16px; border: 0; background: transparent; color: var(--accent); font-weight: 900; cursor: grab; touch-action: none; user-select: none; }
 .surprise-drawer > button strong { font-variant-numeric: tabular-nums; }
 .surprise-drawer p { margin: 0; padding: 0 16px 16px; color: #d8ddca; font-size: 13px; line-height: 1.55; }
 .surprise-drawer p span { display: block; }
-.surprise-drawer.collapsed { width: 172px; }
+.surprise-drawer.collapsed { width: 88px; }
+.surprise-drawer.collapsed > button { justify-content: center; padding: 9px 12px; }
 
 /* 3초 순서 퀴즈 */
 .turn-banner { margin-bottom: 8px; padding: 15px 14px; border: 1px solid rgba(217, 255, 87, .24); border-radius: 17px; background: rgba(217, 255, 87, .08); text-align: center; font-size: 15px; font-weight: 750; }
-.turn-banner strong { color: var(--accent); font-size: 20px; }
+.turn-banner strong { color: var(--accent); font-size: clamp(25px, 8vw, 34px); }
+.turn-banner-large { padding: 20px 14px; font-size: 16px; }
+.turn-banner-large span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
 .three-second-timer { margin: 0 0 12px; color: var(--accent); text-align: center; font-size: 34px; font-weight: 950; font-variant-numeric: tabular-nums; letter-spacing: -.05em; }
 .turn-banner.time-up, .three-second-timer.time-up { color: #fff; }
 .red-alert { background: radial-gradient(circle at 50% 12%, rgba(255, 71, 78, .6), rgba(70, 7, 10, .94) 55%), #42070a; }
 .red-alert .turn-banner, .red-alert .prompt-card { border-color: rgba(255, 255, 255, .24); background: rgba(28, 3, 5, .84); }
 .inline-answer { margin: 18px 0 12px; padding: 15px; border-radius: 15px; background: rgba(217, 255, 87, .1); color: var(--accent); font-size: 20px; font-weight: 900; }
 .coop-eyebrow { color: var(--accent); font-size: 19px; font-weight: 950; letter-spacing: -.02em; }
+.quiz-category { color: var(--accent); font-size: clamp(21px, 7vw, 32px); font-weight: 950; letter-spacing: -.035em; }
+.host-game-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 20px; }
+.host-game-controls .button { min-height: 56px; }
+.fail-button { border-color: rgba(255, 107, 114, .45) !important; color: var(--danger) !important; }
 
 /* 취향, 추억, 10초 */
 .memory-word-label { color: var(--muted); font-size: 13px; font-weight: 850; }
 .prompt-card h2.memory-word { margin-top: 5px; color: var(--accent); font-size: clamp(42px, 14vw, 64px); }
 .memory-fields label { display: grid; gap: 6px; }
 .memory-fields label > span { padding-left: 3px; color: var(--muted); font-size: 11px; font-weight: 800; }
-.memory-fields label.fake-field > span { color: var(--danger); }
-.memory-fields label.fake-field input { border-color: rgba(255, 107, 114, .62); }
+.memory-fields label > span b, .memory-answer span b { color: var(--text); font-weight: 950; }
 .taste-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 20px 0 14px; }
 .taste-buttons button { min-height: 92px; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-2); font-size: 18px; font-weight: 900; cursor: pointer; overflow-wrap: anywhere; }
 .taste-buttons button.selected { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
@@ -315,6 +326,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .drawing-stage h2 { margin: 10px 0 16px; font-size: 24px; letter-spacing: -.045em; }
 .drawing-round { margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .08em; }
 .drawing-timer { display: inline-grid; place-items: center; min-width: 74px; min-height: 38px; padding: 0 12px; border-radius: 13px; background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 950; font-variant-numeric: tabular-nums; }
+.drawing-timer.unlimited { min-width: 118px; }
 .drawing-canvas, .stroke-preview canvas { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 14px; background: #fff; touch-action: none; }
 .stroke-preview { margin: 10px 0 14px; }
 .stroke-preview small { display: block; margin-bottom: 6px; color: var(--muted); }
@@ -329,6 +341,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .history-results h3, .telestration-results h3 { margin: 6px 0; font-size: 14px; }
 .history-results > div { display: flex; justify-content: space-between; gap: 14px; padding: 12px; border-radius: 12px; background: var(--panel-2); font-size: 12px; }
 .history-results strong { color: var(--accent); text-align: right; }
+.team-result { display: grid; gap: 5px; margin-top: 14px; padding: 17px; border-radius: 16px; background: var(--panel-2); }
+.team-result strong { font-size: 24px; }
+.team-result span { color: var(--muted); font-size: 12px; }
+.team-result.passed strong { color: var(--accent); }
+.team-result.failed strong { color: var(--danger); }
 .telestration-chain { margin-top: 8px; padding: 14px; border-radius: 16px; background: var(--panel-2); }
 .telestration-chain > strong { display: block; margin-bottom: 10px; color: var(--accent); }
 .telestration-chain .stroke-preview canvas { aspect-ratio: 4 / 3; }
@@ -338,4 +355,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 @media (max-width: 380px) {
   .drawing-tools { grid-template-columns: 1fr 1fr; }
   .mode-picker { grid-template-columns: 1fr; }
+  .topbar > strong { font-size: 11px; }
+  .topbar-actions button { padding: 0 5px; font-size: 10px; }
 }

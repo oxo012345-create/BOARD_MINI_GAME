@@ -24,7 +24,7 @@ export type RoomState = {
 
 type PublicPlayer = Omit<Player, "sessionHash">;
 
-export type ClientRoom = Omit<RoomState, "players" | "game"> & {
+export type ClientRoom = Omit<RoomState, "players" | "game" | "surprise"> & {
   players: PublicPlayer[];
   meId?: string;
   authenticated: boolean;
@@ -99,9 +99,9 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     if (room.view !== "result" && Array.isArray(internal.history)) {
       game.history = internal.history.map((item) => ({ prompt: item.prompt, imageId: item.imageId }));
     }
-    if (room.view !== "result" && game.id === "trivia" && internal.answerRevealed && answer) game.answer = answer;
+    if (room.view !== "result" && ["initial", "trivia"].includes(String(game.id)) && internal.answerRevealed && answer) game.answer = answer;
     if (room.view !== "result") {
-      if (["liar", "dumb-liar"].includes(String(game.id))) game.prompt = "내 단어를 확인하고 자연스럽게 설명하세요";
+      if (["liar", "dumb-liar"].includes(String(game.id))) game.prompt = "내 단어를 라이어가 모르게 설명하세요.";
       if (game.id === "body-liar") game.prompt = "차례대로 몸으로 표현하세요";
       if (game.id === "face-liar") game.prompt = "차례대로 표정만 보여주세요";
       if (game.id === "unknown") game.prompt = "차례대로 질문에 답하세요";
