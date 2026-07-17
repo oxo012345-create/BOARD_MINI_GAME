@@ -47,6 +47,8 @@ export type GameRound = {
   telestrationSubmitted?: string[];
   telestrationComplete?: boolean;
   telestrationCorrectCount?: number;
+  telestrationAutoCorrectChainIds?: string[];
+  telestrationAcceptedChainIds?: string[];
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -258,7 +260,7 @@ export function makeRound(id: string, players: Player[], liarMode: "normal" | "d
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));
     const chains = order.map((playerId, index) => ({ id: crypto.randomUUID(), prompt: words[index % words.length], steps: [] as TelestrationStep[] }));
-    return { ...base, prompt: "그림 릴레이", telestrationRound: 1, telestrationDeadline: Date.now() + 45_000, telestrationOrder: order, telestrationChains: chains, telestrationSubmitted: [], telestrationComplete: false };
+    return { ...base, prompt: "그림 릴레이", telestrationRound: 1, telestrationDeadline: Date.now() + 45_000, telestrationOrder: order, telestrationChains: chains, telestrationSubmitted: [], telestrationComplete: false, telestrationAutoCorrectChainIds: [], telestrationAcceptedChainIds: [] };
   }
   if (id === "chain") return { ...base, ...teamTimedBase(players), prompt: pick(getList("chainPrompts", ["탕으로 끝나는 음식"])), history: [] };
   if (id === "four") {
@@ -296,10 +298,12 @@ export function assignedTelestrationChain(game: GameRound, playerId: string) {
 
 export function getTelestrationCorrectCount(game: GameRound) {
   const normalize = (value: string | undefined) => String(value ?? "").replace(/\s+/g, "").toLowerCase();
-  return (game.telestrationChains ?? []).filter((chain) => {
+  const automatic = (game.telestrationChains ?? []).filter((chain) => {
     const guess = [...chain.steps].reverse().find((step) => typeof step.guess === "string")?.guess;
     return normalize(guess) === normalize(chain.prompt);
-  }).length;
+  }).map((chain) => chain.id);
+  game.telestrationAutoCorrectChainIds = automatic;
+  return new Set([...automatic, ...(game.telestrationAcceptedChainIds ?? [])]).size;
 }
 
 export function advanceTelestration(game: GameRound, players: Player[]) {

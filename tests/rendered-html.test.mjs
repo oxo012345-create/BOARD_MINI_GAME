@@ -57,6 +57,11 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.ok(body.room.meId);
     assert.equal(JSON.stringify(body.room).includes("sessionHash"), false);
 
+    const lobbyRefresh = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    assert.equal(lobbyRefresh.room.view, "lobby");
+    assert.equal(lobbyRefresh.room.surprise.phase, "waiting");
+    assert.ok(lobbyRefresh.room.surprise.endsAt - Date.now() > 290_000);
+
     const soloStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -255,11 +260,22 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const telestrationFinishResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: guestCookie },
-      body: JSON.stringify({ action: "submit-telestration", guess: hostPrompt }),
+      body: JSON.stringify({ action: "submit-telestration", guess: "수동 인정 대상" }),
     });
     const telestrationFinishBody = await telestrationFinishResponse.json();
     assert.equal(telestrationFinishBody.room.view, "result");
-    assert.equal(telestrationFinishBody.room.game.telestrationCorrectCount, 2);
+    assert.equal(telestrationFinishBody.room.game.telestrationCorrectCount, 1);
+    assert.equal(telestrationFinishBody.room.game.telestrationAutoCorrectChainIds.length, 1);
+    const manualChain = telestrationFinishBody.room.game.telestrationResults.find((chain) => chain.prompt === hostPrompt);
+    const manualAcceptResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "accept-telestration-answer", chainId: manualChain.id }),
+    });
+    const manualAcceptBody = await manualAcceptResponse.json();
+    assert.equal(manualAcceptResponse.status, 200);
+    assert.equal(manualAcceptBody.room.game.telestrationCorrectCount, 2);
+    assert.deepEqual(manualAcceptBody.room.game.telestrationAcceptedChainIds, [manualChain.id]);
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -338,7 +354,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/surprise.ts", import.meta.url), "utf8"),
   ]);
-  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기"]) {
+  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
     assert.match(page, new RegExp(required));
   }
   for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다", "누가 걸렸는지는 우리끼리 판정", "마이크 판정 없음", "점수표 없음", "팀전 없음", "우리끼리 판정하고 있어요", "vote-correct"]) {

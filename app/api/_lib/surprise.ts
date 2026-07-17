@@ -53,7 +53,6 @@ function newRule(players: Player[], previousId?: string): SurpriseState {
 export function tickSurprise(room: RoomState) {
   const now = Date.now();
   if (!room.surprise) {
-    if (room.view !== "game") return false;
     room.surprise = { phase: "waiting", startedAt: now, endsAt: now + FIRST_RULE_DELAY_MS };
     return true;
   }

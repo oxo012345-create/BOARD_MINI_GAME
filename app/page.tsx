@@ -21,7 +21,8 @@ type GameRound = {
   privateRole?: { danger: boolean; label: string; value: string }; isStoryteller?: boolean;
   successfulPlayerIds?: string[]; teamOutcome?: "passed" | "failed"; failedPlayerId?: string;
   telestrationTask?: { round: number; deadline?: number; submitted: boolean; prompt?: string; previousStrokes?: Stroke[]; action: "draw" | "guess" };
-  telestrationResults?: TelestrationChain[]; telestrationComplete?: boolean; telestrationCorrectCount?: number;
+  telestrationResults?: TelestrationChain[]; telestrationComplete?: boolean; telestrationCorrectCount?: number; telestrationSubmitted?: string[];
+  telestrationAutoCorrectChainIds?: string[]; telestrationAcceptedChainIds?: string[];
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -74,8 +75,8 @@ function QuizImage({ imageId }: { imageId: string }) {
   return <div className="quiz-image">{!failed ? <img src={`/api/game-image/${imageId}`} alt="퀴즈 이미지" onError={() => setFailed(true)} /> : <div className="image-fallback">이미지를 불러오지 못했어요</div>}</div>;
 }
 
-function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: { title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
-  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title}><section className="confirm-card"><div className="eyebrow">한 번 더 확인</div><h2>{title}</h2><p>{message}</p><div className="confirm-actions"><button className="button secondary" onClick={onCancel}>취소</button><button className="button danger-button" onClick={onConfirm}>{confirmLabel}</button></div></section></div>;
+function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, onCancel }: { title: string; message: string; confirmLabel: string; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title}><section className="confirm-card"><div className="eyebrow">한 번 더 확인</div><h2>{title}</h2><p>{message}</p><div className="confirm-actions"><button className="button secondary" disabled={busy} onClick={onCancel}>취소</button><button className="button danger-button" disabled={busy} onClick={onConfirm}>{busy ? "처리 중…" : confirmLabel}</button></div></section></div>;
 }
 
 type SurprisePosition = { side: "left" | "center" | "right"; y: number };
@@ -219,13 +220,50 @@ export default function Home() {
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
   const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "center", y: 220 });
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "restored">("connected");
+  const [hostActionLocked, setHostActionLocked] = useState(false);
   const leavingRef = useRef(false);
   const alertedSurprise = useRef(0);
   const timerSubmitting = useRef(false);
+  const connectionStateRef = useRef<"connected" | "reconnecting" | "restored">("connected");
+  const connectionFailuresRef = useRef(0);
+  const connectionRestoreTimerRef = useRef<number | null>(null);
+  const hostActionLockRef = useRef(false);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
+
+  const markConnectionFailure = useCallback((immediate = false) => {
+    connectionFailuresRef.current += 1;
+    if (!immediate && connectionFailuresRef.current < 2) return;
+    if (connectionRestoreTimerRef.current) window.clearTimeout(connectionRestoreTimerRef.current);
+    connectionStateRef.current = "reconnecting";
+    setConnectionState("reconnecting");
+  }, []);
+  const markConnectionSuccess = useCallback(() => {
+    connectionFailuresRef.current = 0;
+    if (connectionStateRef.current !== "reconnecting") return;
+    connectionStateRef.current = "restored";
+    setConnectionState("restored");
+    if (connectionRestoreTimerRef.current) window.clearTimeout(connectionRestoreTimerRef.current);
+    connectionRestoreTimerRef.current = window.setTimeout(() => {
+      connectionStateRef.current = "connected";
+      setConnectionState("connected");
+    }, 1600);
+  }, []);
+  const withHostLock = useCallback(async (action: () => Promise<void>) => {
+    if (hostActionLockRef.current) return;
+    hostActionLockRef.current = true;
+    setHostActionLocked(true);
+    try { await action(); }
+    finally {
+      window.setTimeout(() => {
+        hostActionLockRef.current = false;
+        setHostActionLocked(false);
+      }, 1000);
+    }
+  }, []);
 
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 100); return () => window.clearInterval(id); }, []);
   useEffect(() => {
@@ -236,11 +274,18 @@ export default function Home() {
       return;
     }
     fetch(`/api/rooms/${targetRoom}`, { cache: "no-store" }).then(async (response) => {
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        if ([401, 404].includes(response.status)) {
+          localStorage.removeItem("hanpan-room");
+          if (code) { setJoinCode(code); setIntent("join"); }
+        }
+        throw new Error(String(response.status));
+      }
       const body = await response.json() as { room: Room };
+      markConnectionSuccess();
       if (body.room.authenticated) setRoom(body.room); else if (code) { setJoinCode(code); setIntent("join"); } else localStorage.removeItem("hanpan-room");
-    }).catch(() => { localStorage.removeItem("hanpan-room"); if (code) { setJoinCode(code); setIntent("join"); } else { setJoinCode(""); history.replaceState(null, "", location.pathname); } });
-  }, []);
+    }).catch((error: Error) => { if (!["401", "404"].includes(error.message)) markConnectionFailure(true); });
+  }, [markConnectionFailure, markConnectionSuccess]);
   useEffect(() => {
     const clearRestoredCode = (event: PageTransitionEvent) => {
       const restored = event.persisted || performance.getEntriesByType("navigation").some((entry) => (entry as PerformanceNavigationTiming).type !== "navigate") || (performance as Performance & { navigation?: { type: number } }).navigation?.type === 2;
@@ -256,14 +301,23 @@ export default function Home() {
     const poll = window.setInterval(async () => {
       try {
         const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
-        if (!response.ok) return;
+        if (!response.ok) { markConnectionFailure(); return; }
         const body = await response.json() as { room: Room };
+        markConnectionSuccess();
         if (!leavingRef.current && body.room.authenticated) setRoom(body.room);
         else if (!body.room.authenticated) { localStorage.removeItem("hanpan-room"); setRoom(null); setJoinCode(""); setIntent(null); }
-      } catch { /* 다음 주기에 재연결 */ }
+      } catch { markConnectionFailure(); }
     }, 1400);
     return () => window.clearInterval(poll);
-  }, [roomCode]);
+  }, [roomCode, markConnectionFailure, markConnectionSuccess]);
+  useEffect(() => {
+    const offline = () => markConnectionFailure(true);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("offline", offline);
+      if (connectionRestoreTimerRef.current) window.clearTimeout(connectionRestoreTimerRef.current);
+    };
+  }, [markConnectionFailure]);
   useEffect(() => {
     // 새 라운드의 비공개 역할과 로컬 입력이 이전 판에서 새지 않게 초기화합니다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -287,11 +341,17 @@ export default function Home() {
   const showNotice = useCallback((message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); }, []);
   const applyAction = useCallback(async (payload: Record<string, unknown>) => {
     if (!room) return null;
-    const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const body = await response.json() as { room?: Room; error?: string };
-    if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
-    setRoom(body.room); return body.room;
-  }, [room]);
+    try {
+      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const body = await response.json() as { room?: Room; error?: string };
+      if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
+      markConnectionSuccess();
+      setRoom(body.room); return body.room;
+    } catch (error) {
+      if (error instanceof TypeError) markConnectionFailure(true);
+      throw error;
+    }
+  }, [room, markConnectionFailure, markConnectionSuccess]);
   const enterRoom = async () => {
     if (!name.trim()) return showNotice("이름을 입력해 주세요.");
     if (intent === "join" && joinCode.length !== 4) return showNotice("4자리 방 코드를 입력해 주세요.");
@@ -312,13 +372,15 @@ export default function Home() {
     finally { localStorage.removeItem("hanpan-room"); history.replaceState(null, "", location.pathname); setRoom(null); setJoinCode(""); setIntent(null); setBusy(false); setConfirmType(null); }
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
-  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } };
-  const startGame = async () => { if (!currentGame || !isHost) return; try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } };
-  const finishGame = async () => { setConfirmType(null); try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } };
-  const goHub = async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } };
-  const goLobby = async () => { setConfirmType(null); try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } };
-  const failGame = async () => { setConfirmType(null); try { await applyAction({ action: "fail-game" }); } catch (error) { showNotice(error instanceof Error ? error.message : "실패 결과를 열지 못했어요."); } };
-  const nextCoopQuestion = async () => { try { await applyAction({ action: "next-question" }); } catch (error) { showNotice(error instanceof Error ? error.message : "다음 문제로 넘어가지 못했어요."); } };
+  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
+  const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
+  const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
+  const failGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "fail-game" }); } catch (error) { showNotice(error instanceof Error ? error.message : "실패 결과를 열지 못했어요."); } }); };
+  const nextCoopQuestion = async () => { await withHostLock(async () => { try { await applyAction({ action: "next-question" }); } catch (error) { showNotice(error instanceof Error ? error.message : "다음 문제로 넘어가지 못했어요."); } }); };
+  const revealAnswer = async () => { await withHostLock(async () => { try { await applyAction({ action: "reveal-answer" }); } catch (error) { showNotice(error instanceof Error ? error.message : "정답을 공개하지 못했어요."); } }); };
+  const acceptTelestrationAnswer = async (chainId: string) => { await withHostLock(async () => { try { await applyAction({ action: "accept-telestration-answer", chainId }); } catch (error) { showNotice(error instanceof Error ? error.message : "정답으로 인정하지 못했어요."); } }); };
   const submitMemory = async () => { if (memoryInputs.some((value) => !value.trim())) return showNotice("네 문장을 모두 적어 주세요."); try { await applyAction({ action: "submit-memory", entries: memoryInputs }); } catch (error) { showNotice(error instanceof Error ? error.message : "제출하지 못했어요."); } };
   const submitTimer = async () => {
     if (currentGame?.timerResults?.some((item) => item.playerId === room?.meId) || timerSubmitting.current) return;
@@ -337,7 +399,7 @@ export default function Home() {
   const inlineManagedGame = Boolean(currentGame && ["initial", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration"].includes(currentGame.id));
   const activeSurprise = room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
 
-  const topBar = (title: string) => <TopBar code={room?.code ?? ""} title={title} showLobby={isHost && room?.view !== "lobby"} onLobby={() => setConfirmType("lobby")} onLeave={() => setConfirmType("leave")} />;
+  const topBar = (title: string) => <TopBar code={room?.code ?? ""} title={title} showLobby={isHost && room?.view !== "lobby"} actionsDisabled={hostActionLocked} onLobby={() => setConfirmType("lobby")} onLeave={() => setConfirmType("leave")} />;
   const confirmSpec = confirmType === "leave"
     ? { title: "방에서 나갈까요?", message: room?.view === "game" ? "현재 게임이 진행 중입니다. 취소하면 동일한 참가자로 계속 게임에 참여합니다." : "나가면 참가자 목록에서 바로 사라집니다.", label: "나가기" }
     : confirmType === "finish"
@@ -355,9 +417,10 @@ export default function Home() {
   };
   const commonOverlays = <>
     {activeSurprise && <SurpriseDrawer surprise={activeSurprise} now={now} collapsed={surpriseCollapsed} onCollapsedChange={setSurpriseCollapsed} position={surprisePosition} onPositionChange={setSurprisePosition} />}
+    {connectionState !== "connected" && <div className={`connection-banner ${connectionState}`} role="status">{connectionState === "reconnecting" ? "연결이 불안정해요 · 재연결 중…" : "다시 연결됐어요"}</div>}
     {notice && <div className="toast" role="status">{notice}</div>}
     {lightbox && <button className="photo-lightbox" aria-label="사진 닫기" onClick={() => setLightbox(null)}><img src={lightbox} alt="확대 사진" /></button>}
-    {confirmSpec && <ConfirmDialog title={confirmSpec.title} message={confirmSpec.message} confirmLabel={confirmSpec.label} onCancel={() => setConfirmType(null)} onConfirm={confirmAction} />}
+    {confirmSpec && <ConfirmDialog title={confirmSpec.title} message={confirmSpec.message} confirmLabel={confirmSpec.label} busy={hostActionLocked} onCancel={() => setConfirmType(null)} onConfirm={confirmAction} />}
   </>;
 
   if (!room) return <main className="app-shell entry-shell">
@@ -384,13 +447,13 @@ export default function Home() {
     {commonOverlays}
   </main>;
 
-  if (room.view === "lobby") return <main className="app-shell">{topBar("대기실")}<section className="room-code-card"><div><span>방 코드</span><strong>{room.code}</strong></div><button className="share-button" onClick={() => void shareRoom()}>공유</button></section><section className="qr-card">{qr ? <img src={qr} alt={`방 ${room.code} 참가 QR 코드`} /> : <div className="image-loader" />}<p>QR을 찍거나 코드로 참가하세요</p></section><section className="players-section"><div className="section-heading"><h2>참가자</h2><span>{room.players.length}명</span></div><div className="player-list">{room.players.map((player) => <div className="player-row" key={player.id}><span className="player-avatar">{player.avatar}</span><span>{player.name}</span>{player.id === room.hostId && <span className="host-badge">방장</span>}{player.id === room.meId && <span className="me-label">나</span>}</div>)}</div></section><div className="sticky-action">{isHost ? <button className="button primary xl" onClick={() => void goHub()}>{room.players.length === 1 ? "혼자 시작하기" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>{commonOverlays}</main>;
+  if (room.view === "lobby") return <main className="app-shell">{topBar("대기실")}<section className="room-code-card"><div><span>방 코드</span><strong>{room.code}</strong></div><button className="share-button" onClick={() => void shareRoom()}>공유</button></section><section className="qr-card">{qr ? <img src={qr} alt={`방 ${room.code} 참가 QR 코드`} /> : <div className="image-loader" />}<p>QR을 찍거나 코드로 참가하세요</p></section><section className="players-section"><div className="section-heading"><h2>참가자</h2><span>{room.players.length}명</span></div><div className="player-list">{room.players.map((player) => <div className="player-row" key={player.id}><span className="player-avatar">{player.avatar}</span><span>{player.name}</span>{player.id === room.hostId && <span className="host-badge">방장</span>}{player.id === room.meId && <span className="me-label">나</span>}</div>)}</div></section><div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void goHub()}>{room.players.length === 1 ? "혼자 시작하기" : "게임 고르기"}</button> : <div className="waiting"><span className="pulse" />방장이 시작하기를 기다리는 중</div>}</div>{commonOverlays}</main>;
 
   if (me?.status === "waiting") return <main className="app-shell">{topBar("다음 판 대기")}<section className="waiting-card"><span className="big-emoji">👋</span><h2>현재 게임이 진행 중이에요</h2><p>이번 판이 끝나면 동일한 참가자로 자동 참여해요.</p></section>{commonOverlays}</main>;
 
-  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : COOP_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" key={game.id} onClick={() => void prepareGame(game)}><span className="game-icon">{game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
+  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : COOP_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className="game-icon">{game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
 
-  if (room.view === "briefing" && currentGame) return <main className="app-shell briefing-shell">{topBar("게임 설명")}<section className="briefing-card"><span className="big-emoji">{gameMeta?.icon ?? "🎮"}</span><div className="eyebrow">시작 전 설명</div><h1>{currentGame.title}</h1><p>{currentGame.briefing ?? currentGame.prompt}</p>{LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}</section><div className="sticky-action">{isHost ? <button className="button primary xl" onClick={() => void startGame()}>게임 시작</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>{commonOverlays}</main>;
+  if (room.view === "briefing" && currentGame) return <main className="app-shell briefing-shell">{topBar("게임 설명")}<section className="briefing-card"><span className="big-emoji">{gameMeta?.icon ?? "🎮"}</span><div className="eyebrow">시작 전 설명</div><h1>{currentGame.title}</h1><p>{currentGame.briefing ?? currentGame.prompt}</p>{LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}</section><div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void startGame()}>게임 시작</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>{commonOverlays}</main>;
 
   if (room.view === "result" && currentGame) {
     const liarName = playerName(room, currentGame.liarId);
@@ -406,11 +469,11 @@ export default function Home() {
         {history.length > 0 && ["initial", "trivia", "people"].includes(currentGame.id) && <div className="history-results"><h3>나왔던 정답</h3>{history.map((item, index) => <div key={`${item.prompt}-${index}`}><span>{index + 1}번 · {item.prompt}</span><strong>{item.answer ?? "우리끼리 판정"}</strong></div>)}</div>}
         {currentGame.id === "taste" && <div className="history-results taste-results"><h3>각자 고른 취향</h3>{room.players.map((player) => <div key={player.id}><span>{player.name}</span><strong>{currentGame.selections?.[player.id] ?? "미선택"}</strong></div>)}</div>}
         {currentGame.id === "ten-seconds" && <TimerResults room={room} results={currentGame.timerResults ?? []} />}
-        {currentGame.telestrationResults && <><div className={`team-result ${(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "passed" : "failed"}`}><strong>{(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "통과!" : "아쉽게 실패"}</strong><span>정답 {currentGame.telestrationCorrectCount ?? 0}명 · 2명 이상이면 통과</span></div><TelestrationResults room={room} chains={currentGame.telestrationResults} /></>}
+        {currentGame.telestrationResults && <><div className={`team-result ${(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "passed" : "failed"}`}><strong>{(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "통과!" : "아쉽게 실패"}</strong><span>정답 {currentGame.telestrationCorrectCount ?? 0}명 · 2명 이상이면 통과</span></div><TelestrationResults room={room} chains={currentGame.telestrationResults} isHost={isHost} automaticIds={currentGame.telestrationAutoCorrectChainIds ?? []} acceptedIds={currentGame.telestrationAcceptedChainIds ?? []} busy={hostActionLocked} onAccept={(chainId) => void acceptTelestrationAnswer(chainId)} /></>}
         {currentGame.teamOutcome && <div className={`team-result ${currentGame.teamOutcome}`}><strong>{currentGame.teamOutcome === "passed" ? "전원 성공 · 통과!" : "이번 도전 실패"}</strong>{currentGame.failedPlayerId && <span>{playerName(room, currentGame.failedPlayerId)}에서 도전 종료</span>}</div>}
         {currentGame.imageSource && <p><a href={currentGame.imageSource} target="_blank" rel="noreferrer">사진 출처 보기</a></p>}
       </section>
-      <div className="result-actions">{isHost ? <>{currentGame.id !== "ten-seconds" && gameMeta && <button className="button primary xl" onClick={() => void prepareGame(gameMeta)}>같은 게임 다시하기</button>}<button className="button secondary xl" onClick={() => void goHub()}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
+      <div className="result-actions">{isHost ? <>{currentGame.id !== "ten-seconds" && gameMeta && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void prepareGame(gameMeta)}>같은 게임 다시하기</button>}<button className="button secondary xl" disabled={hostActionLocked} onClick={() => void goHub()}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;
   }
@@ -429,13 +492,13 @@ export default function Home() {
       <h2 className="prompt-big">{currentGame.prompt}</h2>
       <p>술래 오른쪽부터 진행해요. 틀리는 사람이 나올 때까지 이어갑니다.</p>
       {currentGame.answerRevealed && <div className="inline-answer">정답 · {currentGame.answer}</div>}
-      {isHost && (!currentGame.answerRevealed ? <button className="button primary xl" onClick={() => void applyAction({ action: "reveal-answer" })}>정답 공개</button> : <div className="host-game-controls"><button className="button secondary" onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" onClick={() => void nextCoopQuestion()}>다음 문제</button></div>)}
+      {isHost && (!currentGame.answerRevealed ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void revealAnswer()}>정답 공개</button> : <div className="host-game-controls"><button className="button secondary" disabled={hostActionLocked} onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>)}
     </section></>}
     {currentGame.id === "trivia" && <>{turnHeader}<section className="prompt-card">
       <div className="quiz-category">중급 상식</div><h2>{currentGame.prompt}</h2>
       <p>술래 오른쪽부터 진행해요. 틀리는 사람이 나올 때까지 이어갑니다.</p>
       {currentGame.answerRevealed && <div className="inline-answer">정답 · {currentGame.answer}</div>}
-      {isHost && (!currentGame.answerRevealed ? <button className="button primary xl" onClick={() => void applyAction({ action: "reveal-answer" })}>정답 공개</button> : <div className="host-game-controls"><button className="button secondary" onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" onClick={() => void nextCoopQuestion()}>다음 문제</button></div>)}
+      {isHost && (!currentGame.answerRevealed ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void revealAnswer()}>정답 공개</button> : <div className="host-game-controls"><button className="button secondary" disabled={hostActionLocked} onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>)}
     </section></>}
     {currentGame.id === "memory" && <section className="prompt-card">
       <div className="memory-word-label">제시어</div><h2 className="memory-word">{currentGame.memoryWord}</h2>
@@ -452,23 +515,52 @@ export default function Home() {
     </section>}
     {currentGame.id === "taste" && <section className="prompt-card"><div className="eyebrow">취향 선택</div><h2>둘 중 하나를 골라주세요</h2><div className="taste-buttons">{currentGame.choices?.map((choice) => <button key={choice} className={currentGame.myChoice === choice ? "selected" : ""} onClick={() => void applyAction({ action: "taste-choice", choice })}>{choice}</button>)}</div><div className="selection-list">{room.players.map((player) => <span key={player.id} className={currentGame.selectionStatus?.includes(player.id) ? "done" : ""}>{player.name} · {currentGame.selectionStatus?.includes(player.id) ? "선택 완료" : "선택 중"}</span>)}</div></section>}
     {currentGame.id === "ten-seconds" && <section className="prompt-card timer-card"><div className="eyebrow">정확히 10초를 맞혀보세요</div><h2>{myTimerResult ? `${myTimerResult.seconds.toFixed(2)}초` : timerStart ? "진행중" : "준비"}</h2>{!myTimerResult && <button className="timer-button" onClick={() => void submitTimer()}>{timerStart ? "멈춤" : "시작"}</button>}<TimerResults room={room} results={currentGame.timerResults ?? []} /></section>}
-    {["color", "object-initial"].includes(currentGame.id) && <section className="prompt-card"><div className="eyebrow">{currentGame.id === "color" ? "이 색깔을 찾아요" : "이 초성 물건을 찾아요"}</div><h2 className="prompt-big">{currentGame.prompt}</h2>{!hasPhoto && <label className={`camera-button ${busy ? "disabled" : ""}`}>📷 사진 찍기<input type="file" accept="image/*" capture="environment" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadPhoto(file); event.currentTarget.value = ""; }} /></label>}<PhotoList room={room} submissions={submissions} onOpen={setLightbox} /></section>}
-    {currentGame.id === "people" && <>{timedHeader}<section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<h2>사진 속 인물은?</h2>{isHost && <div className="host-game-controls"><button className="button secondary fail-button" onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}</section></>}
-    {currentGame.id === "group-initial" && <>{timedHeader}<section className="prompt-card"><div className="coop-eyebrow">다 같이 도전</div><h2 className="prompt-big">{currentGame.prompt}</h2>{isHost && <button className="button primary xl" onClick={() => void applyAction({ action: "next-question" })}>다음 문제</button>}</section></>}
+    {["color", "object-initial"].includes(currentGame.id) && <section className="prompt-card"><div className="eyebrow">{currentGame.id === "color" ? "이 색깔을 찾아요" : "이 초성 물건을 찾아요"}</div><h2 className="prompt-big">{currentGame.prompt}</h2>{!hasPhoto && <label className={`camera-button ${busy ? "disabled" : ""}`}>📷 사진 찍기<input type="file" accept="image/*" capture="environment" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadPhoto(file); event.currentTarget.value = ""; }} /></label>}<ParticipantProgress room={room} completedIds={submissions.map((item) => item.playerId)} completeLabel="사진 완료" pendingLabel="사진 찾는 중" /><PhotoList room={room} submissions={submissions} onOpen={setLightbox} /></section>}
+    {currentGame.id === "people" && <>{timedHeader}<section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<h2>사진 속 인물은?</h2>{isHost && <div className="host-game-controls"><button className="button secondary fail-button" disabled={hostActionLocked} onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}</section></>}
+    {currentGame.id === "group-initial" && <>{timedHeader}<section className="prompt-card"><div className="coop-eyebrow">다 같이 도전</div><h2 className="prompt-big">{currentGame.prompt}</h2>{isHost && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section></>}
     {["chain", "four", "character"].includes(currentGame.id) && <>{timedHeader}<section className="prompt-card coop-turn-card">
       {currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}
       <div className="coop-eyebrow">다 같이 도전</div><h2 className={currentGame.prompt.length <= 12 ? "prompt-big" : ""}>{currentGame.prompt}</h2>
       {currentGame.id === "chain" && <p>같은 주제로 차례대로 답하세요. 주제는 이 판에서 바뀌지 않아요.</p>}
-      {isHost && <div className="host-game-controls"><button className="button secondary fail-button" onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}
+      {isHost && <div className="host-game-controls"><button className="button secondary fail-button" disabled={hostActionLocked} onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}
     </section></>}
-    {currentGame.id === "syllable" && <section className="prompt-card"><div className="coop-eyebrow">팀전 · 직접 판정</div><h2 className="prompt-big">{currentGame.prompt}</h2><p>두 팀으로 나눠 한 글자씩 이어서 단어를 완성하세요.</p>{isHost && <button className="button primary xl" onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section>}
-    {currentGame.id === "telestration" && currentGame.telestrationTask && <DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} />}
+    {currentGame.id === "syllable" && <section className="prompt-card"><div className="coop-eyebrow">팀전 · 직접 판정</div><h2 className="prompt-big">{currentGame.prompt}</h2><p>두 팀으로 나눠 한 글자씩 이어서 단어를 완성하세요.</p>{isHost && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section>}
+    {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} /></>}
     {!["initial", "trivia", "memory", "taste", "ten-seconds", "color", "object-initial", "people", "chain", "four", "character", "syllable", "group-initial", "telestration"].includes(currentGame.id) && <section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<div className={gameMeta?.category === "coop" ? "coop-eyebrow" : "eyebrow"}>{privateRole ? "역할을 확인했다면" : gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어"}</div><h2 className={!privateRole && currentGame.prompt.length <= 8 ? "prompt-big" : ""}>{privateRole ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요" : currentGame.id === "face-liar" ? "차례대로 표정만 보여주세요" : currentGame.id === "unknown" ? "차례대로 질문에 답하세요" : "내 단어를 라이어가 모르게 설명하세요." : currentGame.prompt}</h2>{currentGame.id === "hunmin" && <p>마지막 술래 오른쪽으로! 제한시간 3초</p>}</section>}
     {currentGame.answer && !privateRole && !["trivia", "initial", "people", "ten-seconds"].includes(currentGame.id) && <details className="answer-reveal"><summary>정답 확인</summary><strong>{currentGame.answer}</strong></details>}
-    <div className="sticky-action">{isHost ? inlineManagedGame ? <div className="waiting"><span className="pulse" />진행중</div> : <button className="button primary xl" disabled={currentGame.id === "memory" && !currentGame.memoryReady} onClick={() => setConfirmType("finish")}>{currentGame.id === "memory" && !currentGame.memoryReady ? "추억 작성 대기 중" : "결과 보기"}</button> : <div className="waiting"><span className="pulse" />진행중</div>}</div>{commonOverlays}</main>;
+    <div className="sticky-action">{isHost ? inlineManagedGame ? <div className="waiting"><span className="pulse" />진행중</div> : <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "memory" && !currentGame.memoryReady)} onClick={() => setConfirmType("finish")}>{currentGame.id === "memory" && !currentGame.memoryReady ? "추억 작성 대기 중" : "결과 보기"}</button> : <div className="waiting"><span className="pulse" />진행중</div>}</div>{commonOverlays}</main>;
 }
 
-function TopBar({ code, title, showLobby, onLobby, onLeave }: { code: string; title: string; showLobby: boolean; onLobby: () => void; onLeave: () => void }) { return <header className="topbar"><div className="mini-brand room-code-mini"><span className="brand-dot" />{code}</div><strong>{title}</strong><div className="topbar-actions">{showLobby && <button onClick={onLobby}>대기실로 이동</button>}<button onClick={onLeave}>나가기</button></div></header>; }
-function TimerResults({ room, results }: { room: Room; results: Array<{ playerId: string; seconds: number }> }) { return <div className="live-results">{results.map((item) => <div key={item.playerId}><span>{playerName(room, item.playerId)}</span><strong>{item.seconds.toFixed(2)}초</strong></div>)}</div>; }
+function TopBar({ code, title, showLobby, actionsDisabled, onLobby, onLeave }: { code: string; title: string; showLobby: boolean; actionsDisabled?: boolean; onLobby: () => void; onLeave: () => void }) { return <header className="topbar"><div className="mini-brand room-code-mini"><span className="brand-dot" />{code}</div><strong>{title}</strong><div className="topbar-actions">{showLobby && <button disabled={actionsDisabled} onClick={onLobby}>대기실로 이동</button>}<button onClick={onLeave}>나가기</button></div></header>; }
+function ParticipantProgress({ room, completedIds, completeLabel, pendingLabel }: { room: Room; completedIds: string[]; completeLabel: string; pendingLabel: string }) {
+  const completed = new Set(completedIds);
+  return <div className="participant-progress" aria-label="참가자 진행 상태">{room.players.map((player) => {
+    const isDone = completed.has(player.id);
+    return <div className={isDone ? "done" : "pending"} key={player.id}><span>{player.name}</span><strong>{player.status === "waiting" ? "다음 판 대기" : isDone ? completeLabel : pendingLabel}</strong></div>;
+  })}</div>;
+}
+function TimerResults({ room, results }: { room: Room; results: Array<{ playerId: string; seconds: number }> }) {
+  const records = new Map(results.map((item) => [item.playerId, item.seconds]));
+  return <div className="live-results">{room.players.map((player) => <div key={player.id}><span>{player.name}</span><strong>{records.has(player.id) ? `${records.get(player.id)?.toFixed(2)}초` : player.status === "waiting" ? "다음 판 대기" : "도전 대기"}</strong></div>)}</div>;
+}
 function PhotoList({ room, submissions, onOpen }: { room: Room; submissions: Array<{ playerId: string; key: string }>; onOpen: (url: string) => void }) { return <div className="photo-feed">{submissions.map((item, index) => { const url = `/api/rooms/${room.code}/photos/${item.key}`; return <button key={item.key} onClick={() => onOpen(url)}><img src={url} alt={`${playerName(room, item.playerId)} 제출 사진`} /><span><strong>{playerName(room, item.playerId)}</strong><small>{index + 1}번째 업로드 · 눌러서 확대</small></span></button>; })}</div>; }
-function TelestrationResults({ room, chains }: { room: Room; chains: TelestrationChain[] }) { return <div className="telestration-results">{chains.map((chain, chainIndex) => <section className="telestration-chain" key={chain.id}><h3>릴레이 {chainIndex + 1} · {chain.prompt}</h3>{chain.steps.map((step, index) => step.strokes ? <StrokePreview key={index} strokes={step.strokes} label={`${playerName(room, step.playerId)}의 그림`} /> : <div className="final-guess" key={index}><span>{playerName(room, step.playerId)}의 정답</span><strong>{step.guess}</strong></div>)}</section>)}</div>; }
+function TelestrationResults({ room, chains, isHost, automaticIds, acceptedIds, busy, onAccept }: { room: Room; chains: TelestrationChain[]; isHost: boolean; automaticIds: string[]; acceptedIds: string[]; busy?: boolean; onAccept: (chainId: string) => void }) {
+  const [chainIndex, setChainIndex] = useState(0);
+  const [revealedSteps, setRevealedSteps] = useState(0);
+  const chain = chains[Math.min(chainIndex, Math.max(0, chains.length - 1))];
+  if (!chain) return null;
+  const fullyRevealed = revealedSteps >= chain.steps.length;
+  const automatic = automaticIds.includes(chain.id);
+  const accepted = acceptedIds.includes(chain.id);
+  const nextReveal = () => {
+    if (!fullyRevealed) setRevealedSteps((count) => Math.min(chain.steps.length, count + 1));
+    else if (chainIndex < chains.length - 1) { setChainIndex((index) => index + 1); setRevealedSteps(0); }
+  };
+  return <div className="telestration-results"><section className="telestration-chain telestration-reveal" key={chain.id}>
+    <div className="reveal-counter">릴레이 {chainIndex + 1} / {chains.length}</div>
+    <div className="telestration-origin"><span>원래 제시어</span><strong>{chain.prompt}</strong></div>
+    {chain.steps.slice(0, revealedSteps).map((step, index) => step.strokes ? <StrokePreview key={index} strokes={step.strokes} label={`${playerName(room, step.playerId)}의 그림`} /> : <div className="final-guess" key={index}><span>{playerName(room, step.playerId)}의 정답</span><strong>{step.guess}</strong></div>)}
+    {fullyRevealed && <div className={`answer-verdict ${automatic || accepted ? "correct" : "incorrect"}`}><strong>{automatic ? "자동 정답" : accepted ? "방장 정답 인정" : "오답 판정"}</strong>{isHost && !automatic && !accepted && <button className="button secondary" disabled={busy} onClick={() => onAccept(chain.id)}>정답으로 인정</button>}</div>}
+    <div className="reveal-controls">{!fullyRevealed || chainIndex < chains.length - 1 ? <button className="button primary xl" onClick={nextReveal}>{!fullyRevealed ? revealedSteps === chain.steps.length - 1 ? "마지막 정답 공개" : "다음 그림 공개" : "다음 릴레이"}</button> : <div className="reveal-complete">전체 공개 완료</div>}</div>
+  </section></div>;
+}

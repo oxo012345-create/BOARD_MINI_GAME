@@ -98,7 +98,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!room) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
-      choice?: string; seconds?: number; strokes?: unknown; guess?: string;
+      choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string;
     };
 
     if (payload.action === "join") {
@@ -176,6 +176,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (payload.action === "accept-telestration-answer") {
+      if (!isHost || game.id !== "telestration" || room.view !== "result") return Response.json({ error: "결과 화면에서 방장만 정답을 인정할 수 있어요." }, { status: 403 });
+      const chainId = String(payload.chainId ?? "");
+      if (!game.telestrationChains?.some((chain) => chain.id === chainId)) return Response.json({ error: "릴레이 결과를 찾지 못했어요." }, { status: 400 });
+      game.telestrationAcceptedChainIds = [...new Set([...(game.telestrationAcceptedChainIds ?? []), chainId])];
+      game.telestrationCorrectCount = getTelestrationCorrectCount(game);
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (payload.action === "reveal-answer") {
       if (!isHost || !["initial", "trivia"].includes(game.id)) return Response.json({ error: "방장만 정답을 공개할 수 있어요." }, { status: 403 });
