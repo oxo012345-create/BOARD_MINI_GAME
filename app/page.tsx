@@ -242,7 +242,7 @@ export default function Home() {
   const roomMutationCountRef = useRef(0);
   const realtimeRevisionRef = useRef(0);
   const roomRefreshRef = useRef<() => void>(() => undefined);
-  const roomEventSourceRef = useRef<EventSource | null>(null);
+  const realtimeAbortRef = useRef<AbortController | null>(null);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
@@ -367,70 +367,72 @@ export default function Home() {
     if (!roomCode) return;
     let active = true;
     let reconnectAttempt = 0;
-    let reconnectTimer: number | null = null;
-
-    const clearRealtimeTimers = () => {
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    };
-    const scheduleReconnect = () => {
-      if (!active || reconnectTimer || document.visibilityState === "hidden" || !navigator.onLine) return;
-      const delay = Math.min(REALTIME_RECONNECT_MAX_MS, REALTIME_RECONNECT_MIN_MS * (2 ** reconnectAttempt));
-      reconnectAttempt += 1;
-      reconnectTimer = window.setTimeout(() => { reconnectTimer = null; connect(); }, delay);
-    };
-    const connect = () => {
-      if (!active || document.visibilityState === "hidden" || !navigator.onLine) return;
-      const current = roomEventSourceRef.current;
-      if (current && current.readyState !== EventSource.CLOSED) return;
-      const source = new EventSource(`/api/rooms/${roomCode}/events?revision=${realtimeRevisionRef.current}`);
-      roomEventSourceRef.current = source;
-      source.addEventListener("open", () => {
-        if (!active || roomEventSourceRef.current !== source) return;
-        reconnectAttempt = 0;
-        setRealtimeConnected(true);
-      });
-      source.addEventListener("room-state", (event) => {
-        if (!active) return;
+    let loopRunning = false;
+    const runRealtimeLoop = async () => {
+      if (loopRunning || !active || document.visibilityState === "hidden" || !navigator.onLine) return;
+      loopRunning = true;
+      try {
         try {
-          const message = JSON.parse(String((event as MessageEvent).data)) as { room?: Room | null };
-          const sequence = nextRoomRequestSequence();
-          if (message.room?.authenticated) applyRoomSnapshot(message.room, sequence);
-          else if (message.room === null && applyRoomSnapshot(null, sequence)) {
-            localStorage.removeItem("hanpan-room");
-            setJoinCode("");
-            setIntent(null);
+          const probe = await fetch(`/api/rooms/${roomCode}/events?revision=${realtimeRevisionRef.current}`, { cache: "no-store" });
+          if (!probe.ok) throw new Error(String(probe.status));
+          setRealtimeConnected(true);
+          reconnectAttempt = 0;
+        } catch {
+          setRealtimeConnected(false);
+        }
+        while (active && document.visibilityState === "visible" && navigator.onLine) {
+          const controller = new AbortController();
+          realtimeAbortRef.current = controller;
+          try {
+            const response = await fetch(`/api/rooms/${roomCode}/events?wait=1&revision=${realtimeRevisionRef.current}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            if (!response.ok) throw new Error(String(response.status));
+            const message = await response.json() as { revision?: number; room?: Room | null };
+            if (!active) return;
+            reconnectAttempt = 0;
+            setRealtimeConnected(true);
+            if (message.room?.authenticated) applyRoomSnapshot(message.room, nextRoomRequestSequence());
+            else if (message.room === null && applyRoomSnapshot(null, nextRoomRequestSequence())) {
+              localStorage.removeItem("hanpan-room");
+              setJoinCode("");
+              setIntent(null);
+              return;
+            }
+          } catch (error) {
+            if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+            setRealtimeConnected(false);
+            const delay = Math.min(REALTIME_RECONNECT_MAX_MS, REALTIME_RECONNECT_MIN_MS * (2 ** reconnectAttempt));
+            reconnectAttempt += 1;
+            await new Promise((resolve) => window.setTimeout(resolve, delay));
+          } finally {
+            if (realtimeAbortRef.current === controller) realtimeAbortRef.current = null;
           }
-        } catch { /* 알 수 없는 실시간 메시지는 무시 */ }
-      });
-      source.addEventListener("error", () => {
-        source.close();
-        if (roomEventSourceRef.current === source) roomEventSourceRef.current = null;
-        setRealtimeConnected(false);
-        scheduleReconnect();
-      });
+        }
+      } finally {
+        loopRunning = false;
+      }
     };
     const reconnectVisibleRoom = () => {
       if (document.visibilityState !== "visible") {
-        roomEventSourceRef.current?.close();
-        roomEventSourceRef.current = null;
+        realtimeAbortRef.current?.abort();
+        realtimeAbortRef.current = null;
         setRealtimeConnected(false);
         return;
       }
       roomRefreshRef.current();
-      connect();
+      void runRealtimeLoop();
     };
 
-    connect();
+    void runRealtimeLoop();
     window.addEventListener("online", reconnectVisibleRoom);
     document.addEventListener("visibilitychange", reconnectVisibleRoom);
     return () => {
       active = false;
       setRealtimeConnected(false);
-      clearRealtimeTimers();
-      const source = roomEventSourceRef.current;
-      roomEventSourceRef.current = null;
-      source?.close();
+      realtimeAbortRef.current?.abort();
+      realtimeAbortRef.current = null;
       window.removeEventListener("online", reconnectVisibleRoom);
       document.removeEventListener("visibilitychange", reconnectVisibleRoom);
     };

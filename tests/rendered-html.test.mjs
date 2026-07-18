@@ -3,29 +3,6 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-async function waitForRoomEvent(response, predicate) {
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  const deadline = Date.now() + 5_000;
-  let buffer = "";
-  while (Date.now() < deadline) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      if (!event.startsWith("event: room-state")) continue;
-      const data = event.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
-      if (!data) continue;
-      const message = JSON.parse(data);
-      if (predicate(message.room)) { await reader.cancel(); return message.room; }
-    }
-  }
-  await reader.cancel();
-  throw new Error("room event timeout");
-}
-
 async function withDevServer(run) {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const cli = fileURLToPath(new URL("../node_modules/vinext/dist/cli.js", import.meta.url));
@@ -86,14 +63,13 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(lobbyRefresh.room.surprise.phase, "waiting");
     assert.ok(lobbyRefresh.room.surprise.endsAt - Date.now() > 290_000);
 
-    const realtimeController = new AbortController();
-    const realtimeResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}/events?revision=${body.room.revision}`, {
+    const realtimeProbe = await fetch(`${baseUrl}/api/rooms/${body.room.code}/events?revision=${body.room.revision}`, {
       headers: { Cookie: hostCookie },
-      signal: realtimeController.signal,
     });
-    assert.equal(realtimeResponse.status, 200);
-    assert.match(realtimeResponse.headers.get("content-type") ?? "", /^text\/event-stream/);
-    const realtimeHubState = waitForRoomEvent(realtimeResponse, (room) => room?.view === "hub");
+    assert.equal(realtimeProbe.status, 200);
+    const realtimeHubState = fetch(`${baseUrl}/api/rooms/${body.room.code}/events?wait=1&revision=${body.room.revision}`, {
+      headers: { Cookie: hostCookie },
+    }).then((eventResponse) => eventResponse.json());
 
     const soloStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -105,9 +81,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(soloStartBody.room.players.length, 1);
     assert.equal(soloStartBody.room.view, "hub");
     const pushedHubState = await realtimeHubState;
-    assert.equal(pushedHubState.meId, body.room.meId);
-    assert.equal(pushedHubState.authenticated, true);
-    realtimeController.abort();
+    assert.equal(pushedHubState.room.meId, body.room.meId);
+    assert.equal(pushedHubState.room.authenticated, true);
 
     const briefingResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -414,12 +389,12 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
   assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);
   assert.match(page, /HOST_ACTION_LOCK_MS = 350/);
-  assert.match(page, /new EventSource\(`/);
+  assert.match(page, /events\?wait=1&revision=/);
   assert.match(page, /REALTIME_SAFETY_SYNC_INTERVAL_MS = 5000/);
   assert.match(page, /roomRefreshRef\.current\(\)/);
   assert.match(realtime, /REALTIME_ROOM_CHECK_MS = 300/);
   assert.match(realtime, /loadLatest/);
-  assert.match(realtime, /text\/event-stream/);
+  assert.match(realtime, /REALTIME_WAIT_MS = 12_000/);
   assert.match(eventsRoute, /authenticatePlayer/);
   assert.match(eventsRoute, /readRoomRevision/);
   assert.match(page, /if \(!active \|\| inFlight \|\| roomMutationCountRef\.current > 0 \|\| document\.visibilityState === "hidden"\) return/);
