@@ -372,6 +372,13 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /RANDOM_GAMES = ALL_GAMES\.filter\(\(game\) => game\.id !== "syllable"\)/);
   assert.match(rounds, /telestrationDeadline = nextRound === 4 \? undefined/);
   assert.match(page, /누르는 동안만 보여요/);
+  assert.match(page, /setPointerCapture/);
+  assert.match(page, /draggable=\{false\}/);
+  assert.doesNotMatch(page, /onPointerLeave=\{\(\) => setRoleVisible\(false\)\}/);
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /\.game-shell \* \{ user-select: none; -webkit-user-select: none; \}/);
+  assert.match(styles, /\.game-shell input, \.game-shell textarea/);
+  assert.match(styles, /\.role-card \{[^}]*touch-action: none;[^}]*-webkit-touch-callout: none;/);
   const hostingConfig = JSON.parse(hosting);
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.equal(hostingConfig.d1, "DB");

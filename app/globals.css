@@ -158,9 +158,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .chevron { justify-self: end; color: #5c636d; font-size: 25px; }
 .floating-wait { position: fixed; z-index: 24; right: 18px; bottom: calc(20px + env(safe-area-inset-bottom)); left: 18px; max-width: 484px; min-height: 48px; margin: auto; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: rgba(27, 31, 37, .94); color: #bdc2c9; text-align: center; font-size: 12px; backdrop-filter: blur(12px); }
 
-.game-shell { padding-bottom: calc(128px + env(safe-area-inset-bottom)); }
+.game-shell { padding-bottom: calc(128px + env(safe-area-inset-bottom)); -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.game-shell * { user-select: none; -webkit-user-select: none; }
+.game-shell input, .game-shell textarea, .game-shell [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+.game-shell img { -webkit-user-drag: none; }
 .round-label { margin: 2px 0 10px; color: #5f6670; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
-.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; text-align: center; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; text-align: center; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
+.role-card * { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
 .role-card > span { display: block; color: var(--accent); -webkit-text-fill-color: var(--accent); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
 .role-card > strong { display: block; margin: 17px 0 13px; color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
 .role-card > small { color: #aab0b8 !important; -webkit-text-fill-color: #aab0b8; font-size: 10px; }

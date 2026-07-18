@@ -486,7 +486,27 @@ export default function Home() {
   const timedHeader = currentPlayer && <><div className={`turn-banner ${timeUp ? "time-up" : ""}`}><strong>{playerName(room, currentPlayer)}</strong> 정답을 맞추세요!</div><div className={`three-second-timer ${timeUp ? "time-up" : ""}`}>{timeUp ? "시간 초과" : `${Math.max(0, Math.ceil(((currentGame.deadline ?? now) - now) / 1000))}초`}</div></>;
 
   return <main className={`app-shell game-shell ${timeUp && ["people", "chain", "four", "character", "group-initial"].includes(currentGame.id) ? "red-alert" : ""}`}>{topBar(currentGame.title)}<div className="round-label">ROUND {room.roundNumber}</div>
-    {privateRole && <button className={`role-card ${roleVisible ? "revealed" : ""}`} onPointerDown={() => setRoleVisible(true)} onPointerUp={() => setRoleVisible(false)} onPointerCancel={() => setRoleVisible(false)} onPointerLeave={() => setRoleVisible(false)} onBlur={() => setRoleVisible(false)} onContextMenu={(event) => event.preventDefault()}><span>{roleVisible ? privateRole.label : "내 역할 확인"}</span><strong>{roleVisible ? privateRole.value : "휴대폰을 가리고 누르고 계세요"}</strong><small>{roleVisible ? "손을 떼면 다시 숨겨져요" : "누르는 동안만 보여요"}</small></button>}
+    {privateRole && <button
+      className={`role-card ${roleVisible ? "revealed" : ""}`}
+      draggable={false}
+      aria-pressed={roleVisible}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setRoleVisible(true);
+      }}
+      onPointerUp={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        setRoleVisible(false);
+      }}
+      onPointerCancel={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        setRoleVisible(false);
+      }}
+      onDragStart={(event) => event.preventDefault()}
+      onBlur={() => setRoleVisible(false)}
+      onContextMenu={(event) => event.preventDefault()}
+    ><span>{roleVisible ? privateRole.label : "내 역할 확인"}</span><strong>{roleVisible ? privateRole.value : "휴대폰을 가리고 누르고 계세요"}</strong><small>{roleVisible ? "손을 떼면 다시 숨겨져요" : "누르는 동안만 보여요"}</small></button>}
     {currentGame.id === "initial" && <>{turnHeader}<section className="prompt-card">
       <div className="quiz-category">{currentGame.category ?? "초성"}</div>
       <h2 className="prompt-big">{currentGame.prompt}</h2>
