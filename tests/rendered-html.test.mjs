@@ -3,28 +3,27 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import WebSocket from "ws";
-
-function waitForSocketOpen(socket) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("WebSocket open timeout")), 5_000);
-    socket.once("open", () => { clearTimeout(timeout); resolve(); });
-    socket.once("error", (error) => { clearTimeout(timeout); reject(error); });
-  });
-}
-
-function waitForRoomState(socket, predicate) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("WebSocket room-state timeout")), 5_000);
-    const onMessage = (raw) => {
-      const message = JSON.parse(String(raw));
-      if (message.type !== "room-state" || !predicate(message.room)) return;
-      clearTimeout(timeout);
-      socket.off("message", onMessage);
-      resolve(message.room);
-    };
-    socket.on("message", onMessage);
-  });
+async function waitForRoomEvent(response, predicate) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const deadline = Date.now() + 5_000;
+  let buffer = "";
+  while (Date.now() < deadline) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+    for (const event of events) {
+      if (!event.startsWith("event: room-state")) continue;
+      const data = event.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
+      if (!data) continue;
+      const message = JSON.parse(data);
+      if (predicate(message.room)) { await reader.cancel(); return message.room; }
+    }
+  }
+  await reader.cancel();
+  throw new Error("room event timeout");
 }
 
 async function withDevServer(run) {
@@ -87,11 +86,14 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(lobbyRefresh.room.surprise.phase, "waiting");
     assert.ok(lobbyRefresh.room.surprise.endsAt - Date.now() > 290_000);
 
-    const realtimeObserver = new WebSocket(`${baseUrl.replace("http", "ws")}/api/rooms/${body.room.code}/socket`, {
+    const realtimeController = new AbortController();
+    const realtimeResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}/events?revision=${body.room.revision}`, {
       headers: { Cookie: hostCookie },
+      signal: realtimeController.signal,
     });
-    await waitForSocketOpen(realtimeObserver);
-    const realtimeHubState = waitForRoomState(realtimeObserver, (room) => room?.view === "hub");
+    assert.equal(realtimeResponse.status, 200);
+    assert.match(realtimeResponse.headers.get("content-type") ?? "", /^text\/event-stream/);
+    const realtimeHubState = waitForRoomEvent(realtimeResponse, (room) => room?.view === "hub");
 
     const soloStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -105,7 +107,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const pushedHubState = await realtimeHubState;
     assert.equal(pushedHubState.meId, body.room.meId);
     assert.equal(pushedHubState.authenticated, true);
-    realtimeObserver.terminate();
+    realtimeController.abort();
 
     const briefingResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -383,13 +385,13 @@ test("server-renders the Hanpan mobile app shell", async () => {
 });
 
 test("keeps the requested game set and removes excluded modes", async () => {
-  const [page, layout, hosting, surprise, realtime, socketRoute] = await Promise.all([
+  const [page, layout, hosting, surprise, realtime, eventsRoute] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/surprise.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/realtime.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/rooms/[code]/socket/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/rooms/[code]/events/route.ts", import.meta.url), "utf8"),
   ]);
   for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
     assert.match(page, new RegExp(required));
@@ -412,14 +414,14 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
   assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);
   assert.match(page, /HOST_ACTION_LOCK_MS = 350/);
-  assert.match(page, /new WebSocket\(`\$\{protocol\}/);
-  assert.match(page, /roomSocketRef\.current\?\.readyState === WebSocket\.OPEN/);
+  assert.match(page, /new EventSource\(`/);
+  assert.match(page, /REALTIME_SAFETY_SYNC_INTERVAL_MS = 5000/);
   assert.match(page, /roomRefreshRef\.current\(\)/);
   assert.match(realtime, /REALTIME_ROOM_CHECK_MS = 300/);
   assert.match(realtime, /loadLatest/);
-  assert.match(realtime, /WebSocketPair/);
-  assert.match(socketRoute, /authenticatePlayer/);
-  assert.match(socketRoute, /readRoomRevision/);
+  assert.match(realtime, /text\/event-stream/);
+  assert.match(eventsRoute, /authenticatePlayer/);
+  assert.match(eventsRoute, /readRoomRevision/);
   assert.match(page, /if \(!active \|\| inFlight \|\| roomMutationCountRef\.current > 0 \|\| document\.visibilityState === "hidden"\) return/);
   assert.match(page, /sequence < lastAppliedRoomSequenceRef\.current/);
   assert.match(page, /roomMutationCountRef\.current = Math\.max\(0, roomMutationCountRef\.current - 1\)/);

@@ -1,4 +1,4 @@
-import { createRoomSocketResponse } from "../../../_lib/realtime";
+import { createRoomEventStreamResponse } from "../../../_lib/realtime";
 import { readRoom, readRoomRevision, toClientRoom } from "../../../_lib/rooms";
 import { authenticatePlayer } from "../../../_lib/session";
 
@@ -8,9 +8,6 @@ function normalizeCode(code: string) {
 
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
   try {
-    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-      return Response.json({ error: "WebSocket 연결이 필요해요." }, { status: 426 });
-    }
     const { code: rawCode } = await context.params;
     const code = normalizeCode(rawCode);
     if (code.length !== 4) return Response.json({ error: "방 코드를 확인해 주세요." }, { status: 400 });
@@ -18,10 +15,12 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     if (!room) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     const viewer = await authenticatePlayer(request, room);
     if (!viewer) return Response.json({ error: "방에 다시 참가해 주세요." }, { status: 401 });
-    return createRoomSocketResponse(room.revision ?? 0, async (knownRevision, force) => {
+    const requestedRevision = Math.max(0, Number(new URL(request.url).searchParams.get("revision")) || 0);
+    const initialRevision = Math.min(room.revision ?? 0, requestedRevision);
+    return createRoomEventStreamResponse(initialRevision, async (knownRevision) => {
       const revision = await readRoomRevision(code);
       if (revision === null) return { revision: knownRevision + 1, room: null };
-      if (!force && revision <= knownRevision) return { revision };
+      if (revision <= knownRevision) return { revision };
       const latestRoom = await readRoom(code);
       return { revision, room: latestRoom ? toClientRoom(latestRoom, viewer.id) : null };
     });

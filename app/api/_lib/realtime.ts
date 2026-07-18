@@ -1,74 +1,80 @@
-type RealtimeSocket = WebSocket & { accept(): void };
-
 type RealtimeSnapshot = {
   revision: number;
   room?: unknown | null;
 };
 
 const REALTIME_ROOM_CHECK_MS = 300;
+const REALTIME_HEARTBEAT_MS = 15_000;
 const REALTIME_MAX_FAILURES = 3;
 
-export function createRoomSocketResponse(
+export function createRoomEventStreamResponse(
   initialRevision: number,
-  loadLatest: (knownRevision: number, force: boolean) => Promise<RealtimeSnapshot>,
+  loadLatest: (knownRevision: number) => Promise<RealtimeSnapshot>,
 ) {
-  const Pair = (globalThis as typeof globalThis & {
-    WebSocketPair?: new () => { 0: WebSocket; 1: RealtimeSocket };
-  }).WebSocketPair;
-  if (!Pair) return Response.json({ error: "실시간 연결을 사용할 수 없어요." }, { status: 501 });
-
-  const pair = new Pair();
-  const client = pair[0];
-  const server = pair[1];
-  server.accept();
-
+  const encoder = new TextEncoder();
   let lastRevision = initialRevision;
   let checking = false;
   let failures = 0;
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let roomTimer: ReturnType<typeof setInterval> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
-  const cleanup = () => {
-    if (timer) clearInterval(timer);
-    timer = null;
-  };
-  const pushLatest = async (force = false) => {
-    if (checking) return;
-    checking = true;
-    try {
-      const snapshot = await loadLatest(lastRevision, force);
-      failures = 0;
-      lastRevision = Math.max(lastRevision, snapshot.revision);
-      if (snapshot.room !== undefined) {
-        server.send(JSON.stringify({ type: "room-state", room: snapshot.room, revision: snapshot.revision, at: Date.now() }));
-        if (snapshot.room === null) {
-          cleanup();
-          server.close(1000, "room closed");
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const cleanup = () => {
+        if (roomTimer) clearInterval(roomTimer);
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        roomTimer = null;
+        heartbeatTimer = null;
+      };
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+      };
+      const pushLatest = async () => {
+        if (checking) return;
+        checking = true;
+        try {
+          const snapshot = await loadLatest(lastRevision);
+          failures = 0;
+          lastRevision = Math.max(lastRevision, snapshot.revision);
+          if (snapshot.room !== undefined) {
+            send("room-state", { room: snapshot.room, revision: snapshot.revision, at: Date.now() });
+            if (snapshot.room === null) {
+              cleanup();
+              controller.close();
+            }
+          }
+        } catch {
+          failures += 1;
+          if (failures >= REALTIME_MAX_FAILURES) {
+            cleanup();
+            controller.error(new Error("REALTIME_SYNC_FAILED"));
+          }
+        } finally {
+          checking = false;
         }
-      }
-    } catch {
-      failures += 1;
-      if (failures >= REALTIME_MAX_FAILURES) {
-        cleanup();
-        try { server.close(1011, "sync failed"); } catch { /* already closed */ }
-      }
-    } finally {
-      checking = false;
-    }
-  };
+      };
 
-  server.addEventListener("close", cleanup);
-  server.addEventListener("error", cleanup);
-  server.addEventListener("message", (event) => {
-    if (event.data === "refresh") void pushLatest(true);
-    else if (event.data === "ping") {
-      try { server.send("pong"); } catch { cleanup(); }
-    }
+      send("connected", { revision: lastRevision, at: Date.now() });
+      roomTimer = setInterval(() => { void pushLatest(); }, REALTIME_ROOM_CHECK_MS);
+      heartbeatTimer = setInterval(() => {
+        try { controller.enqueue(encoder.encode(`: keepalive ${Date.now()}\n\n`)); }
+        catch { cleanup(); }
+      }, REALTIME_HEARTBEAT_MS);
+    },
+    cancel() {
+      if (roomTimer) clearInterval(roomTimer);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      roomTimer = null;
+      heartbeatTimer = null;
+    },
   });
-  timer = setInterval(() => { void pushLatest(); }, REALTIME_ROOM_CHECK_MS);
-  server.send(JSON.stringify({ type: "connected", revision: lastRevision, at: Date.now() }));
 
-  return new Response(null, {
-    status: 101,
-    webSocket: client,
-  } as ResponseInit & { webSocket: WebSocket });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

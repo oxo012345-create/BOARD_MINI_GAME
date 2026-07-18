@@ -240,8 +240,9 @@ export default function Home() {
   const roomRequestSequenceRef = useRef(0);
   const lastAppliedRoomSequenceRef = useRef(0);
   const roomMutationCountRef = useRef(0);
+  const realtimeRevisionRef = useRef(0);
   const roomRefreshRef = useRef<() => void>(() => undefined);
-  const roomSocketRef = useRef<WebSocket | null>(null);
+  const roomEventSourceRef = useRef<EventSource | null>(null);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
@@ -256,6 +257,7 @@ export default function Home() {
   const applyRoomSnapshot = useCallback((nextRoom: Room | null, sequence: number) => {
     if (sequence < lastAppliedRoomSequenceRef.current) return false;
     lastAppliedRoomSequenceRef.current = sequence;
+    realtimeRevisionRef.current = nextRoom?.revision ?? 0;
     setRoom(nextRoom);
     return true;
   }, []);
@@ -366,13 +368,10 @@ export default function Home() {
     let active = true;
     let reconnectAttempt = 0;
     let reconnectTimer: number | null = null;
-    let heartbeat: number | null = null;
 
-    const clearSocketTimers = () => {
+    const clearRealtimeTimers = () => {
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      if (heartbeat) window.clearInterval(heartbeat);
       reconnectTimer = null;
-      heartbeat = null;
     };
     const scheduleReconnect = () => {
       if (!active || reconnectTimer || document.visibilityState === "hidden" || !navigator.onLine) return;
@@ -382,49 +381,40 @@ export default function Home() {
     };
     const connect = () => {
       if (!active || document.visibilityState === "hidden" || !navigator.onLine) return;
-      const current = roomSocketRef.current;
-      if (current && (current.readyState === WebSocket.CONNECTING || current.readyState === WebSocket.OPEN)) return;
-      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      const socket = new WebSocket(`${protocol}//${location.host}/api/rooms/${roomCode}/socket`);
-      roomSocketRef.current = socket;
-      socket.addEventListener("open", () => {
-        if (!active || roomSocketRef.current !== socket) return;
+      const current = roomEventSourceRef.current;
+      if (current && current.readyState !== EventSource.CLOSED) return;
+      const source = new EventSource(`/api/rooms/${roomCode}/events?revision=${realtimeRevisionRef.current}`);
+      roomEventSourceRef.current = source;
+      source.addEventListener("open", () => {
+        if (!active || roomEventSourceRef.current !== source) return;
         reconnectAttempt = 0;
         setRealtimeConnected(true);
-        if (heartbeat) window.clearInterval(heartbeat);
-        heartbeat = window.setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) socket.send("ping");
-        }, 20_000);
       });
-      socket.addEventListener("message", (event) => {
-        if (!active || event.data === "pong") return;
+      source.addEventListener("room-state", (event) => {
+        if (!active) return;
         try {
-          const message = JSON.parse(String(event.data)) as { type?: string; room?: Room | null };
-          if (message.type === "room-state") {
-            const sequence = nextRoomRequestSequence();
-            if (message.room?.authenticated) applyRoomSnapshot(message.room, sequence);
-            else if (message.room === null && applyRoomSnapshot(null, sequence)) {
-              localStorage.removeItem("hanpan-room");
-              setJoinCode("");
-              setIntent(null);
-            }
-            return;
+          const message = JSON.parse(String((event as MessageEvent).data)) as { room?: Room | null };
+          const sequence = nextRoomRequestSequence();
+          if (message.room?.authenticated) applyRoomSnapshot(message.room, sequence);
+          else if (message.room === null && applyRoomSnapshot(null, sequence)) {
+            localStorage.removeItem("hanpan-room");
+            setJoinCode("");
+            setIntent(null);
           }
-          if (message.type === "room-changed") roomRefreshRef.current();
         } catch { /* 알 수 없는 실시간 메시지는 무시 */ }
       });
-      socket.addEventListener("close", () => {
-        if (roomSocketRef.current === socket) roomSocketRef.current = null;
+      source.addEventListener("error", () => {
+        source.close();
+        if (roomEventSourceRef.current === source) roomEventSourceRef.current = null;
         setRealtimeConnected(false);
-        if (heartbeat) window.clearInterval(heartbeat);
-        heartbeat = null;
         scheduleReconnect();
       });
-      socket.addEventListener("error", () => socket.close());
     };
     const reconnectVisibleRoom = () => {
       if (document.visibilityState !== "visible") {
-        roomSocketRef.current?.close(1000, "background");
+        roomEventSourceRef.current?.close();
+        roomEventSourceRef.current = null;
+        setRealtimeConnected(false);
         return;
       }
       roomRefreshRef.current();
@@ -437,10 +427,10 @@ export default function Home() {
     return () => {
       active = false;
       setRealtimeConnected(false);
-      clearSocketTimers();
-      const socket = roomSocketRef.current;
-      roomSocketRef.current = null;
-      socket?.close(1000, "room changed");
+      clearRealtimeTimers();
+      const source = roomEventSourceRef.current;
+      roomEventSourceRef.current = null;
+      source?.close();
       window.removeEventListener("online", reconnectVisibleRoom);
       document.removeEventListener("visibilitychange", reconnectVisibleRoom);
     };
@@ -484,7 +474,6 @@ export default function Home() {
       if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
       markConnectionSuccess();
       applyRoomSnapshot(body.room, sequence);
-      if (roomSocketRef.current?.readyState === WebSocket.OPEN) roomSocketRef.current.send("refresh");
       return body.room;
     } catch (error) {
       if (error instanceof TypeError) markConnectionFailure(true);
