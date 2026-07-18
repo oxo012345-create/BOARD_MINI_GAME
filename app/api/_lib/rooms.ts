@@ -18,6 +18,7 @@ export type RoomState = {
   players: Player[];
   view: "lobby" | "hub" | "briefing" | "game" | "result";
   roundNumber: number;
+  revision?: number;
   game?: Record<string, unknown>;
   surprise?: SurpriseState;
 };
@@ -142,6 +143,7 @@ export function touchAndPrunePlayers(room: RoomState, viewerId?: string) {
 }
 
 type RoomRow = { state: string };
+type RoomRevisionRow = { revision: number | null };
 
 function getD1() {
   const db = (env as unknown as { DB?: D1Database }).DB;
@@ -197,8 +199,18 @@ export async function readRoom(code: string): Promise<RoomState | null> {
   return JSON.parse(row.state) as RoomState;
 }
 
+export async function readRoomRevision(code: string): Promise<number | null> {
+  await ensureRoomsTable();
+  const row = await getD1()
+    .prepare("SELECT CAST(COALESCE(json_extract(state, '$.revision'), 0) AS INTEGER) AS revision FROM rooms WHERE code = ?")
+    .bind(code)
+    .first<RoomRevisionRow>();
+  return row ? Number(row.revision ?? 0) : null;
+}
+
 export async function createRoom(state: RoomState) {
   await ensureRoomsTable();
+  state.revision = Math.max(1, state.revision ?? 1);
   const result = await getD1()
     .prepare("INSERT OR IGNORE INTO rooms (code, state) VALUES (?, ?)")
     .bind(state.code, JSON.stringify(state))
@@ -207,6 +219,7 @@ export async function createRoom(state: RoomState) {
 }
 
 export async function writeRoom(state: RoomState) {
+  state.revision = (state.revision ?? 0) + 1;
   const result = await getD1()
     .prepare("UPDATE rooms SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?")
     .bind(JSON.stringify(state), state.code)

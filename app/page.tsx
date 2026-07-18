@@ -25,7 +25,7 @@ type GameRound = {
   telestrationAutoCorrectChainIds?: string[]; telestrationAcceptedChainIds?: string[];
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
-type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
+type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
 type GameMeta = { id: string; title: string; icon: string; description: string; category: "solo" | "coop" };
 
 const AVATARS = ["😎", "🥳", "🤠", "👻", "🐥", "🐰", "🐻", "🦊"];
@@ -59,6 +59,9 @@ const LIAR_OPTION_GAMES = ["liar", "body-liar", "face-liar", "unknown"];
 const FAST_SYNC_INTERVAL_MS = 500;
 const IDLE_SYNC_INTERVAL_MS = 1400;
 const HOST_ACTION_LOCK_MS = 350;
+const REALTIME_RECONNECT_MIN_MS = 500;
+const REALTIME_RECONNECT_MAX_MS = 8000;
+const REALTIME_SAFETY_SYNC_INTERVAL_MS = 5000;
 const FAST_SYNC_VIEWS: Room["view"][] = ["hub", "briefing", "game"];
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 
@@ -226,6 +229,7 @@ export default function Home() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "restored">("connected");
   const [hostActionLocked, setHostActionLocked] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const leavingRef = useRef(false);
   const alertedSurprise = useRef(0);
   const timerSubmitting = useRef(false);
@@ -236,11 +240,14 @@ export default function Home() {
   const roomRequestSequenceRef = useRef(0);
   const lastAppliedRoomSequenceRef = useRef(0);
   const roomMutationCountRef = useRef(0);
+  const roomRefreshRef = useRef<() => void>(() => undefined);
+  const roomSocketRef = useRef<WebSocket | null>(null);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
-  const syncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
+  const fallbackSyncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
+  const syncInterval = realtimeConnected ? REALTIME_SAFETY_SYNC_INTERVAL_MS : fallbackSyncInterval;
 
   const nextRoomRequestSequence = useCallback(() => {
     roomRequestSequenceRef.current += 1;
@@ -340,6 +347,7 @@ export default function Home() {
         inFlight = false;
       }
     };
+    roomRefreshRef.current = () => { void pollRoom(); };
     const poll = window.setInterval(() => { void pollRoom(); }, syncInterval);
     const refreshVisibleRoom = () => { if (document.visibilityState === "visible") void pollRoom(); };
     window.addEventListener("focus", refreshVisibleRoom);
@@ -347,11 +355,96 @@ export default function Home() {
     return () => {
       active = false;
       controller?.abort();
+      roomRefreshRef.current = () => undefined;
       window.clearInterval(poll);
       window.removeEventListener("focus", refreshVisibleRoom);
       document.removeEventListener("visibilitychange", refreshVisibleRoom);
     };
   }, [roomCode, syncInterval, applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
+  useEffect(() => {
+    if (!roomCode) return;
+    let active = true;
+    let reconnectAttempt = 0;
+    let reconnectTimer: number | null = null;
+    let heartbeat: number | null = null;
+
+    const clearSocketTimers = () => {
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (heartbeat) window.clearInterval(heartbeat);
+      reconnectTimer = null;
+      heartbeat = null;
+    };
+    const scheduleReconnect = () => {
+      if (!active || reconnectTimer || document.visibilityState === "hidden" || !navigator.onLine) return;
+      const delay = Math.min(REALTIME_RECONNECT_MAX_MS, REALTIME_RECONNECT_MIN_MS * (2 ** reconnectAttempt));
+      reconnectAttempt += 1;
+      reconnectTimer = window.setTimeout(() => { reconnectTimer = null; connect(); }, delay);
+    };
+    const connect = () => {
+      if (!active || document.visibilityState === "hidden" || !navigator.onLine) return;
+      const current = roomSocketRef.current;
+      if (current && (current.readyState === WebSocket.CONNECTING || current.readyState === WebSocket.OPEN)) return;
+      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(`${protocol}//${location.host}/api/rooms/${roomCode}/socket`);
+      roomSocketRef.current = socket;
+      socket.addEventListener("open", () => {
+        if (!active || roomSocketRef.current !== socket) return;
+        reconnectAttempt = 0;
+        setRealtimeConnected(true);
+        if (heartbeat) window.clearInterval(heartbeat);
+        heartbeat = window.setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) socket.send("ping");
+        }, 20_000);
+      });
+      socket.addEventListener("message", (event) => {
+        if (!active || event.data === "pong") return;
+        try {
+          const message = JSON.parse(String(event.data)) as { type?: string; room?: Room | null };
+          if (message.type === "room-state") {
+            const sequence = nextRoomRequestSequence();
+            if (message.room?.authenticated) applyRoomSnapshot(message.room, sequence);
+            else if (message.room === null && applyRoomSnapshot(null, sequence)) {
+              localStorage.removeItem("hanpan-room");
+              setJoinCode("");
+              setIntent(null);
+            }
+            return;
+          }
+          if (message.type === "room-changed") roomRefreshRef.current();
+        } catch { /* 알 수 없는 실시간 메시지는 무시 */ }
+      });
+      socket.addEventListener("close", () => {
+        if (roomSocketRef.current === socket) roomSocketRef.current = null;
+        setRealtimeConnected(false);
+        if (heartbeat) window.clearInterval(heartbeat);
+        heartbeat = null;
+        scheduleReconnect();
+      });
+      socket.addEventListener("error", () => socket.close());
+    };
+    const reconnectVisibleRoom = () => {
+      if (document.visibilityState !== "visible") {
+        roomSocketRef.current?.close(1000, "background");
+        return;
+      }
+      roomRefreshRef.current();
+      connect();
+    };
+
+    connect();
+    window.addEventListener("online", reconnectVisibleRoom);
+    document.addEventListener("visibilitychange", reconnectVisibleRoom);
+    return () => {
+      active = false;
+      setRealtimeConnected(false);
+      clearSocketTimers();
+      const socket = roomSocketRef.current;
+      roomSocketRef.current = null;
+      socket?.close(1000, "room changed");
+      window.removeEventListener("online", reconnectVisibleRoom);
+      document.removeEventListener("visibilitychange", reconnectVisibleRoom);
+    };
+  }, [roomCode, applyRoomSnapshot, nextRoomRequestSequence]);
   useEffect(() => {
     const offline = () => markConnectionFailure(true);
     window.addEventListener("offline", offline);
@@ -390,7 +483,9 @@ export default function Home() {
       const body = await response.json() as { room?: Room; error?: string };
       if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
       markConnectionSuccess();
-      applyRoomSnapshot(body.room, sequence); return body.room;
+      applyRoomSnapshot(body.room, sequence);
+      if (roomSocketRef.current?.readyState === WebSocket.OPEN) roomSocketRef.current.send("refresh");
+      return body.room;
     } catch (error) {
       if (error instanceof TypeError) markConnectionFailure(true);
       throw error;

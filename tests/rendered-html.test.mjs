@@ -3,6 +3,29 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import WebSocket from "ws";
+
+function waitForSocketOpen(socket) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("WebSocket open timeout")), 5_000);
+    socket.once("open", () => { clearTimeout(timeout); resolve(); });
+    socket.once("error", (error) => { clearTimeout(timeout); reject(error); });
+  });
+}
+
+function waitForRoomState(socket, predicate) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("WebSocket room-state timeout")), 5_000);
+    const onMessage = (raw) => {
+      const message = JSON.parse(String(raw));
+      if (message.type !== "room-state" || !predicate(message.room)) return;
+      clearTimeout(timeout);
+      socket.off("message", onMessage);
+      resolve(message.room);
+    };
+    socket.on("message", onMessage);
+  });
+}
 
 async function withDevServer(run) {
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -19,15 +42,17 @@ async function withDevServer(run) {
   const baseUrl = `http://127.0.0.1:${port}`;
   try {
     const deadline = Date.now() + 30_000;
+    let readyResponse;
     while (Date.now() < deadline) {
       if (child.exitCode !== null) throw new Error(`vinext dev exited early:\n${output}`);
       try {
         const response = await fetch(baseUrl);
-        if (response.ok) return await run(baseUrl, response);
+        if (response.ok) { readyResponse = response; break; }
       } catch { /* server is still starting */ }
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
-    throw new Error(`vinext dev did not become ready:\n${output}`);
+    if (!readyResponse) throw new Error(`vinext dev did not become ready:\n${output}`);
+    return await run(baseUrl, readyResponse);
   } finally {
     child.kill("SIGTERM");
   }
@@ -62,6 +87,12 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(lobbyRefresh.room.surprise.phase, "waiting");
     assert.ok(lobbyRefresh.room.surprise.endsAt - Date.now() > 290_000);
 
+    const realtimeObserver = new WebSocket(`${baseUrl.replace("http", "ws")}/api/rooms/${body.room.code}/socket`, {
+      headers: { Cookie: hostCookie },
+    });
+    await waitForSocketOpen(realtimeObserver);
+    const realtimeHubState = waitForRoomState(realtimeObserver, (room) => room?.view === "hub");
+
     const soloStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -71,6 +102,10 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const soloStartBody = await soloStartResponse.json();
     assert.equal(soloStartBody.room.players.length, 1);
     assert.equal(soloStartBody.room.view, "hub");
+    const pushedHubState = await realtimeHubState;
+    assert.equal(pushedHubState.meId, body.room.meId);
+    assert.equal(pushedHubState.authenticated, true);
+    realtimeObserver.terminate();
 
     const briefingResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -348,11 +383,13 @@ test("server-renders the Hanpan mobile app shell", async () => {
 });
 
 test("keeps the requested game set and removes excluded modes", async () => {
-  const [page, layout, hosting, surprise] = await Promise.all([
+  const [page, layout, hosting, surprise, realtime, socketRoute] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/surprise.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/_lib/realtime.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/rooms/[code]/socket/route.ts", import.meta.url), "utf8"),
   ]);
   for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
     assert.match(page, new RegExp(required));
@@ -375,6 +412,14 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
   assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);
   assert.match(page, /HOST_ACTION_LOCK_MS = 350/);
+  assert.match(page, /new WebSocket\(`\$\{protocol\}/);
+  assert.match(page, /roomSocketRef\.current\?\.readyState === WebSocket\.OPEN/);
+  assert.match(page, /roomRefreshRef\.current\(\)/);
+  assert.match(realtime, /REALTIME_ROOM_CHECK_MS = 300/);
+  assert.match(realtime, /loadLatest/);
+  assert.match(realtime, /WebSocketPair/);
+  assert.match(socketRoute, /authenticatePlayer/);
+  assert.match(socketRoute, /readRoomRevision/);
   assert.match(page, /if \(!active \|\| inFlight \|\| roomMutationCountRef\.current > 0 \|\| document\.visibilityState === "hidden"\) return/);
   assert.match(page, /sequence < lastAppliedRoomSequenceRef\.current/);
   assert.match(page, /roomMutationCountRef\.current = Math\.max\(0, roomMutationCountRef\.current - 1\)/);
