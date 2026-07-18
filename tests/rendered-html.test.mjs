@@ -353,7 +353,9 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(dumbLiarHost.room.game.privateRole.danger, false);
     assert.equal(dumbLiarGuest.room.game.privateRole.danger, false);
     assert.notEqual(dumbLiarHost.room.game.privateRole.value, dumbLiarGuest.room.game.privateRole.value);
-    assert.ok([dumbLiarHost, dumbLiarGuest].some((item) => item.room.game.privateRole.label.includes("라이어")));
+    assert.equal(dumbLiarHost.room.game.privateRole.label, dumbLiarGuest.room.game.privateRole.label);
+    assert.ok([dumbLiarHost, dumbLiarGuest].every((item) => !item.room.game.privateRole.label.includes("라이어")));
+    assert.ok([dumbLiarHost, dumbLiarGuest].every((item) => !item.room.game.privateRole.value.includes("라이어")));
     assert.equal(dumbLiarHost.room.game.liarId, undefined);
 
     const hostLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {

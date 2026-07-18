@@ -70,9 +70,12 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
       if (internal.selections) game.selections = internal.selections;
     } else if (viewerId) {
       if (["liar", "body-liar", "face-liar", "unknown"].includes(String(game.id))) {
-        game.privateRole = liarId === viewerId
-          ? { danger: false, label: `${String(game.category ?? "장르")} · 라이어`, value: liarMode === "dumb" ? liarWord ?? "?" : "당신은 라이어입니다" }
-          : { danger: false, label: String(game.category ?? "제시어"), value: String(game.prompt ?? "") };
+        const roleLabel = String(game.category ?? "제시어");
+        game.privateRole = liarMode === "dumb"
+          ? { danger: false, label: roleLabel, value: liarId === viewerId ? liarWord ?? "?" : String(game.prompt ?? "") }
+          : liarId === viewerId
+            ? { danger: false, label: `${roleLabel} · 라이어`, value: "당신은 라이어입니다" }
+            : { danger: false, label: roleLabel, value: String(game.prompt ?? "") };
       } else if (game.id === "dumb-liar") {
         game.privateRole = { danger: false, label: "내 제시어", value: liarId === viewerId ? liarWord ?? "?" : String(game.prompt ?? "") };
       }
