@@ -183,7 +183,8 @@ export function advanceCoopQuestion(game: GameRound, players: Player[]) {
   if (game.id === "people") applyQuestion(game, nextUnique(game, peopleQuestion));
   else if (game.id === "four") applyQuestion(game, nextUnique(game, fourQuestion));
   else if (game.id === "character") applyQuestion(game, nextUnique(game, characterQuestion));
-  game.deadline = Date.now() + 5000;
+  else if (game.id === "group-initial") applyQuestion(game, nextUnique(game, groupInitialQuestion));
+  game.deadline = Date.now() + (game.id === "group-initial" ? 3000 : 5000);
   return false;
 }
 
@@ -273,7 +274,7 @@ export function makeRound(id: string, players: Player[], liarMode: "normal" | "d
   }
   if (id === "group-initial") {
     const item = groupInitialQuestion();
-    return { ...base, ...timedBase(players, 3), prompt: item.prompt, history: [item] };
+    return { ...base, ...timedBase(players, 3), prompt: item.prompt, history: [item], successfulPlayerIds: [] };
   }
   if (id === "people") {
     const item = peopleQuestion();

@@ -56,6 +56,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(body.room.players[0].name, "테스터");
     assert.equal(body.room.authenticated, true);
     assert.ok(body.room.meId);
+    assert.ok(Math.abs(body.room.serverNow - Date.now()) < 2_000);
     assert.equal(JSON.stringify(body.room).includes("sessionHash"), false);
 
     const lobbyRefresh = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
@@ -235,6 +236,32 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const chainPassBody = await chainPassResponse.json();
     assert.equal(chainPassBody.room.view, "result");
     assert.equal(chainPassBody.room.game.teamOutcome, "passed");
+
+    const groupInitialResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "group-initial" }),
+    });
+    const groupInitialBody = await groupInitialResponse.json();
+    assert.ok(groupInitialBody.room.game.deadline - groupInitialBody.room.serverNow <= 3_000);
+    const groupInitialNextResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const groupInitialNextBody = await groupInitialNextResponse.json();
+    assert.equal(groupInitialNextBody.room.view, "game");
+    assert.equal(groupInitialNextBody.room.game.successfulPlayerIds.length, 1);
+    assert.equal(groupInitialNextBody.room.game.history.length, 2);
+    assert.ok(groupInitialNextBody.room.game.deadline - groupInitialNextBody.room.serverNow <= 3_000);
+    const groupInitialPassResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "next-question" }),
+    });
+    const groupInitialPassBody = await groupInitialPassResponse.json();
+    assert.equal(groupInitialPassBody.room.view, "result");
+    assert.equal(groupInitialPassBody.room.game.teamOutcome, "passed");
 
     const telestrationStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",

@@ -29,6 +29,7 @@ export type ClientRoom = Omit<RoomState, "players" | "game" | "surprise"> & {
   players: PublicPlayer[];
   meId?: string;
   authenticated: boolean;
+  serverNow: number;
   game?: Record<string, unknown>;
   surprise?: Record<string, unknown>;
 };
@@ -119,6 +120,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     surprise: clientSurprise(room.surprise, room.players, viewerId),
     meId: viewerId,
     authenticated: Boolean(viewerId),
+    serverNow: Date.now(),
   };
 }
 

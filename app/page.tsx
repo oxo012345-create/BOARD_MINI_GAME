@@ -25,7 +25,7 @@ type GameRound = {
   telestrationAutoCorrectChainIds?: string[]; telestrationAcceptedChainIds?: string[];
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
-type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
+type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
 type GameMeta = { id: string; title: string; icon: string; description: string; category: "solo" | "coop" };
 
 const AVATARS = ["😎", "🥳", "🤠", "👻", "🐥", "🐰", "🐻", "🦊"];
@@ -155,7 +155,7 @@ function drawCanvas(canvas: HTMLCanvasElement | null, strokes: Stroke[], current
   }
 }
 
-function DrawingBoard({ task, onSubmit }: { task: NonNullable<GameRound["telestrationTask"]>; onSubmit: (payload: { strokes?: Stroke[]; guess?: string }) => void }) {
+function DrawingBoard({ task, clockOffsetMs, onSubmit }: { task: NonNullable<GameRound["telestrationTask"]>; clockOffsetMs: number; onSubmit: (payload: { strokes?: Stroke[]; guess?: string }) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const strokesRef = useRef<Stroke[]>([]);
@@ -171,9 +171,9 @@ function DrawingBoard({ task, onSubmit }: { task: NonNullable<GameRound["telestr
     sent.current = true;
     onSubmit(task.action === "guess" ? { guess } : { strokes: strokesRef.current });
   }, [guess, onSubmit, task.action, task.submitted]);
-  useEffect(() => { if (task.deadline && task.deadline <= now) submit(); }, [now, submit, task.deadline]);
+  useEffect(() => { if (task.deadline && task.deadline <= now + clockOffsetMs) submit(); }, [clockOffsetMs, now, submit, task.deadline]);
   if (task.submitted) return <div className="waiting-card"><span className="big-emoji">✅</span><h2>제출 완료</h2><p>다른 참가자의 제출을 기다리고 있어요.</p></div>;
-  const remaining = Math.max(0, (task.deadline ?? now) - now);
+  const remaining = Math.max(0, (task.deadline ?? now + clockOffsetMs) - (now + clockOffsetMs));
   if (task.action === "guess") return <section className="drawing-stage"><div className="drawing-round">텔레그레이션 {task.round} / 4</div><div className="drawing-timer unlimited">제한시간 없음</div><h2>마지막 그림의 정답은?</h2><StrokePreview strokes={task.previousStrokes ?? []} /><input className="text-field" maxLength={30} placeholder="정답 입력" value={guess} onChange={(event) => setGuess(event.target.value)} /><button className="button primary xl" onClick={submit}>정답 제출</button></section>;
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => { const rect = event.currentTarget.getBoundingClientRect(); return { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }; };
   return <section className="drawing-stage"><div className="drawing-round">텔레그레이션 {task.round} / 4</div><div className="drawing-timer">{Math.ceil(remaining / 1000)}초</div>{task.round === 1 ? <><div className="eyebrow">내 제시어</div><h2>{task.prompt}</h2></> : <><h2>이 그림을 보고 다시 그리세요</h2><StrokePreview strokes={task.previousStrokes ?? []} /></>}<canvas className="drawing-canvas" ref={canvasRef}
@@ -222,6 +222,7 @@ export default function Home() {
   const [memoryInputs, setMemoryInputs] = useState(["", "", "", ""]);
   const [timerStart, setTimerStart] = useState<number | null>(null);
   const [now, setNow] = useState(0);
+  const [serverClockOffsetMs, setServerClockOffsetMs] = useState(0);
   const [liarMode, setLiarMode] = useState<"normal" | "dumb">("normal");
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
@@ -258,6 +259,7 @@ export default function Home() {
     if (sequence < lastAppliedRoomSequenceRef.current) return false;
     lastAppliedRoomSequenceRef.current = sequence;
     realtimeRevisionRef.current = nextRoom?.revision ?? 0;
+    if (nextRoom?.serverNow) setServerClockOffsetMs(nextRoom.serverNow - Date.now());
     setRoom(nextRoom);
     return true;
   }, []);
@@ -527,7 +529,8 @@ export default function Home() {
   };
   const uploadPhoto = async (file: File) => { if (!room) return; const sequence = nextRoomRequestSequence(); roomMutationCountRef.current += 1; setBusy(true); try { const blob = await compressPhoto(file); const form = new FormData(); form.append("photo", blob, "camera.jpg"); const response = await fetch(`/api/rooms/${room.code}/photos`, { method: "POST", body: form }); const body = await response.json() as { room?: Room; error?: string }; if (!response.ok || !body.room) throw new Error(body.error || "사진을 올리지 못했어요."); applyRoomSnapshot(body.room, sequence); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1); setBusy(false); } };
   const currentPlayer = currentGame?.playerOrder?.[currentGame.currentPlayerIndex ?? 0];
-  const timeUp = Boolean(currentGame?.deadline && now >= currentGame.deadline);
+  const synchronizedNow = now + serverClockOffsetMs;
+  const timeUp = Boolean(currentGame?.deadline && synchronizedNow >= currentGame.deadline);
   const myTimerResult = currentGame?.timerResults?.find((item) => item.playerId === room?.meId);
   const gameMeta = useMemo(() => ALL_GAMES.find((item) => item.id === currentGame?.id), [currentGame?.id]);
   const inlineManagedGame = Boolean(currentGame && ["initial", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration"].includes(currentGame.id));
@@ -550,7 +553,7 @@ export default function Home() {
     else if (confirmType === "fail") void failGame();
   };
   const commonOverlays = <>
-    {activeSurprise && <SurpriseDrawer surprise={activeSurprise} now={now} collapsed={surpriseCollapsed} onCollapsedChange={setSurpriseCollapsed} position={surprisePosition} onPositionChange={setSurprisePosition} />}
+    {activeSurprise && <SurpriseDrawer surprise={activeSurprise} now={synchronizedNow} collapsed={surpriseCollapsed} onCollapsedChange={setSurpriseCollapsed} position={surprisePosition} onPositionChange={setSurprisePosition} />}
     {connectionState !== "connected" && <div className={`connection-banner ${connectionState}`} role="status">{connectionState === "reconnecting" ? "연결이 불안정해요 · 재연결 중…" : "다시 연결됐어요"}</div>}
     {notice && <div className="toast" role="status">{notice}</div>}
     {lightbox && <button className="photo-lightbox" aria-label="사진 닫기" onClick={() => setLightbox(null)}><img src={lightbox} alt="확대 사진" /></button>}
@@ -617,7 +620,7 @@ export default function Home() {
   const submissions = [...(currentGame.photoSubmissions ?? [])].sort((a, b) => a.submittedAt - b.submittedAt);
   const hasPhoto = submissions.some((item) => item.playerId === room.meId);
   const turnHeader = currentPlayer && <div className="turn-banner turn-banner-large"><span>술래 {playerName(room, currentGame.dealerId)}의 오른쪽부터</span><strong>{playerName(room, currentPlayer)}</strong> 정답을 맞추세요!</div>;
-  const timedHeader = currentPlayer && <><div className={`turn-banner ${timeUp ? "time-up" : ""}`}><strong>{playerName(room, currentPlayer)}</strong> 정답을 맞추세요!</div><div className={`three-second-timer ${timeUp ? "time-up" : ""}`}>{timeUp ? "시간 초과" : `${Math.max(0, Math.ceil(((currentGame.deadline ?? now) - now) / 1000))}초`}</div></>;
+  const timedHeader = currentPlayer && <><div className={`turn-banner ${timeUp ? "time-up" : ""}`}><strong>{playerName(room, currentPlayer)}</strong> 정답을 맞추세요!</div><div className={`three-second-timer ${timeUp ? "time-up" : ""}`}>{timeUp ? "시간 초과" : `${Math.max(0, Math.ceil(((currentGame.deadline ?? synchronizedNow) - synchronizedNow) / 1000))}초`}</div></>;
 
   return <main className={`app-shell game-shell ${timeUp && ["people", "chain", "four", "character", "group-initial"].includes(currentGame.id) ? "red-alert" : ""}`}>{topBar(currentGame.title)}<div className="round-label">ROUND {room.roundNumber}</div>
     {privateRole && <button
@@ -679,7 +682,7 @@ export default function Home() {
       {isHost && <div className="host-game-controls"><button className="button secondary fail-button" disabled={hostActionLocked} onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}
     </section></>}
     {currentGame.id === "syllable" && <section className="prompt-card"><div className="coop-eyebrow">팀전 · 직접 판정</div><h2 className="prompt-big">{currentGame.prompt}</h2><p>두 팀으로 나눠 한 글자씩 이어서 단어를 완성하세요.</p>{isHost && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section>}
-    {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} /></>}
+    {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} clockOffsetMs={serverClockOffsetMs} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} /></>}
     {!["initial", "trivia", "memory", "taste", "ten-seconds", "color", "object-initial", "people", "chain", "four", "character", "syllable", "group-initial", "telestration"].includes(currentGame.id) && <section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<div className={gameMeta?.category === "coop" ? "coop-eyebrow" : "eyebrow"}>{privateRole ? "역할을 확인했다면" : gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어"}</div><h2 className={!privateRole && currentGame.prompt.length <= 8 ? "prompt-big" : ""}>{privateRole ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요" : currentGame.id === "face-liar" ? "차례대로 표정만 보여주세요" : currentGame.id === "unknown" ? "차례대로 질문에 답하세요" : "내 단어를 라이어가 모르게 설명하세요." : currentGame.prompt}</h2>{currentGame.id === "hunmin" && <p>마지막 술래 오른쪽으로! 제한시간 3초</p>}</section>}
     {currentGame.answer && !privateRole && !["trivia", "initial", "people", "ten-seconds"].includes(currentGame.id) && <details className="answer-reveal"><summary>정답 확인</summary><strong>{currentGame.answer}</strong></details>}
     <div className="sticky-action">{isHost ? inlineManagedGame ? <div className="waiting"><span className="pulse" />진행중</div> : <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "memory" && !currentGame.memoryReady)} onClick={() => setConfirmType("finish")}>{currentGame.id === "memory" && !currentGame.memoryReady ? "추억 작성 대기 중" : "결과 보기"}</button> : <div className="waiting"><span className="pulse" />진행중</div>}</div>{commonOverlays}</main>;
