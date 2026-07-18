@@ -372,6 +372,12 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /RANDOM_GAMES = ALL_GAMES\.filter\(\(game\) => game\.id !== "syllable"\)/);
   assert.match(rounds, /telestrationDeadline = nextRound === 4 \? undefined/);
   assert.match(page, /누르는 동안만 보여요/);
+  assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
+  assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);
+  assert.match(page, /HOST_ACTION_LOCK_MS = 350/);
+  assert.match(page, /if \(!active \|\| inFlight \|\| roomMutationCountRef\.current > 0 \|\| document\.visibilityState === "hidden"\) return/);
+  assert.match(page, /sequence < lastAppliedRoomSequenceRef\.current/);
+  assert.match(page, /roomMutationCountRef\.current = Math\.max\(0, roomMutationCountRef\.current - 1\)/);
   assert.match(page, /setPointerCapture/);
   assert.match(page, /draggable=\{false\}/);
   assert.doesNotMatch(page, /onPointerLeave=\{\(\) => setRoleVisible\(false\)\}/);

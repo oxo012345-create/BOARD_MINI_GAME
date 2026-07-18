@@ -56,6 +56,10 @@ const COOP_GAMES: GameMeta[] = [
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
 const LIAR_OPTION_GAMES = ["liar", "body-liar", "face-liar", "unknown"];
+const FAST_SYNC_INTERVAL_MS = 500;
+const IDLE_SYNC_INTERVAL_MS = 1400;
+const HOST_ACTION_LOCK_MS = 350;
+const FAST_SYNC_VIEWS: Room["view"][] = ["hub", "briefing", "game"];
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 
 function getStoredValue(key: string, fallback = "") { return typeof window === "undefined" ? fallback : localStorage.getItem(key) || fallback; }
@@ -229,10 +233,25 @@ export default function Home() {
   const connectionFailuresRef = useRef(0);
   const connectionRestoreTimerRef = useRef<number | null>(null);
   const hostActionLockRef = useRef(false);
+  const roomRequestSequenceRef = useRef(0);
+  const lastAppliedRoomSequenceRef = useRef(0);
+  const roomMutationCountRef = useRef(0);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
+  const syncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
+
+  const nextRoomRequestSequence = useCallback(() => {
+    roomRequestSequenceRef.current += 1;
+    return roomRequestSequenceRef.current;
+  }, []);
+  const applyRoomSnapshot = useCallback((nextRoom: Room | null, sequence: number) => {
+    if (sequence < lastAppliedRoomSequenceRef.current) return false;
+    lastAppliedRoomSequenceRef.current = sequence;
+    setRoom(nextRoom);
+    return true;
+  }, []);
 
   const markConnectionFailure = useCallback((immediate = false) => {
     connectionFailuresRef.current += 1;
@@ -261,7 +280,7 @@ export default function Home() {
       window.setTimeout(() => {
         hostActionLockRef.current = false;
         setHostActionLocked(false);
-      }, 1000);
+      }, HOST_ACTION_LOCK_MS);
     }
   }, []);
 
@@ -273,6 +292,7 @@ export default function Home() {
       if (location.search) history.replaceState(null, "", location.pathname);
       return;
     }
+    const sequence = nextRoomRequestSequence();
     fetch(`/api/rooms/${targetRoom}`, { cache: "no-store" }).then(async (response) => {
       if (!response.ok) {
         if ([401, 404].includes(response.status)) {
@@ -283,9 +303,9 @@ export default function Home() {
       }
       const body = await response.json() as { room: Room };
       markConnectionSuccess();
-      if (body.room.authenticated) setRoom(body.room); else if (code) { setJoinCode(code); setIntent("join"); } else localStorage.removeItem("hanpan-room");
+      if (body.room.authenticated) applyRoomSnapshot(body.room, sequence); else if (code) { setJoinCode(code); setIntent("join"); } else localStorage.removeItem("hanpan-room");
     }).catch((error: Error) => { if (!["401", "404"].includes(error.message)) markConnectionFailure(true); });
-  }, [markConnectionFailure, markConnectionSuccess]);
+  }, [applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
   useEffect(() => {
     const clearRestoredCode = (event: PageTransitionEvent) => {
       const restored = event.persisted || performance.getEntriesByType("navigation").some((entry) => (entry as PerformanceNavigationTiming).type !== "navigate") || (performance as Performance & { navigation?: { type: number } }).navigation?.type === 2;
@@ -298,18 +318,40 @@ export default function Home() {
   }, []);
   useEffect(() => {
     if (!roomCode) return;
-    const poll = window.setInterval(async () => {
+    let active = true;
+    let inFlight = false;
+    let controller: AbortController | null = null;
+    const pollRoom = async () => {
+      if (!active || inFlight || roomMutationCountRef.current > 0 || document.visibilityState === "hidden") return;
+      inFlight = true;
+      controller = new AbortController();
+      const sequence = nextRoomRequestSequence();
       try {
-        const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+        const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store", signal: controller.signal });
         if (!response.ok) { markConnectionFailure(); return; }
         const body = await response.json() as { room: Room };
+        if (!active) return;
         markConnectionSuccess();
-        if (!leavingRef.current && body.room.authenticated) setRoom(body.room);
-        else if (!body.room.authenticated) { localStorage.removeItem("hanpan-room"); setRoom(null); setJoinCode(""); setIntent(null); }
-      } catch { markConnectionFailure(); }
-    }, 1400);
-    return () => window.clearInterval(poll);
-  }, [roomCode, markConnectionFailure, markConnectionSuccess]);
+        if (!leavingRef.current && body.room.authenticated) applyRoomSnapshot(body.room, sequence);
+        else if (!body.room.authenticated && applyRoomSnapshot(null, sequence)) { localStorage.removeItem("hanpan-room"); setJoinCode(""); setIntent(null); }
+      } catch (error) {
+        if (active && (!(error instanceof DOMException) || error.name !== "AbortError")) markConnectionFailure();
+      } finally {
+        inFlight = false;
+      }
+    };
+    const poll = window.setInterval(() => { void pollRoom(); }, syncInterval);
+    const refreshVisibleRoom = () => { if (document.visibilityState === "visible") void pollRoom(); };
+    window.addEventListener("focus", refreshVisibleRoom);
+    document.addEventListener("visibilitychange", refreshVisibleRoom);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.clearInterval(poll);
+      window.removeEventListener("focus", refreshVisibleRoom);
+      document.removeEventListener("visibilitychange", refreshVisibleRoom);
+    };
+  }, [roomCode, syncInterval, applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
   useEffect(() => {
     const offline = () => markConnectionFailure(true);
     window.addEventListener("offline", offline);
@@ -341,35 +383,41 @@ export default function Home() {
   const showNotice = useCallback((message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); }, []);
   const applyAction = useCallback(async (payload: Record<string, unknown>) => {
     if (!room) return null;
+    const sequence = nextRoomRequestSequence();
+    roomMutationCountRef.current += 1;
     try {
       const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const body = await response.json() as { room?: Room; error?: string };
       if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
       markConnectionSuccess();
-      setRoom(body.room); return body.room;
+      applyRoomSnapshot(body.room, sequence); return body.room;
     } catch (error) {
       if (error instanceof TypeError) markConnectionFailure(true);
       throw error;
+    } finally {
+      roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1);
     }
-  }, [room, markConnectionFailure, markConnectionSuccess]);
+  }, [room, applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
   const enterRoom = async () => {
     if (!name.trim()) return showNotice("이름을 입력해 주세요.");
     if (intent === "join" && joinCode.length !== 4) return showNotice("4자리 방 코드를 입력해 주세요.");
     setBusy(true);
     try {
+      const sequence = nextRoomRequestSequence();
       const player = { name: name.trim(), avatar };
       const response = intent === "create" ? await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player }) }) : await fetch(`/api/rooms/${joinCode}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "join", player }) });
       const body = await response.json() as { room?: Room; error?: string };
       if (!response.ok || !body.room) throw new Error(body.error || "방에 들어가지 못했어요.");
       localStorage.setItem("hanpan-name", name.trim()); localStorage.setItem("hanpan-avatar", avatar); localStorage.setItem("hanpan-room", body.room.code);
-      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); setRoom(body.room); setIntent(null);
+      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
     } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } finally { setBusy(false); }
   };
   const leaveRoom = async () => {
     if (!room) return;
+    const sequence = nextRoomRequestSequence();
     setBusy(true); leavingRef.current = true;
     try { await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }), keepalive: true }); }
-    finally { localStorage.removeItem("hanpan-room"); history.replaceState(null, "", location.pathname); setRoom(null); setJoinCode(""); setIntent(null); setBusy(false); setConfirmType(null); }
+    finally { localStorage.removeItem("hanpan-room"); history.replaceState(null, "", location.pathname); applyRoomSnapshot(null, sequence); setJoinCode(""); setIntent(null); setBusy(false); setConfirmType(null); }
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
@@ -391,7 +439,7 @@ export default function Home() {
     catch (error) { showNotice(error instanceof Error ? error.message : "기록을 제출하지 못했어요."); }
     finally { timerSubmitting.current = false; }
   };
-  const uploadPhoto = async (file: File) => { if (!room) return; setBusy(true); try { const blob = await compressPhoto(file); const form = new FormData(); form.append("photo", blob, "camera.jpg"); const response = await fetch(`/api/rooms/${room.code}/photos`, { method: "POST", body: form }); const body = await response.json() as { room?: Room; error?: string }; if (!response.ok || !body.room) throw new Error(body.error || "사진을 올리지 못했어요."); setRoom(body.room); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { setBusy(false); } };
+  const uploadPhoto = async (file: File) => { if (!room) return; const sequence = nextRoomRequestSequence(); roomMutationCountRef.current += 1; setBusy(true); try { const blob = await compressPhoto(file); const form = new FormData(); form.append("photo", blob, "camera.jpg"); const response = await fetch(`/api/rooms/${room.code}/photos`, { method: "POST", body: form }); const body = await response.json() as { room?: Room; error?: string }; if (!response.ok || !body.room) throw new Error(body.error || "사진을 올리지 못했어요."); applyRoomSnapshot(body.room, sequence); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1); setBusy(false); } };
   const currentPlayer = currentGame?.playerOrder?.[currentGame.currentPlayerIndex ?? 0];
   const timeUp = Boolean(currentGame?.deadline && now >= currentGame.deadline);
   const myTimerResult = currentGame?.timerResults?.find((item) => item.playerId === room?.meId);
