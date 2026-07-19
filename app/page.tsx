@@ -203,9 +203,42 @@ async function compressPhoto(file: File) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));
-  canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
-  cleanup();
-  return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("사진 변환 실패")), "image/jpeg", .8));
+  const context = canvas.getContext("2d");
+  if (!context) { cleanup(); throw new Error("사진 변환을 지원하지 않는 브라우저예요."); }
+  try { context.drawImage(source, 0, 0, canvas.width, canvas.height); }
+  finally { cleanup(); }
+  const blob = await new Promise<Blob | null>((resolve) => {
+    try { canvas.toBlob(resolve, "image/jpeg", .8); }
+    catch { resolve(null); }
+  });
+  if (blob) return blob;
+  try { return await (await fetch(canvas.toDataURL("image/jpeg", .8))).blob(); }
+  catch { throw new Error("사진을 변환하지 못했어요."); }
+}
+
+async function uploadPhotoWithRetry(roomCode: string, blob: Blob) {
+  let lastError = new Error("사진을 올리지 못했어요.");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20_000);
+    try {
+      const form = new FormData();
+      form.append("photo", blob, "camera.jpg");
+      const response = await fetch(`/api/rooms/${roomCode}/photos`, { method: "POST", body: form, signal: controller.signal });
+      const body = await response.json().catch(() => ({})) as { room?: Room; error?: string };
+      if (response.ok && body.room) return body.room;
+      lastError = new Error(body.error || "사진을 올리지 못했어요.");
+      if (response.status < 500) break;
+    } catch (error) {
+      lastError = error instanceof DOMException && error.name === "AbortError"
+        ? new Error("사진 업로드 시간이 초과됐어요.")
+        : new Error("인터넷 연결을 확인하고 다시 시도해 주세요.");
+    } finally {
+      window.clearTimeout(timeout);
+    }
+    if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+  throw lastError;
 }
 
 export default function Home() {
@@ -527,7 +560,7 @@ export default function Home() {
     catch (error) { showNotice(error instanceof Error ? error.message : "기록을 제출하지 못했어요."); }
     finally { timerSubmitting.current = false; }
   };
-  const uploadPhoto = async (file: File) => { if (!room) return; const sequence = nextRoomRequestSequence(); roomMutationCountRef.current += 1; setBusy(true); try { const blob = await compressPhoto(file); const form = new FormData(); form.append("photo", blob, "camera.jpg"); const response = await fetch(`/api/rooms/${room.code}/photos`, { method: "POST", body: form }); const body = await response.json() as { room?: Room; error?: string }; if (!response.ok || !body.room) throw new Error(body.error || "사진을 올리지 못했어요."); applyRoomSnapshot(body.room, sequence); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1); setBusy(false); } };
+  const uploadPhoto = async (file: File) => { if (!room) return; const sequence = nextRoomRequestSequence(); roomMutationCountRef.current += 1; setBusy(true); try { let blob: Blob; try { blob = await compressPhoto(file); } catch (conversionError) { if (!file.type.startsWith("image/") || file.size > 6 * 1024 * 1024) throw conversionError; blob = file; } const nextRoom = await uploadPhotoWithRetry(room.code, blob); applyRoomSnapshot(nextRoom, sequence); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1); setBusy(false); } };
   const currentPlayer = currentGame?.playerOrder?.[currentGame.currentPlayerIndex ?? 0];
   const synchronizedNow = now + serverClockOffsetMs;
   const timeUp = Boolean(currentGame?.deadline && synchronizedNow >= currentGame.deadline);

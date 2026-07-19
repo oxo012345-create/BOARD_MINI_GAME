@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { readRoom, toClientRoom, writeRoom } from "../../../_lib/rooms";
+import { appendPhotoSubmission, readRoom, toClientRoom } from "../../../_lib/rooms";
 import { authenticatePlayer } from "../../../_lib/session";
 import type { GameRound } from "../../../_lib/rounds";
 
@@ -18,16 +18,28 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     if (!viewer) return Response.json({ error: "참가 인증이 필요해요." }, { status: 401 });
     const game = room.game as GameRound | undefined;
     if (!game || !["color", "object-initial"].includes(game.id)) return Response.json({ error: "사진을 올릴 수 있는 게임이 아니에요." }, { status: 409 });
-    if (game.photoSubmissions?.some((item) => item.playerId === viewer.id)) return Response.json({ error: "이미 사진을 제출했어요." }, { status: 409 });
+    if (game.photoSubmissions?.some((item) => item.playerId === viewer.id)) return Response.json({ room: toClientRoom(room, viewer.id) });
     const form = await request.formData();
     const file = form.get("photo");
     if (!(file instanceof File) || !file.type.startsWith("image/") || file.size < 1 || file.size > 6 * 1024 * 1024) return Response.json({ error: "6MB 이하 사진을 선택해 주세요." }, { status: 400 });
     const key = crypto.randomUUID().replaceAll("-", "");
-    await bucket().put(`${room.code}/${key}`, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    game.photoSubmissions = [...(game.photoSubmissions ?? []), { playerId: viewer.id, key, submittedAt: Date.now() }];
-    viewer.lastSeen = Date.now();
-    await writeRoom(room);
-    return Response.json({ room: toClientRoom(room, viewer.id) });
+    const objectKey = `${room.code}/${key}`;
+    const uploads = bucket();
+    await uploads.put(objectKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+    try {
+      const updatedRoom = await appendPhotoSubmission(room.code, room.roundNumber, game.startedAt, { playerId: viewer.id, key, submittedAt: Date.now() });
+      if (updatedRoom) return Response.json({ room: toClientRoom(updatedRoom, viewer.id) });
+      const latestRoom = await readRoom(room.code);
+      if (latestRoom && (latestRoom.game as GameRound | undefined)?.photoSubmissions?.some((item) => item.playerId === viewer.id)) {
+        await uploads.delete(objectKey);
+        return Response.json({ room: toClientRoom(latestRoom, viewer.id) });
+      }
+      await uploads.delete(objectKey);
+      return Response.json({ error: "사진 제출 시간이 지났어요. 현재 게임을 다시 확인해 주세요." }, { status: 409 });
+    } catch (error) {
+      await uploads.delete(objectKey).catch(() => undefined);
+      throw error;
+    }
   } catch {
     return Response.json({ error: "사진을 업로드하지 못했어요." }, { status: 500 });
   }

@@ -16,6 +16,7 @@ export type GameRound = {
   liarId?: string;
   liarWord?: string;
   liarMode?: "normal" | "dumb";
+  previousContentKey?: string;
   storytellerId?: string;
   memoryWord?: string;
   memoryEntries?: string[];
@@ -210,7 +211,7 @@ export function removePlayerFromRound(game: GameRound | undefined, playerId: str
   if (game.playerOrder?.length) game.currentPlayerIndex = (game.currentPlayerIndex ?? 0) % game.playerOrder.length;
 }
 
-export function makeRound(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal"): GameRound | null {
+function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal"): GameRound | null {
   const info = GAME_INFO[id];
   if (!info) return null;
   const base: GameRound = { id, title: info.title, prompt: "준비!", startedAt: Date.now() };
@@ -287,13 +288,37 @@ export function makeRound(id: string, players: Player[], liarMode: "normal" | "d
   return null;
 }
 
+export function roundContentKey(game: GameRound | undefined) {
+  if (!game) return undefined;
+  if (game.id === "memory") return game.memoryWord ? `${game.id}:${game.memoryWord}` : undefined;
+  if (game.id === "taste") return game.choices?.length ? `${game.id}:${JSON.stringify(game.choices)}` : undefined;
+  if (["people", "character"].includes(game.id)) return game.imageId ? `${game.id}:${game.imageId}` : undefined;
+  if (game.id === "telestration") {
+    const prompts = game.telestrationChains?.map((chain) => chain.prompt);
+    return prompts?.length ? `${game.id}:${prompts.join("\u0000")}` : undefined;
+  }
+  if (["ten-seconds"].includes(game.id)) return undefined;
+  return game.prompt ? `${game.id}:${game.prompt}` : undefined;
+}
+
+export function makeRound(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal", previousContentKey?: string): GameRound | null {
+  let round: GameRound | null = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    round = makeRoundCandidate(id, players, liarMode);
+    if (!round || !previousContentKey || roundContentKey(round) !== previousContentKey) return round;
+  }
+  return round;
+}
+
 export function assignedTelestrationChain(game: GameRound, playerId: string) {
   const order = game.telestrationOrder ?? [];
   const chains = game.telestrationChains ?? [];
   const playerIndex = order.indexOf(playerId);
   const round = game.telestrationRound ?? 1;
   if (playerIndex < 0 || !chains.length) return null;
-  const chainIndex = ((playerIndex - (round - 1)) % chains.length + chains.length) % chains.length;
+  const naturalRotation = (round - 1) % chains.length;
+  const rotation = round === 4 && chains.length > 1 && naturalRotation === 0 ? 1 : naturalRotation;
+  const chainIndex = ((playerIndex - rotation) % chains.length + chains.length) % chains.length;
   return chains[chainIndex] ?? null;
 }
 

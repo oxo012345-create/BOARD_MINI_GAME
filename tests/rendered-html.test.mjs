@@ -316,6 +316,52 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(manualAcceptBody.room.game.telestrationCorrectCount, 2);
     assert.deepEqual(manualAcceptBody.room.game.telestrationAcceptedChainIds, [manualChain.id]);
 
+    const thirdResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "join", player: { name: "세번째", avatar: "🐰" } }),
+    });
+    assert.equal(thirdResponse.status, 200);
+    const thirdCookie = thirdResponse.headers.get("set-cookie").split(";")[0];
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "telestration" }),
+    });
+    const telestrationPlayers = [hostCookie, guestCookie, thirdCookie];
+    for (let round = 1; round <= 3; round += 1) {
+      for (let playerIndex = 0; playerIndex < telestrationPlayers.length; playerIndex += 1) {
+        const drawResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Cookie: telestrationPlayers[playerIndex] },
+          body: JSON.stringify({ action: "submit-telestration", strokes: [{ points: [{ x: playerIndex / 10, y: round / 10 }] }] }),
+        });
+        assert.equal(drawResponse.status, 200);
+      }
+    }
+    let threePlayerResult;
+    for (let playerIndex = 0; playerIndex < telestrationPlayers.length; playerIndex += 1) {
+      const guessResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: telestrationPlayers[playerIndex] },
+        body: JSON.stringify({ action: "submit-telestration", guess: `추측 ${playerIndex}` }),
+      });
+      assert.equal(guessResponse.status, 200);
+      threePlayerResult = await guessResponse.json();
+    }
+    assert.equal(threePlayerResult.room.view, "result");
+    assert.ok(threePlayerResult.room.game.telestrationResults.every((chain) => {
+      const firstArtist = chain.steps.find((step) => Array.isArray(step.strokes))?.playerId;
+      const guesser = [...chain.steps].reverse().find((step) => typeof step.guess === "string")?.playerId;
+      return firstArtist && guesser && firstArtist !== guesser;
+    }));
+    const thirdLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: thirdCookie },
+      body: JSON.stringify({ action: "leave" }),
+    });
+    assert.equal(thirdLeaveResponse.status, 200);
+
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -326,17 +372,21 @@ test("server-renders the Hanpan mobile app shell", async () => {
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
       body: JSON.stringify({ action: "start-game", gameId: "color" }),
     });
-    const photoForm = new FormData();
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z5xkAAAAASUVORK5CYII=", "base64");
-    photoForm.append("photo", new Blob([png], { type: "image/png" }), "test.png");
-    const photoResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}/photos`, { method: "POST", headers: { Cookie: hostCookie }, body: photoForm });
-    assert.equal(photoResponse.status, 200);
-    const photoBody = await photoResponse.json();
-    assert.equal(photoBody.room.game.photoSubmissions.length, 1);
-    const photoKey = photoBody.room.game.photoSubmissions[0].key;
-    const storedPhoto = await fetch(`${baseUrl}/api/rooms/${body.room.code}/photos/${photoKey}`, { headers: { Cookie: hostCookie } });
-    assert.equal(storedPhoto.status, 200);
-    assert.equal(storedPhoto.headers.get("content-type"), "image/png");
+    const makePhotoForm = () => { const form = new FormData(); form.append("photo", new Blob([png], { type: "image/png" }), "test.png"); return form; };
+    const [hostPhotoResponse, guestPhotoResponse] = await Promise.all([
+      fetch(`${baseUrl}/api/rooms/${body.room.code}/photos`, { method: "POST", headers: { Cookie: hostCookie }, body: makePhotoForm() }),
+      fetch(`${baseUrl}/api/rooms/${body.room.code}/photos`, { method: "POST", headers: { Cookie: guestCookie }, body: makePhotoForm() }),
+    ]);
+    assert.equal(hostPhotoResponse.status, 200);
+    assert.equal(guestPhotoResponse.status, 200);
+    const photoBody = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    assert.equal(photoBody.room.game.photoSubmissions.length, 2);
+    for (const submission of photoBody.room.game.photoSubmissions) {
+      const storedPhoto = await fetch(`${baseUrl}/api/rooms/${body.room.code}/photos/${submission.key}`, { headers: { Cookie: hostCookie } });
+      assert.equal(storedPhoto.status, 200);
+      assert.equal(storedPhoto.headers.get("content-type"), "image/png");
+    }
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -357,6 +407,36 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.ok([dumbLiarHost, dumbLiarGuest].every((item) => !item.room.game.privateRole.label.includes("라이어")));
     assert.ok([dumbLiarHost, dumbLiarGuest].every((item) => !item.room.game.privateRole.value.includes("라이어")));
     assert.equal(dumbLiarHost.room.game.liarId, undefined);
+
+    const firstDumbResultResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "set-view", view: "result" }),
+    });
+    const firstDumbResult = await firstDumbResultResponse.json();
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "liar" }),
+    });
+    const repeatedDumbStart = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "liar", mode: "dumb" }),
+    });
+    assert.equal(repeatedDumbStart.status, 200);
+    const repeatedDumbResultResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "set-view", view: "result" }),
+    });
+    const repeatedDumbResult = await repeatedDumbResultResponse.json();
+    assert.notEqual(repeatedDumbResult.room.game.answer, firstDumbResult.room.game.answer);
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "liar", mode: "dumb" }),
+    });
 
     const hostLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",

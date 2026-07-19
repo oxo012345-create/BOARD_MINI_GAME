@@ -1,5 +1,5 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoom, type Player, type RoomState } from "../../_lib/rooms";
-import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, type GameRound, type Stroke } from "../../_lib/rounds";
+import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
 
@@ -127,8 +127,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       if (!payload.gameId || !GAME_IDS.includes(payload.gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
       const info = GAME_INFO[payload.gameId];
+      const previousGame = room.game as GameRound | undefined;
+      const previousContentKey = previousGame?.id === payload.gameId ? roundContentKey(previousGame) : undefined;
       room.view = "briefing";
-      room.game = { id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing, liarMode: "normal", startedAt: Date.now() };
+      room.game = { id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing, liarMode: "normal", previousContentKey, startedAt: Date.now() };
       return persistAndRespond(room, viewer.id);
     }
 
@@ -137,7 +139,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       const gameId = payload.gameId || String(room.game?.id ?? "");
       if (!GAME_IDS.includes(gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
       room.players.forEach((player) => { player.status = "active"; });
-      const game = makeRound(gameId, room.players, payload.mode === "dumb" ? "dumb" : "normal");
+      const pendingGame = room.game as GameRound | undefined;
+      const previousContentKey = pendingGame?.id === gameId
+        ? pendingGame.previousContentKey ?? (room.view === "briefing" ? undefined : roundContentKey(pendingGame))
+        : undefined;
+      const game = makeRound(gameId, room.players, payload.mode === "dumb" ? "dumb" : "normal", previousContentKey);
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
       room.view = "game";
       room.roundNumber += 1;

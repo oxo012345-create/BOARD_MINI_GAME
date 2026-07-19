@@ -54,6 +54,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.fakeSlot;
     delete game.fakeMemoryIndex;
     delete game.fakeMemoryText;
+    delete game.previousContentKey;
     delete game.telestrationChains;
     delete game.telestrationOrder;
     delete game.selections;
@@ -230,6 +231,42 @@ export async function writeRoom(state: RoomState) {
     .bind(JSON.stringify(state), state.code)
     .run();
   return Number(result.meta.changes ?? 0) === 1;
+}
+
+export async function appendPhotoSubmission(
+  code: string,
+  roundNumber: number,
+  gameStartedAt: number,
+  submission: { playerId: string; key: string; submittedAt: number },
+) {
+  await ensureRoomsTable();
+  const row = await getD1()
+    .prepare(`UPDATE rooms
+      SET state = json_set(
+        state,
+        '$.game.photoSubmissions', json_insert(
+          json(COALESCE(json_extract(state, '$.game.photoSubmissions'), '[]')),
+          '$[#]', json(?)
+        ),
+        '$.revision', COALESCE(CAST(json_extract(state, '$.revision') AS INTEGER), 0) + 1
+      ),
+      updated_at = CURRENT_TIMESTAMP
+      WHERE code = ?
+        AND CAST(json_extract(state, '$.roundNumber') AS INTEGER) = ?
+        AND CAST(json_extract(state, '$.game.startedAt') AS INTEGER) = ?
+        AND json_extract(state, '$.game.id') IN ('color', 'object-initial')
+        AND EXISTS (
+          SELECT 1 FROM json_each(json_extract(state, '$.players')) AS player
+          WHERE json_extract(player.value, '$.id') = ?
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM json_each(COALESCE(json_extract(state, '$.game.photoSubmissions'), '[]')) AS photo
+          WHERE json_extract(photo.value, '$.playerId') = ?
+        )
+      RETURNING state`)
+    .bind(JSON.stringify(submission), code, roundNumber, gameStartedAt, submission.playerId, submission.playerId)
+    .first<RoomRow>();
+  return row ? JSON.parse(row.state) as RoomState : null;
 }
 
 export async function deleteRoom(code: string) {
