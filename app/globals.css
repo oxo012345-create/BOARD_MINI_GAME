@@ -177,6 +177,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .quiz-image { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; margin-bottom: 22px; overflow: hidden; border-radius: 18px; background: #0a0c0e; }
 .quiz-image img { width: 100%; height: 100%; object-fit: contain; }
 .quiz-image.is-zoomed img { transform: scale(2.25); object-fit: cover; }
+.image-fallback { display: grid; place-items: center; gap: 10px; color: var(--muted); text-align: center; }
+.image-fallback button { min-height: 42px; padding: 0 16px; border: 1px solid rgba(217, 255, 87, .55); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-weight: 900; }
 .image-fallback { padding: 20px; color: #c5cad0; font-size: 13px; line-height: 1.5; }
 .image-fallback small { color: var(--muted); }
 .image-loader { width: 34px; height: 34px; margin: auto; border: 3px solid #2e343d; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }

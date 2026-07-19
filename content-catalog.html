@@ -52,8 +52,10 @@
   </header>
   <main id="app"></main>
   <script src="content-data.js"></script>
+  <script src="verified-image-data.js"></script>
   <script>
     const d = window.GAME_CONTENT;
+    const verifiedImages = window.HANPAN_VERIFIED_IMAGES;
     const app = document.querySelector('#app');
     const nav = document.querySelector('#nav');
     const sections = [];
@@ -71,18 +73,18 @@
     addSection('초성퀴즈', '7장르 × 장르별 30문제 = 210문제', Object.entries(d.initialQuiz).map(([genre,items])=>`<div class="genre"><h3>${genre} <span class="badge">${items.length}</span></h3>${cards(items,q=>`<div class="quiz"><strong>${esc(q.initial)}</strong><small class="answer">${esc(q.answer)}</small></div>`)}</div>`).join(''));
     addSection('무한 훈민정음', `${d.infiniteInitials.length}개 초성`, cards(d.infiniteInitials));
     addSection('취향일치', `${d.tasteMatch.length}개`, cards(d.tasteMatch,p=>`<div class="pair"><span>${esc(p[0])}</span><i>VS</i><span>${esc(p[1])}</span></div>`));
-    addSection('중급 상식퀴즈', '중급 난이도 100문제', cards(d.triviaMedium,q=>`<b>${esc(q.question)}</b><small class="answer">정답: ${esc(q.answer)}</small>`));
+    addSection('중급 상식퀴즈', `중급 난이도 ${d.triviaMedium.length}문제`, cards(d.triviaMedium,q=>`<b>${esc(q.question)}</b><small class="answer">정답: ${esc(q.answer)}</small>`));
     addSection('가짜 추억 찾기', `${d.fakeMemoryWords.length}개 제시 단어`, cards(d.fakeMemoryWords));
     addSection('색깔 찾기', '추가 조건 없이 색상만 제시', cards(d.colors));
     addSection('초성 물건 찾기', '현대 한글 초성 전체', cards(d.objectInitials));
-    addSection('확대 사진 퀴즈', `${d.zoomObjects.length}장 후보 · 사진을 누르면 전체 모습 공개`, `<div class="warning">각 정답에 해당하는 정확한 백과 문서 또는 공개 사진을 고정했습니다. 앱 탑재 전 원문 페이지의 라이선스와 출처 표시 조건을 확인해야 합니다.</div><div id="zoom-images" class="grid images"></div>`);
+    addSection('확대 사진 퀴즈', `${verifiedImages.zoom.length}장 검수 완료 · 사진을 누르면 전체 모습 공개`, `<div class="warning">실제 게임과 같은 고정 사진만 표시합니다. 실행할 때마다 외부 검색으로 사진이 바뀌지 않습니다.</div><div id="zoom-images" class="grid images"></div>`);
     addSection('범인은 질문을 모른다', `${d.unknownQuestion.length}문제`, cards(d.unknownQuestion));
     addSection('텔레그레이션', `그림으로 표현하기 좋은 중급 단어 ${d.telestrationWords.length}개`, cards(d.telestrationWords));
-    addSection('인물퀴즈', `${d.peopleQuiz.length}명`, `<div class="warning">인물 사진의 초상·저작권은 사용처에 따라 별도 확인이 필요합니다. 카드는 원문 페이지로 연결됩니다.</div><div id="people-images" class="grid images"></div>`);
+    addSection('인물퀴즈', `${verifiedImages.people.length}명 · 게임 출제 목록과 동일`, `<div class="warning">검수하여 고정한 사진만 표시하며, 카드는 이미지 원문 페이지로 연결됩니다.</div><div id="people-images" class="grid images"></div>`);
     addSection('줄줄이 말해요', `일반 80개 + 어려움 20개 = ${d.chainPrompts.length}개`, cards(d.chainPrompts,(x,i)=>`${esc(x)}${i>=80?'<span class="badge">어려움</span>':''}`));
     addSection('네 글자 이어말하기', `보통 160개 + 어려움 40개 = ${d.fourSyllable.length}개`, cards(d.fourSyllable,q=>`<div class="pair"><span>${esc(q.front)}</span><i>→</i><span>${esc(q.back)}</span></div><small>${esc(q.word)} · ${q.difficulty}</small>`));
     addSection('이어말하기', `${d['이어말하기'].length}개 카테고리`, cards(d['이어말하기']));
-    addSection('캐릭터퀴즈', `${d.characters.length}개`, `<div class="warning">작품명과 캐릭터명이 일치하는 대표 이미지만 다시 선택했습니다. 캐릭터 이미지는 보호되는 저작물이므로 서비스 배포 전 권리자의 사용 허가가 필요합니다.</div><div id="character-images" class="grid images"></div>`);
+    addSection('캐릭터퀴즈', `${verifiedImages.character.length}개 · 게임 출제 목록과 동일`, `<div class="warning">공개 출처를 확인한 고정 사진만 표시합니다. 검색 결과나 미검수 이미지는 출제하지 않습니다.</div><div id="character-images" class="grid images"></div>`);
     addSection('단체 초성퀴즈', `${d.groupInitials.length}개`, cards(d.groupInitials));
     addSection('비밀미션', `${d.secretMissions.length}개`, cards(d.secretMissions));
     addSection('모션게임', '기존 20개 유지', cards(d.motions));
@@ -342,9 +344,14 @@
       const q=e.target.value.trim().toLowerCase();
       document.querySelectorAll('.searchable').forEach(el=>el.classList.toggle('hidden',q&&!el.dataset.search.toLowerCase().includes(q)));
     });
-    loadGallery('#zoom-images',d.zoomObjects,'wiki',true);
-    loadGallery('#people-images',d.peopleQuiz,'wiki');
-    loadGallery('#character-images',d.characters,'wiki');
+    function loadVerifiedGallery(id, items, zoom=false) {
+      const root = document.querySelector(id);
+      root.innerHTML = items.map((item,index)=>`<article class="card image-card searchable" data-search="${esc(item.answer)}"><div class="photo ${zoom?'zoomed':''}"><img alt="${esc(item.answer)}" loading="lazy" src="${esc(item.url)}"></div><div class="caption"><b>${index+1}. ${esc(item.answer)}</b><br><a class="source" href="${esc(item.source)}" target="_blank" rel="noreferrer">이미지 원문·사용조건</a></div></article>`).join('');
+      if (zoom) root.querySelectorAll('.image-card').forEach(card=>card.addEventListener('click',()=>card.classList.toggle('revealed')));
+    }
+    loadVerifiedGallery('#zoom-images',verifiedImages.zoom,true);
+    loadVerifiedGallery('#people-images',verifiedImages.people);
+    loadVerifiedGallery('#character-images',verifiedImages.character);
   </script>
 </body>
 </html>

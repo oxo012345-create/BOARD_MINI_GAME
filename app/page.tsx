@@ -77,9 +77,18 @@ function getFreshRoomCodeFromUrl() {
 function playerName(room: Room, id?: string) { return room.players.find((player) => player.id === id)?.name ?? "참가자"; }
 function formatClock(ms: number) { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`; }
 
-function QuizImage({ imageId }: { imageId: string }) {
+function QuizImageRequest({ imageId }: { imageId: string }) {
   const [failed, setFailed] = useState(false);
-  return <div className="quiz-image">{!failed ? <img src={`/api/game-image/${imageId}`} alt="퀴즈 이미지" onError={() => setFailed(true)} /> : <div className="image-fallback">이미지를 불러오지 못했어요</div>}</div>;
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => { setFailed(false); setAttempt((value) => value + 1); };
+  return <div className="quiz-image">{!failed
+    ? <img src={`/api/game-image/${imageId}?retry=${attempt}`} alt="퀴즈 이미지" draggable={false} onError={() => setFailed(true)} />
+    : <div className="image-fallback"><span>사진을 불러오지 못했어요</span><button type="button" onClick={retry}>다시 불러오기</button></div>}
+  </div>;
+}
+
+function QuizImage({ imageId }: { imageId: string }) {
+  return <QuizImageRequest key={imageId} imageId={imageId} />;
 }
 
 function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, onCancel }: { title: string; message: string; confirmLabel: string; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
@@ -259,7 +268,7 @@ export default function Home() {
   const [liarMode, setLiarMode] = useState<"normal" | "dumb">("normal");
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
-  const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "center", y: 220 });
+  const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "right", y: 220 });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "restored">("connected");
   const [hostActionLocked, setHostActionLocked] = useState(false);
@@ -495,7 +504,7 @@ export default function Home() {
     if (!surprise || surprise.phase !== "active" || alertedSurprise.current === surprise.startedAt) return;
     alertedSurprise.current = surprise.startedAt;
     setSurpriseCollapsed(false);
-    setSurprisePosition({ side: "center", y: Math.max(80, Math.round(window.innerHeight / 2 - 80)) });
+    setSurprisePosition({ side: "right", y: Math.max(80, Math.round(window.innerHeight / 2 - 80)) });
     navigator.vibrate?.([250, 120, 250]);
     try { const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext; if (Context) { const audio = new Context(); const oscillator = audio.createOscillator(); const gain = audio.createGain(); oscillator.frequency.value = 880; gain.gain.value = .08; oscillator.connect(gain).connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .18); } } catch { /* 소리 권한이 없으면 진동만 사용 */ }
   }, [room?.surprise]);

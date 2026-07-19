@@ -511,6 +511,10 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /roomMutationCountRef\.current = Math\.max\(0, roomMutationCountRef\.current - 1\)/);
   assert.match(page, /setPointerCapture/);
   assert.match(page, /draggable=\{false\}/);
+  assert.match(page, /SurprisePosition>\(\{ side: "right", y: 220 \}\)/);
+  assert.match(page, /setSurprisePosition\(\{ side: "right"/);
+  assert.match(page, /사진을 불러오지 못했어요/);
+  assert.match(page, /다시 불러오기/);
   assert.doesNotMatch(page, /onPointerLeave=\{\(\) => setRoleVisible\(false\)\}/);
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(styles, /\.game-shell \* \{ user-select: none; -webkit-user-select: none; \}/);
@@ -520,4 +524,27 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, "UPLOADS");
+});
+
+test("ships 1000 unique trivia questions and one fixed image catalog", async () => {
+  const [{ GAME_CONTENT }, catalog, generatedContent, generatedImages, imageSource] = await Promise.all([
+    import(new URL(`../app/api/_lib/content-data.js?test=${Date.now()}`, import.meta.url)),
+    readFile(new URL("../content-catalog.html", import.meta.url), "utf8"),
+    readFile(new URL("../content-data.js", import.meta.url), "utf8"),
+    readFile(new URL("../verified-image-data.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/_lib/images.ts", import.meta.url), "utf8"),
+  ]);
+  const trivia = GAME_CONTENT.triviaMedium;
+  assert.equal(trivia.length, 1000);
+  assert.equal(new Set(trivia.map((item) => item.question)).size, 1000);
+  assert.ok(trivia.every((item) => item.question && item.answer));
+  assert.match(catalog, /verified-image-data\.js/);
+  assert.match(catalog, /loadVerifiedGallery\('#people-images',verifiedImages\.people\)/);
+  assert.match(catalog, /게임 출제 목록과 동일/);
+  assert.match(generatedContent, /window\.GAME_CONTENT/);
+  assert.match(generatedContent, /\"triviaMedium\":\[/);
+  assert.match(generatedImages, /window\.HANPAN_VERIFIED_IMAGES/);
+  const registeredImages = [...imageSource.matchAll(/wiki\("[^"]+",/g)].length;
+  const catalogImages = (generatedImages.match(/\"id\":/g) ?? []).length;
+  assert.equal(catalogImages, registeredImages);
 });
