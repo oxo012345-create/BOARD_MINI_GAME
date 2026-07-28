@@ -1,6 +1,7 @@
 import { GAME_CONTENT } from "./content-data.js";
 import { GEM_HEIST_DATA, type GemCard, type GemScene } from "./gem-heist-data";
 import { VERIFIED_IMAGES, type VerifiedImage } from "./images";
+import { withSubjectParticle } from "./korean-particles.js";
 import type { Player } from "./rooms";
 
 export type Point = { x: number; y: number };
@@ -172,6 +173,7 @@ function formatGemReport(scene: GemScene, location: GemCard, stolenItem: GemCard
   return scene.report
     .replaceAll("{time}", time.label)
     .replaceAll("{location}", location.label)
+    .replaceAll("{item}이", withSubjectParticle(stolenItem.label))
     .replaceAll("{item}", stolenItem.label);
 }
 

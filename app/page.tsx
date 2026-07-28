@@ -101,6 +101,25 @@ const FAST_SYNC_VIEWS: Room["view"][] = ["hub", "briefing", "game"];
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 
 function getStoredValue(key: string, fallback = "") { return typeof window === "undefined" ? fallback : localStorage.getItem(key) || fallback; }
+async function patchRoomWithConflictRetry(code: string, payload: Record<string, unknown>, options: { keepalive?: boolean; attempts?: number } = {}) {
+  const attempts = options.attempts ?? 4;
+  let lastResponse: Response | null = null;
+  let lastBody: { room?: Room | null; error?: string; code?: string } = {};
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const response = await fetch(`/api/rooms/${code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: options.keepalive,
+    });
+    const body = await response.json() as { room?: Room | null; error?: string; code?: string };
+    lastResponse = response;
+    lastBody = body;
+    if (response.status !== 409 || body.code !== "ROOM_CONFLICT") return { response, body };
+    await new Promise((resolve) => window.setTimeout(resolve, 35 * (attempt + 1)));
+  }
+  return { response: lastResponse!, body: lastBody };
+}
 function getRoomCodeFromUrl() { return typeof window === "undefined" ? "" : new URLSearchParams(location.search).get("room")?.replace(/\D/g, "").slice(0, 4) || ""; }
 function getFreshRoomCodeFromUrl() {
   if (typeof window === "undefined") return "";
@@ -376,6 +395,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
   const shownAlibi = isThief ? dossier.claimedAlibi : dossier.alibi;
   const roleMark = info.role === "thief" ? "T" : info.role === "detective" ? "D" : info.role === "accomplice" ? "A" : "I";
   return <button
+    id="gem-secret-file"
     type="button"
     className={`gem-secret-file ${visible ? "revealed" : ""} role-${info.role}`}
     draggable={false}
@@ -384,6 +404,16 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
     onPointerUp={hide}
     onPointerCancel={hide}
     onPointerLeave={hide}
+    onKeyDown={(event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      onVisibleChange(true);
+    }}
+    onKeyUp={(event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      onVisibleChange(false);
+    }}
     onBlur={() => onVisibleChange(false)}
     onContextMenu={(event) => event.preventDefault()}
     onDragStart={(event) => event.preventDefault()}
@@ -461,6 +491,7 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
 
 export default function Home() {
   const [room, setRoom] = useState<Room | null>(null);
+  const [resumeRoom, setResumeRoom] = useState<Room | null>(null);
   const [name, setName] = useState(() => getStoredValue("hanpan-name"));
   const [avatar, setAvatar] = useState(() => getStoredValue("hanpan-avatar", AVATARS[0]));
   const [joinCode, setJoinCode] = useState(getFreshRoomCodeFromUrl);
@@ -497,6 +528,7 @@ export default function Home() {
   const realtimeRevisionRef = useRef(0);
   const roomRefreshRef = useRef<() => void>(() => undefined);
   const realtimeAbortRef = useRef<AbortController | null>(null);
+  const roleTouchRevealRef = useRef(false);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
@@ -550,8 +582,22 @@ export default function Home() {
 
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 100); return () => window.clearInterval(id); }, []);
   useEffect(() => {
+    if (!roleVisible || !roleTouchRevealRef.current) return;
+    const releaseRole = () => {
+      roleTouchRevealRef.current = false;
+      setRoleVisible(false);
+    };
+    window.addEventListener("touchend", releaseRole, { passive: true });
+    window.addEventListener("touchcancel", releaseRole, { passive: true });
+    return () => {
+      window.removeEventListener("touchend", releaseRole);
+      window.removeEventListener("touchcancel", releaseRole);
+    };
+  }, [roleVisible]);
+  useEffect(() => {
     const code = getFreshRoomCodeFromUrl();
-    const targetRoom = code || localStorage.getItem("hanpan-room");
+    const storedRoom = localStorage.getItem("hanpan-room");
+    const targetRoom = code || storedRoom;
     if (!targetRoom) {
       if (location.search) history.replaceState(null, "", location.pathname);
       return;
@@ -567,7 +613,15 @@ export default function Home() {
       }
       const body = await response.json() as { room: Room };
       markConnectionSuccess();
-      if (body.room.authenticated) applyRoomSnapshot(body.room, sequence); else if (code) { setJoinCode(code); setIntent("join"); } else localStorage.removeItem("hanpan-room");
+      if (body.room.authenticated) {
+        if (code) applyRoomSnapshot(body.room, sequence);
+        else setResumeRoom(body.room);
+      } else if (code) {
+        setJoinCode(code);
+        setIntent("join");
+      } else {
+        localStorage.removeItem("hanpan-room");
+      }
     }).catch((error: Error) => { if (!["401", "404"].includes(error.message)) markConnectionFailure(true); });
   }, [applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
   useEffect(() => {
@@ -703,7 +757,7 @@ export default function Home() {
   useEffect(() => {
     // 새 라운드의 비공개 역할과 로컬 입력이 이전 판에서 새지 않게 초기화합니다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRoleVisible(false); setMemoryInputs(["", "", "", ""]); setTimerStart(null); setLiarMode("normal");
+    setRoleVisible(false); setMemoryInputs(["", "", "", ""]); setTimerStart(null); setLiarMode("normal"); setGemSuspect("");
   }, [room?.roundNumber, room?.view, currentGame?.id]);
   useEffect(() => {
     if (!roomCode) return;
@@ -719,20 +773,17 @@ export default function Home() {
     navigator.vibrate?.([250, 120, 250]);
     try { const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext; if (Context) { const audio = new Context(); const oscillator = audio.createOscillator(); const gain = audio.createGain(); oscillator.frequency.value = 880; gain.gain.value = .08; oscillator.connect(gain).connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .18); } } catch { /* 소리 권한이 없으면 진동만 사용 */ }
   }, [room?.surprise]);
-  useEffect(() => { setGemSuspect(""); }, [room?.roundNumber, currentGame?.gemPhase]);
-
   const showNotice = useCallback((message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); }, []);
   const applyAction = useCallback(async (payload: Record<string, unknown>) => {
     if (!room) return null;
     const sequence = nextRoomRequestSequence();
     roomMutationCountRef.current += 1;
     try {
-      const response = await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const body = await response.json() as { room?: Room; error?: string };
+      const { response, body } = await patchRoomWithConflictRetry(room.code, payload);
       if (!response.ok || !body.room) throw new Error(body.error || "요청을 처리하지 못했어요.");
       markConnectionSuccess();
-      applyRoomSnapshot(body.room, sequence);
-      return body.room;
+      applyRoomSnapshot(body.room as Room, sequence);
+      return body.room as Room;
     } catch (error) {
       if (error instanceof TypeError) markConnectionFailure(true);
       throw error;
@@ -747,8 +798,10 @@ export default function Home() {
     try {
       const sequence = nextRoomRequestSequence();
       const player = { name: name.trim(), avatar };
-      const response = intent === "create" ? await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player }) }) : await fetch(`/api/rooms/${joinCode}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "join", player }) });
-      const body = await response.json() as { room?: Room; error?: string };
+      const entry = intent === "create"
+        ? await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player }) }).then(async (response) => ({ response, body: await response.json() as { room?: Room; error?: string } }))
+        : await patchRoomWithConflictRetry(joinCode, { action: "join", player });
+      const { response, body } = entry;
       if (!response.ok || !body.room) throw new Error(body.error || "방에 들어가지 못했어요.");
       localStorage.setItem("hanpan-name", name.trim()); localStorage.setItem("hanpan-avatar", avatar); localStorage.setItem("hanpan-room", body.room.code);
       leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
@@ -758,8 +811,44 @@ export default function Home() {
     if (!room) return;
     const sequence = nextRoomRequestSequence();
     setBusy(true); leavingRef.current = true;
-    try { await fetch(`/api/rooms/${room.code}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }), keepalive: true }); }
-    finally { localStorage.removeItem("hanpan-room"); history.replaceState(null, "", location.pathname); applyRoomSnapshot(null, sequence); setJoinCode(""); setIntent(null); setBusy(false); setConfirmType(null); }
+    try {
+      const { response, body } = await patchRoomWithConflictRetry(room.code, { action: "leave" }, { keepalive: true });
+      if (!response.ok && ![401, 404].includes(response.status)) throw new Error(body.error || "방에서 나가지 못했어요.");
+    }
+    catch (error) {
+      leavingRef.current = false;
+      setBusy(false);
+      setConfirmType(null);
+      showNotice(error instanceof Error ? error.message : "방에서 나가지 못했어요.");
+      return;
+    }
+    localStorage.removeItem("hanpan-room");
+    history.replaceState(null, "", location.pathname);
+    applyRoomSnapshot(null, sequence);
+    setJoinCode("");
+    setIntent(null);
+    setBusy(false);
+    setConfirmType(null);
+  };
+  const continuePreviousRoom = () => {
+    if (!resumeRoom) return;
+    const sequence = nextRoomRequestSequence();
+    history.replaceState(null, "", `?room=${resumeRoom.code}`);
+    applyRoomSnapshot(resumeRoom, sequence);
+    setResumeRoom(null);
+  };
+  const discardPreviousRoom = async () => {
+    if (!resumeRoom) return;
+    setBusy(true);
+    try {
+      await patchRoomWithConflictRetry(resumeRoom.code, { action: "leave" }, { keepalive: true });
+    } catch { /* 오래된 방이 이미 사라졌다면 로컬 기록만 정리합니다. */ }
+    localStorage.removeItem("hanpan-room");
+    history.replaceState(null, "", location.pathname);
+    setResumeRoom(null);
+    setJoinCode("");
+    setIntent(null);
+    setBusy(false);
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") setGemSpecialRoles(false); await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
@@ -824,7 +913,16 @@ export default function Home() {
 
   if (!room) return <main className="app-shell entry-shell">
     <header className="brand"><span className="brand-dot" />한판</header>
-    {!intent ? <section className="hero">
+    {resumeRoom ? <section className="panel resume-panel">
+      <div className="eyebrow">진행 중인 방</div>
+      <h1 className="panel-title">{resumeRoom.code}번 방에<br />다시 참여할까요?</h1>
+      <div className="resume-summary">
+        <span>{resumeRoom.players.find((player) => player.id === resumeRoom.meId)?.avatar ?? "👤"}</span>
+        <div><strong>{resumeRoom.players.find((player) => player.id === resumeRoom.meId)?.name ?? "참가자"}</strong><small>{resumeRoom.view === "game" ? `${resumeRoom.game?.title ?? "게임"} 진행 중` : resumeRoom.view === "lobby" ? "대기실" : "게임을 고르는 중"}</small></div>
+      </div>
+      <button className="button primary xl" disabled={busy} onClick={continuePreviousRoom}>이어서 참여하기</button>
+      <button className="button secondary xl" disabled={busy} onClick={() => void discardPreviousRoom()}>{busy ? "정리하는 중…" : "나가고 처음으로"}</button>
+    </section> : !intent ? <section className="hero">
       <div className="eyebrow">점수 없이 바로 노는 술게임</div>
       <h1>모이면,<br /><em>한판이면 돼.</em></h1>
       <p>휴대폰 하나씩 들고 방에 들어오세요.<br />판정은 우리끼리, 결과는 바로.</p>
@@ -921,16 +1019,29 @@ export default function Home() {
       draggable={false}
       aria-pressed={roleVisible}
       onPointerDown={(event) => {
-        event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
+        roleTouchRevealRef.current = event.pointerType === "touch";
         setRoleVisible(true);
       }}
       onPointerUp={(event) => {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        if (event.pointerType === "touch") return;
         setRoleVisible(false);
       }}
       onPointerCancel={(event) => {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        if (event.pointerType === "touch") return;
+        setRoleVisible(false);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "touch") return;
+        setRoleVisible(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== " " && event.key !== "Enter") return;
+        event.preventDefault();
+        setRoleVisible(true);
+      }}
+      onKeyUp={(event) => {
+        if (event.key !== " " && event.key !== "Enter") return;
+        event.preventDefault();
         setRoleVisible(false);
       }}
       onDragStart={(event) => event.preventDefault()}
@@ -939,6 +1050,7 @@ export default function Home() {
     ><span>{roleVisible ? privateRole.label : "내 역할 확인"}</span><strong>{roleVisible ? privateRole.value : "휴대폰을 가리고 누르고 계세요"}</strong><small>{roleVisible ? "손을 떼면 다시 숨겨져요" : "누르는 동안만 보여요"}</small></button>}
     {currentGame.id === "gem-heist" && currentGame.gemPrivate && <>
       <GemStageRail phase={currentGame.gemPhase} />
+      <a className="gem-role-shortcut" href="#gem-secret-file">기밀 역할 확인하기 <span>↓</span></a>
       <GemCaseBoard game={currentGame} compact={currentGame.gemPhase !== "dossier"} />
       <GemSecretFile info={currentGame.gemPrivate} room={room} visible={roleVisible} onVisibleChange={setRoleVisible} />
       {currentGame.gemPhase === "dossier" && <section className="gem-phase-card">

@@ -34,6 +34,22 @@ async function withDevServer(run) {
   }
 }
 
+async function patchWithConflictRetry(url, cookie, payload) {
+  let response;
+  let body;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    response = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify(payload),
+    });
+    body = await response.json();
+    if (response.status !== 409 || body.code !== "ROOM_CONFLICT") return { response, body };
+    await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+  }
+  return { response, body };
+}
+
 test("server-renders the Hanpan mobile app shell", async () => {
   await withDevServer(async (baseUrl, response) => {
     assert.equal(response.status, 200);
@@ -213,6 +229,23 @@ test("server-renders the Hanpan mobile app shell", async () => {
       body: JSON.stringify({ action: "submit-timer", seconds: 9.99 }),
     });
     assert.equal(duplicateTimerResponse.status, 409);
+
+    const tasteStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "taste" }),
+    });
+    const tasteStart = await tasteStartResponse.json();
+    const [tasteA, tasteB] = tasteStart.room.game.choices;
+    const [hostTaste, guestTaste] = await Promise.all([
+      patchWithConflictRetry(`${baseUrl}/api/rooms/${body.room.code}`, hostCookie, { action: "taste-choice", choice: tasteA }),
+      patchWithConflictRetry(`${baseUrl}/api/rooms/${body.room.code}`, guestCookie, { action: "taste-choice", choice: tasteB }),
+    ]);
+    assert.equal(hostTaste.response.status, 200);
+    assert.equal(guestTaste.response.status, 200);
+    const tasteState = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    assert.equal(tasteState.room.game.selectionStatus.length, 2);
+    assert.equal(tasteState.room.game.myChoice, tasteA);
 
     const chainGameResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -617,6 +650,9 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
   assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);
   assert.match(page, /HOST_ACTION_LOCK_MS = 350/);
+  assert.match(page, /patchRoomWithConflictRetry/);
+  assert.match(page, /다시 참여할까요/);
+  assert.match(page, /기밀 역할 확인하기/);
   assert.match(page, /events\?wait=1&revision=/);
   assert.match(page, /REALTIME_SAFETY_SYNC_INTERVAL_MS = 5000/);
   assert.match(page, /roomRefreshRef\.current\(\)/);
@@ -634,11 +670,12 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(page, /setSurprisePosition\(\{ side: "right"/);
   assert.match(page, /사진을 불러오지 못했어요/);
   assert.match(page, /다시 불러오기/);
-  assert.doesNotMatch(page, /onPointerLeave=\{\(\) => setRoleVisible\(false\)\}/);
+  assert.match(page, /roleTouchRevealRef/);
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(styles, /\.game-shell \* \{ user-select: none; -webkit-user-select: none; \}/);
   assert.match(styles, /\.game-shell input, \.game-shell textarea/);
-  assert.match(styles, /\.role-card \{[^}]*touch-action: none;[^}]*-webkit-touch-callout: none;/);
+  assert.match(styles, /\.role-card \{[^}]*touch-action: pan-y;[^}]*-webkit-touch-callout: none;/);
+  assert.match(styles, /\.topbar-actions button \{[^}]*min-height: 44px;/);
   const hostingConfig = JSON.parse(hosting);
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.equal(hostingConfig.d1, "DB");
@@ -666,6 +703,12 @@ test("ships 1000 unique trivia questions and one fixed image catalog", async () 
   const registeredImages = [...imageSource.matchAll(/wiki\("[^"]+",/g)].length;
   const catalogImages = (generatedImages.match(/\"id\":/g) ?? []).length;
   assert.equal(catalogImages, registeredImages);
+});
+
+test("uses natural Korean subject particles in case reports", async () => {
+  const { withSubjectParticle } = await import(new URL(`../app/api/_lib/korean-particles.js?test=${Date.now()}`, import.meta.url));
+  assert.equal(withSubjectParticle("태양의 티아라"), "태양의 티아라가");
+  assert.equal(withSubjectParticle("왕관"), "왕관이");
 });
 
 test("ships the complete 200-asset gem-heist visual system", async () => {

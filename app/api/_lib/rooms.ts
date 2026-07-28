@@ -285,6 +285,23 @@ export async function writeRoom(state: RoomState) {
   return Number(result.meta.changes ?? 0) === 1;
 }
 
+export async function writeRoomIfRevision(state: RoomState, expectedRevision: number) {
+  const nextRevision = expectedRevision + 1;
+  state.revision = nextRevision;
+  const result = await getD1()
+    .prepare(`UPDATE rooms
+      SET state = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE code = ?
+        AND CAST(COALESCE(json_extract(state, '$.revision'), 0) AS INTEGER) = ?`)
+    .bind(JSON.stringify(state), state.code, expectedRevision)
+    .run();
+  if (Number(result.meta.changes ?? 0) !== 1) {
+    state.revision = expectedRevision;
+    return false;
+  }
+  return true;
+}
+
 export async function appendPhotoSubmission(
   code: string,
   roundNumber: number,

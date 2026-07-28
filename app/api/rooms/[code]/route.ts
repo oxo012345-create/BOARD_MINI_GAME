@@ -1,4 +1,4 @@
-import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoom, type Player, type RoomState } from "../../_lib/rooms";
+import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
 import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
@@ -59,8 +59,11 @@ function handleTelestrationTimeout(room: RoomState) {
 }
 
 async function persistAndRespond(room: RoomState, viewerId: string) {
+  const expectedRevision = room.revision ?? 0;
   tickSurprise(room);
-  await writeRoom(room);
+  if (!await writeRoomIfRevision(room, expectedRevision)) {
+    return Response.json({ error: "다른 참가자의 입력을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+  }
   return Response.json({ room: toClientRoom(room, viewerId) });
 }
 
@@ -77,6 +80,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
       const rate = await checkRateLimit(request, "lookup", 40, 60);
       if (!rate.allowed) return Response.json({ error: "조회가 너무 많아요. 잠시 후 다시 시도해 주세요." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
     }
+    const expectedRevision = room.revision ?? 0;
     const playersChanged = touchAndPrunePlayers(room, viewer?.id);
     const surpriseChanged = tickSurprise(room);
     const telestrationChanged = handleTelestrationTimeout(room);
@@ -85,7 +89,11 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     }
-    if (changed) await writeRoom(room);
+    if (changed && !await writeRoomIfRevision(room, expectedRevision)) {
+      const latest = await readRoom(room.code);
+      if (!latest) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
+      return Response.json({ room: toClientRoom(latest, viewer?.id) }, { headers: { "Cache-Control": "no-store" } });
+    }
     return Response.json({ room: toClientRoom(room, viewer?.id) }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "방 정보를 불러오지 못했어요." }, { status: 500 });
@@ -114,7 +122,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       const now = Date.now();
       const player: Player = { ...profile, id: session.playerId, sessionHash: session.tokenHash, joinedAt: now, lastSeen: now, status: ["lobby", "hub", "briefing"].includes(room.view) ? "active" : "waiting" };
       room.players.push(player);
-      await writeRoom(room);
+      if (!await writeRoomIfRevision(room, room.revision ?? 0)) {
+        return Response.json({ error: "다른 참가자가 동시에 입장했어요. 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+      }
       return Response.json({ room: toClientRoom(room, player.id) }, { headers: { "Set-Cookie": sessionCookie(room.code, session.token) } });
     }
 
@@ -185,7 +195,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         finishTelestrationRound(activeGame, room.players);
         if (activeGame.telestrationComplete) room.view = "result";
       }
-      await writeRoom(room);
+      if (!await writeRoomIfRevision(room, room.revision ?? 0)) {
+        return Response.json({ error: "다른 참가자의 변경을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+      }
       return Response.json({ room: toClientRoom(room) }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
     }
 

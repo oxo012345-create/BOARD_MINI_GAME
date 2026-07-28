@@ -113,7 +113,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .topbar > strong { overflow: hidden; padding: 0 8px; text-align: center; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .room-code-mini { color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: .08em; }
 .topbar-actions { display: flex; justify-content: flex-end; gap: 2px; }
-.topbar-actions button { min-height: 40px; padding: 0 7px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; white-space: nowrap; }
+.topbar-actions button { min-width: 44px; min-height: 44px; padding: 0 7px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; white-space: nowrap; }
 
 .room-code-card { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border: 1px solid rgba(217, 255, 87, .25); border-radius: var(--radius); background: rgba(217, 255, 87, .07); }
 .room-code-card div { display: flex; align-items: baseline; gap: 16px; }
@@ -164,7 +164,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .game-shell input, .game-shell textarea, .game-shell [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
 .game-shell img { -webkit-user-drag: none; }
 .round-label { margin: 2px 0 10px; color: #5f6670; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
-.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; text-align: center; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
+.role-card { width: 100%; min-height: 150px; margin-bottom: 12px; padding: 20px; border: 1px dashed #38404a; border-radius: 22px; background: linear-gradient(135deg, var(--panel), #111418); color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; text-align: center; cursor: pointer; touch-action: pan-y; overscroll-behavior-y: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
 .role-card * { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
 .role-card > span { display: block; color: var(--accent); -webkit-text-fill-color: var(--accent); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
 .role-card > strong { display: block; margin: 17px 0 13px; color: #f6f7f8 !important; -webkit-text-fill-color: #f6f7f8; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
@@ -929,4 +929,73 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-secret-file {
   touch-action: pan-y;
   overscroll-behavior-y: contain;
+}
+
+.resume-panel {
+  margin: auto 0;
+  padding: 28px 22px;
+}
+.resume-panel .panel-title {
+  margin-bottom: 22px;
+}
+.resume-panel .button + .button {
+  margin-top: 10px;
+}
+.resume-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.025);
+}
+.resume-summary > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  background: #20242a;
+  font-size: 25px;
+}
+.resume-summary strong,
+.resume-summary small {
+  display: block;
+}
+.resume-summary strong {
+  color: #f4f6f8;
+  font-size: 16px;
+}
+.resume-summary small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.gem-role-shortcut {
+  position: sticky;
+  z-index: 55;
+  top: calc(68px + env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  margin: 0 0 10px;
+  padding: 0 15px;
+  border: 1px solid rgba(245,202,114,.42);
+  border-radius: 15px;
+  background: rgba(20,18,16,.94);
+  color: var(--gem-gold);
+  box-shadow: 0 10px 26px rgba(0,0,0,.36);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  backdrop-filter: blur(14px);
+}
+.gem-role-shortcut span {
+  font-size: 17px;
+}
+#gem-secret-file {
+  scroll-margin-top: calc(126px + env(safe-area-inset-top));
 }
