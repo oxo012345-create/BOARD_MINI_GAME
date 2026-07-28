@@ -139,7 +139,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
         const roleMeta = role === "thief"
           ? { title: "보석 도둑", icon: "♠", goal: "가짜 알리바이로 정체를 숨기고 최종 투표에서 살아남으세요." }
           : role === "detective"
-            ? { title: "수석 탐정", icon: "⌕", goal: "두 개의 감식 단서를 연결해 범인을 지목하세요." }
+            ? { title: "수석 탐정", icon: "⌕", goal: "여러 감식 단서를 교차해 모순이 겹치는 사람을 찾으세요." }
             : role === "accomplice"
               ? { title: "비밀 공범", icon: "♣", goal: "범인을 알고 있습니다. 수사대의 의심을 자연스럽게 다른 곳으로 돌리세요." }
               : { title: "수사대", icon: "◆", goal: "개인 단서를 공개하고 다른 사람의 알리바이에서 모순을 찾으세요." };

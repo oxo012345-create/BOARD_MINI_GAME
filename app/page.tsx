@@ -10,8 +10,8 @@ type Stroke = { eraser?: boolean; points: Point[] };
 type Player = { id: string; name: string; avatar: string; joinedAt: number; lastSeen: number; status: "active" | "waiting" };
 type HistoryItem = { prompt: string; answer?: string; imageId?: string; imageSource?: string };
 type TelestrationChain = { id: string; prompt: string; steps: Array<{ playerId: string; strokes?: Stroke[]; guess?: string }> };
-type GemCard = { id: string; label: string; icon: string; detail: string; group?: string };
-type GemClue = { icon: string; title: string; text: string; strength: "보통" | "결정적" };
+type GemCard = { id: string; label: string; icon: string; detail: string; group?: string; locationId?: string; evidenceGroup?: string };
+type GemClue = { icon: string; title: string; text: string; strength: "정황" | "부분" | "교차검증" | "기밀" };
 type GemDossier = { location: GemCard; trait: GemCard; alibi: GemCard; claimedAlibi: GemCard };
 type GemPrivate = {
   role: "thief" | "detective" | "accomplice" | "investigator";
@@ -67,7 +67,7 @@ const SOLO_GAMES: GameMeta[] = [
   { id: "body-liar", title: "몸으로 라이어", icon: "🕺", description: "말 없이 몸으로 표현해요", category: "solo" },
   { id: "face-liar", title: "얼굴로 라이어", icon: "😶", description: "표정만으로 제시어를 표현해요", category: "solo" },
   { id: "unknown", title: "라이어-질문", icon: "❓", description: "한 명만 질문을 모르거나 달라요", category: "solo" },
-  { id: "gem-heist", title: "사라진 보석", icon: "💎", description: "단서를 합쳐 보석 도둑을 찾아요", category: "solo" },
+  { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "solo" },
   { id: "initial", title: "초성 퀴즈", icon: "ㄱ", description: "술래 오른쪽부터 틀릴 때까지", category: "solo" },
   { id: "hunmin", title: "무한 훈민정음", icon: "ㅎ", description: "초성 단어를 막힐 때까지 말해요", category: "solo" },
   { id: "taste", title: "취향 일치", icon: "🤝", description: "휴대폰으로 취향을 선택해요", category: "solo" },
@@ -288,22 +288,20 @@ function GemCaseBoard({ game, compact = false }: { game: GameRound; compact?: bo
   if (!caseFile) return null;
   return <section className={`gem-case-board ${compact ? "compact" : ""}`}>
     <div className="gem-case-no">CASE {String(game.startedAt).slice(-6)}</div>
-    <div className="gem-scene-art" aria-hidden="true">
-      <span className="gem-scene-location">{caseFile.location.icon}</span>
-      <span className="gem-scene-gem">{caseFile.stolenItem.icon}</span>
-      <span className="gem-scene-tool">{caseFile.tool.icon}</span>
-      <i />
+    <div className="gem-scene-art">
+      <img src="/gem-case-scene.webp" alt="" aria-hidden="true" />
+      <div className="gem-scene-status"><span>INCIDENT</span><strong>도난 사건</strong></div>
     </div>
     <div className="gem-scene-copy">
-      <span className="gem-kicker">{caseFile.scene.icon} 사건 발생</span>
+      <span className="gem-kicker">사건 발생</span>
       <h2>{caseFile.scene.title}</h2>
       <p>{caseFile.report}</p>
     </div>
     <div className="gem-evidence-grid">
-      <div><span>도난품</span><strong>{caseFile.stolenItem.icon} {caseFile.stolenItem.label}</strong><small>{caseFile.stolenItem.detail}</small></div>
-      <div><span>사건 장소</span><strong>{caseFile.location.icon} {caseFile.location.label}</strong><small>{caseFile.location.detail}</small></div>
-      <div><span>범행 시각</span><strong>{caseFile.time.icon} {caseFile.time.label}</strong><small>{caseFile.time.detail}</small></div>
-      <div><span>발견된 도구</span><strong>{caseFile.tool.icon} {caseFile.tool.label}</strong><small>{caseFile.tool.detail}</small></div>
+      <div className="evidence-item stolen"><i aria-hidden="true" /><span>도난품</span><strong>{caseFile.stolenItem.label}</strong></div>
+      <div className="evidence-item location"><i aria-hidden="true" /><span>사건 장소</span><strong>{caseFile.location.label}</strong></div>
+      <div className="evidence-item time"><i aria-hidden="true" /><span>범행 시각</span><strong>{caseFile.time.label}</strong></div>
+      <div className="evidence-item tool"><i aria-hidden="true" /><span>발견된 도구</span><strong>{caseFile.tool.label}</strong></div>
     </div>
   </section>;
 }
@@ -320,6 +318,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
   };
   const dossier = info.dossier;
   const isThief = info.role === "thief";
+  const roleMark = info.role === "thief" ? "T" : info.role === "detective" ? "D" : info.role === "accomplice" ? "A" : "I";
   return <button
     type="button"
     className={`gem-secret-file ${visible ? "revealed" : ""} role-${info.role}`}
@@ -333,21 +332,20 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
     onDragStart={(event) => event.preventDefault()}
   >
     {!visible ? <div className="gem-file-closed">
-      <span>TOP SECRET · 개인 열람</span>
-      <strong>내 사건 파일 확인</strong>
-      <small>휴대폰을 가리고 누르고 계세요</small>
-      <i>누르는 동안만 보여요</i>
+      <img src="/gem-secret-dossier.webp" alt="" aria-hidden="true" />
+      <div><span>TOP SECRET · 개인 열람</span><strong>내 사건 파일 확인</strong><small>휴대폰을 가리고 누르고 계세요</small><i>누르는 동안만 보여요</i></div>
     </div> : <div className="gem-file-open">
-      <div className="gem-role-stamp"><span>{info.icon}</span><div><small>당신의 역할</small><strong>{info.title}</strong></div></div>
+      <div className="gem-file-hero"><img src="/gem-suspects.webp" alt="" aria-hidden="true" /><span>PERSONAL CASE FILE</span></div>
+      <div className="gem-role-stamp"><span>{roleMark}</span><div><small>당신의 역할</small><strong>{info.title}</strong></div></div>
       <p className="gem-role-goal">{info.goal}</p>
       {info.thiefId && info.role === "accomplice" && <div className="gem-accomplice-secret">범인 · <strong>{playerName(room, info.thiefId)}</strong></div>}
       <div className="gem-dossier-grid">
-        <div><span>{isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.icon} {dossier.location.label}</strong><small>{dossier.location.detail}</small></div>
-        <div><span>내 프로필 특징</span><strong>{dossier.trait.icon} {dossier.trait.label}</strong><small>{dossier.trait.detail}</small></div>
-        <div className={isThief ? "cover" : ""}><span>{isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{(isThief ? dossier.claimedAlibi : dossier.alibi).icon} {(isThief ? dossier.claimedAlibi : dossier.alibi).label}</strong><small>{(isThief ? dossier.claimedAlibi : dossier.alibi).detail}</small></div>
+        <div className="gem-dossier-item location"><i aria-hidden="true" /><div><span>{isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.label}</strong></div></div>
+        <div className="gem-dossier-item trait"><i aria-hidden="true" /><div><span>내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
+        <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" /><div><span>{isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{(isThief ? dossier.claimedAlibi : dossier.alibi).label}</strong></div></div>
       </div>
-      <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className="gem-clue-card" key={`${clue.title}-${index}`}>
-        <span>{clue.icon}</span><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
+      <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
+        <span className="gem-clue-photo" aria-hidden="true" /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
       </div>)}</div>
       <i>손을 떼면 기밀 파일이 닫혀요</i>
     </div>}
@@ -373,7 +371,8 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
   const thiefDossier = result.thiefId ? result.dossiers?.[result.thiefId] : undefined;
   const roleLabel = (role?: GemPrivate["role"]) => role === "thief" ? "보석 도둑" : role === "detective" ? "수석 탐정" : role === "accomplice" ? "비밀 공범" : "수사대";
   return <div className={`gem-result-panel ${result.caught ? "caught" : "escaped"}`}>
-    <div className="gem-verdict-mark">{result.caught ? "🔒" : "♠"}</div>
+    <div className="gem-result-hero"><img src="/gem-evidence.webp" alt="" aria-hidden="true" /></div>
+    <div className="gem-verdict-mark">{result.caught ? "CLOSED" : "UNSOLVED"}</div>
     <span className="gem-kicker">{result.caught ? "CASE CLOSED" : "CASE UNSOLVED"}</span>
     <h2>{result.caught ? "보석 도둑을 잡았습니다" : "범인이 흔적을 지웠습니다"}</h2>
     <p>{result.caught ? "수사대가 단서를 완성해 사라진 보석을 되찾았어요." : "최다 득표자가 갈렸거나 다른 사람을 지목해 범인이 탈출했어요."}</p>
@@ -383,8 +382,8 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
       <em>{thiefDossier?.trait.icon} {thiefDossier?.trait.label}</em>
     </div>
     {thiefDossier && <div className="gem-result-evidence">
-      <div><span>실제 위치</span><strong>{thiefDossier.location.icon} {thiefDossier.location.label}</strong></div>
-      <div><span>가짜 알리바이</span><strong>{thiefDossier.claimedAlibi.icon} {thiefDossier.claimedAlibi.label}</strong></div>
+      <div><span>실제 위치</span><strong>{thiefDossier.location.label}</strong></div>
+      <div><span>가짜 알리바이</span><strong>{thiefDossier.claimedAlibi.label}</strong></div>
     </div>}
     <div className="gem-vote-result">
       <h3>최종 지목</h3>
@@ -789,14 +788,14 @@ export default function Home() {
 
   if (me?.status === "waiting") return <main className="app-shell">{topBar("다음 판 대기")}<section className="waiting-card"><span className="big-emoji">👋</span><h2>현재 게임이 진행 중이에요</h2><p>이번 판이 끝나면 동일한 참가자로 자동 참여해요.</p></section>{commonOverlays}</main>;
 
-  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : COOP_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className="game-icon">{game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
+  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : COOP_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className={`game-icon ${game.id === "gem-heist" ? "gem-photo-icon" : ""}`}>{game.id === "gem-heist" ? "" : game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
 
   if (room.view === "briefing" && currentGame) {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     return <main className={`app-shell briefing-shell ${currentGame.id === "gem-heist" ? "gem-briefing-shell" : ""}`}>
       {topBar("게임 설명")}
       <section className="briefing-card">
-        <span className="big-emoji">{gameMeta?.icon ?? "🎮"}</span>
+        {currentGame.id === "gem-heist" ? <img className="gem-briefing-cover" src="/gem-case-scene.webp" alt="" aria-hidden="true" /> : <span className="big-emoji">{gameMeta?.icon ?? "🎮"}</span>}
         <div className="eyebrow">시작 전 설명</div>
         <h1>{currentGame.title}</h1>
         <p>{currentGame.briefing ?? currentGame.prompt}</p>
@@ -884,12 +883,12 @@ export default function Home() {
         <span className="gem-kicker">STEP 01 · 비공개</span>
         <h2>기밀 파일을 확인하세요</h2>
         <p>각자 휴대폰을 가리고 역할, 특징, 알리바이와 단서를 확인하세요. 수사대는 진실을 말하고, 도둑과 공범은 거짓말할 수 있습니다.</p>
-        <div className="gem-mini-rules"><span>🔒 파일 내용은 말로만 공유</span><span>🃏 범인은 가짜 알리바이 사용</span><span>🔍 단서를 합쳐 모순 찾기</span></div>
+        <div className="gem-mini-rules"><span><b>01</b>파일 내용은 말로만 공유</span><span><b>02</b>범인은 가짜 알리바이 사용</span><span><b>03</b>단서 두세 개를 연결해 추리</span></div>
         {isHost ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void startGemInvestigation()}>모두 확인했어요 · 수사 시작</button> : <div className="waiting"><span className="pulse" />모두의 확인을 기다리는 중</div>}
       </section>}
       {currentGame.gemPhase === "investigation" && <section className="gem-phase-card investigation">
         <div className="gem-investigation-head"><div><span className="gem-kicker">STEP 02 · 공개 수사</span><h2>질문 카드 {Math.min(6, (currentGame.gemQuestionIndex ?? 0) + 1)} / 6</h2></div><strong className={(currentGame.deadline ?? synchronizedNow) <= synchronizedNow ? "expired" : ""}>{formatClock((currentGame.deadline ?? synchronizedNow) - synchronizedNow)}</strong></div>
-        {currentGame.gemQuestion && <div className="gem-question-card"><span>{currentGame.gemQuestion.icon}</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div>}
+        {currentGame.gemQuestion && <div className="gem-question-card"><img src="/gem-question.webp" alt="" aria-hidden="true" /><div><span>INTERVIEW QUESTION</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
         <p className="gem-discussion-tip">자신의 알리바이와 특징을 말하고, 개인 단서는 원하는 순간에 공개하세요. 도둑과 공범의 말에는 거짓이 섞여 있을 수 있어요.</p>
         {isHost ? <div className="gem-host-actions"><button className="button secondary" disabled={hostActionLocked || (currentGame.gemQuestionIndex ?? 0) >= 5} onClick={() => void nextGemQuestion()}>다음 질문</button><button className="button primary" disabled={hostActionLocked} onClick={() => void startGemVote()}>최종 지목 시작</button></div> : <div className="waiting"><span className="pulse" />공개 수사 진행 중</div>}
       </section>}
@@ -900,7 +899,7 @@ export default function Home() {
         {!currentGame.gemMyVote ? <>
           <div className="gem-suspect-grid">{room.players.filter((player) => player.status === "active").map((player) => <button type="button" disabled={player.id === room.meId} className={gemSuspect === player.id ? "selected" : ""} key={player.id} onClick={() => setGemSuspect(player.id)}><span>{player.avatar}</span><strong>{player.name}</strong><small>{player.id === room.meId ? "나" : gemSuspect === player.id ? "지목 대상" : "선택"}</small></button>)}</div>
           <button className="button primary xl" disabled={!gemSuspect || busy} onClick={() => void submitGemVote()}>{gemSuspect ? `${playerName(room, gemSuspect)} 지목 확정` : "범인을 선택하세요"}</button>
-        </> : <div className="gem-vote-sealed"><span>✉️</span><strong>지목을 봉인했습니다</strong><small>다른 참가자의 선택을 기다리고 있어요.</small></div>}
+        </> : <div className="gem-vote-sealed"><span>SEALED</span><strong>지목을 봉인했습니다</strong><small>다른 참가자의 선택을 기다리고 있어요.</small></div>}
         <ParticipantProgress room={room} completedIds={currentGame.gemVoteStatus ?? []} completeLabel="지목 완료" pendingLabel="추리 중" />
       </section>}
     </>}

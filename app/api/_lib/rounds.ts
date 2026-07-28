@@ -15,7 +15,7 @@ export type GemDossier = {
   alibi: GemCard;
   claimedAlibi: GemCard;
 };
-export type GemClue = { icon: string; title: string; text: string; strength: "보통" | "결정적" };
+export type GemClue = { icon: string; title: string; text: string; strength: "정황" | "부분" | "교차검증" | "기밀" };
 export type GemCase = {
   scene: GemScene;
   location: GemCard;
@@ -175,6 +175,22 @@ function formatGemReport(scene: GemScene, location: GemCard, stolenItem: GemCard
     .replaceAll("{item}", stolenItem.label);
 }
 
+function uniqueValues(values: Array<string | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function ambiguousValues(target: string | undefined, others: Array<string | undefined>) {
+  if (!target) return [];
+  const matching = others.filter((value) => value === target).length;
+  if (matching > 0) return [target];
+  const decoy = pick(uniqueValues(others).filter((value) => value !== target));
+  return decoy ? shuffle([target, decoy]) : [target];
+}
+
+function joinedEvidence(values: string[]) {
+  return values.length > 1 ? values.join("·") : values[0] ?? "복수";
+}
+
 function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boolean): GameRound {
   const orderedPlayers = shuffle(players);
   const thief = orderedPlayers[0];
@@ -186,10 +202,9 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
   const tool = pick([...GEM_HEIST_DATA.tools]);
   const time = pick([...GEM_HEIST_DATA.times]);
   const scene = pick([...GEM_HEIST_DATA.backgrounds]);
-  const locations = shuffle(GEM_HEIST_DATA.locations.filter((item) => item.id !== crimeLocation.id));
   const traits = shuffle([...GEM_HEIST_DATA.traits]);
   const alibis = shuffle([...GEM_HEIST_DATA.alibis]);
-  const coverAlibis = shuffle(GEM_HEIST_DATA.alibis.filter((item) => item.id !== alibis[0]?.id));
+  const coverAlibis = shuffle(GEM_HEIST_DATA.alibis.filter((item) => item.locationId !== crimeLocation.id));
   const roles: Record<string, GemRole> = {};
   const dossiers: Record<string, GemDossier> = {};
 
@@ -203,81 +218,137 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
           : "investigator";
     roles[player.id] = role;
     const alibi = alibis[index % alibis.length];
+    const alibiLocation = GEM_HEIST_DATA.locations.find((location) => location.id === alibi.locationId)
+      ?? pick(GEM_HEIST_DATA.locations.filter((location) => location.id !== crimeLocation.id));
     dossiers[player.id] = {
-      location: player.id === thief?.id ? crimeLocation : locations[index % locations.length],
+      location: player.id === thief?.id ? crimeLocation : alibiLocation,
       trait: traits[index % traits.length],
       alibi,
-      claimedAlibi: player.id === thief?.id ? coverAlibis[0] : alibi,
+      claimedAlibi: player.id === thief?.id ? coverAlibis[0] ?? alibi : alibi,
     };
   });
 
   const thiefDossier = dossiers[thief.id];
-  const clearedPlayers = shuffle(remaining);
-  const suspectPair = shuffle([thief, ...remaining]).slice(0, 2);
-  if (!suspectPair.some((player) => player.id === thief.id)) suspectPair[0] = thief;
+  const otherDossiers = orderedPlayers.filter((player) => player.id !== thief.id).map((player) => dossiers[player.id]);
+  const traitSignals = ambiguousValues(thiefDossier.trait.group, otherDossiers.map((dossier) => dossier.trait.group));
+  const locationSignals = ambiguousValues(thiefDossier.location.group, otherDossiers.map((dossier) => dossier.location.group));
+  const alibiSignals = ambiguousValues(thiefDossier.claimedAlibi.evidenceGroup, otherDossiers.map((dossier) => dossier.alibi.evidenceGroup));
+  const locationGroups = uniqueValues(orderedPlayers.map((player) => dossiers[player.id].location.group));
+  const traitGroups = uniqueValues(orderedPlayers.map((player) => dossiers[player.id].trait.group));
+  const excludedLocation = pick(locationGroups.filter((group) =>
+    group !== thiefDossier.location.group
+    && orderedPlayers.filter((player) => dossiers[player.id].location.group !== group).length >= 2
+  ));
+  const excludedTrait = pick(traitGroups.filter((group) =>
+    group !== thiefDossier.trait.group
+    && orderedPlayers.filter((player) => dossiers[player.id].trait.group !== group).length >= 2
+  ));
   const cluePool: GemClue[] = shuffle([
     {
-      icon: thiefDossier.trait.icon,
-      title: "목격자의 기억",
-      text: `범인은 ‘${thiefDossier.trait.group}’에 해당하는 특징을 가지고 있습니다.`,
-      strength: "보통",
+      icon: "관찰",
+      title: "엇갈린 목격",
+      text: `목격 진술에는 ${joinedEvidence(traitSignals)} 특징이 섞여 있습니다. 두 진술 중 일부는 사건 뒤 행동을 잘못 본 것입니다.`,
+      strength: "부분",
     },
     {
-      icon: crimeLocation.icon,
-      title: "동선 분석",
-      text: `범인은 사건 당시 ${crimeLocation.group}에 있었습니다.`,
-      strength: "보통",
+      icon: "동선",
+      title: "센서의 빈틈",
+      text: `${joinedEvidence(locationSignals)} 동선에서 같은 출입 흔적이 감지됐지만, 어느 기록이 범인의 것인지는 확인되지 않았습니다.`,
+      strength: "부분",
     },
     {
-      icon: thiefDossier.claimedAlibi.icon,
-      title: "알리바이 균열",
-      text: `거짓 알리바이에는 ‘${thiefDossier.claimedAlibi.label}’라는 내용이 포함되어 있습니다.`,
-      strength: "결정적",
+      icon: "기록",
+      title: "증거 매체 분석",
+      text: `조작 가능성이 있는 알리바이는 ${joinedEvidence(alibiSignals)} 유형입니다. 원본 시간은 확인되지 않았습니다.`,
+      strength: "부분",
     },
     {
-      icon: "👥",
-      title: "용의자 압축",
-      text: `범인은 ${suspectPair.map((player) => player.name).join(" 또는 ")} 중 한 명입니다.`,
-      strength: "결정적",
+      icon: "섬유",
+      title: "현장 오염",
+      text: "도구에서 서로 다른 두 종류의 섬유가 검출됐습니다. 범인의 옷에서 떨어진 것인지, 옮겨 묻은 것인지는 알 수 없습니다.",
+      strength: "정황",
     },
-    ...clearedPlayers.slice(0, Math.max(2, players.length - 2)).map((player) => ({
-      icon: "✓",
-      title: "확인된 동선",
-      text: `${player.name}의 동선은 범행 시각과 일치하지 않습니다.`,
-      strength: "보통" as const,
-    })),
+    {
+      icon: "시각",
+      title: "멈춘 기록",
+      text: `${time.label} 전후의 출입 기록이 일부 손상됐습니다. 진술 시각이 정확하다는 이유만으로 믿을 수는 없습니다.`,
+      strength: "정황",
+    },
+    {
+      icon: "도구",
+      title: "재배치된 도구",
+      text: `${tool.label}에는 오래된 먼지와 새 지문이 함께 남았습니다. 사건 전에 현장에 있었을 가능성이 있습니다.`,
+      strength: "정황",
+    },
+    {
+      icon: "진술",
+      title: "기억의 시간차",
+      text: "목격자 한 명은 사건 직후의 행동을 범행 순간으로 착각했습니다. 눈에 띄는 행동만으로 범인을 정하면 안 됩니다.",
+      strength: "교차검증",
+    },
+    {
+      icon: "검증",
+      title: "부분 확인",
+      text: "사진과 전자 기록 일부는 편집 흔적이 없지만 촬영 시각이 비어 있습니다. 기록과 사람의 말을 함께 비교해야 합니다.",
+      strength: "교차검증",
+    },
+    {
+      icon: "경보",
+      title: "이중 경보",
+      text: "범행 직전 두 구역의 센서가 동시에 반응했습니다. 하나는 실제 이동, 다른 하나는 의도적인 교란으로 추정됩니다.",
+      strength: "정황",
+    },
+    {
+      icon: "흔적",
+      title: "불완전한 발자국",
+      text: "현장 근처 발자국은 두 사람의 동선이 겹쳐 만들어졌습니다. 신발이나 걸음걸이만으로는 특정할 수 없습니다.",
+      strength: "정황",
+    },
+    ...(excludedLocation ? [{
+      icon: "구역",
+      title: "동선 제외",
+      text: `${excludedLocation}의 센서는 범행 시각에 정상 작동했습니다. 그 구역의 움직임은 핵심 범행 동선이 아닌 것으로 보입니다.`,
+      strength: "부분" as const,
+    }] : []),
+    ...(excludedTrait ? [{
+      icon: "관찰",
+      title: "목격 보정",
+      text: `${excludedTrait}에 관한 목격은 사건이 끝난 뒤의 행동으로 확인됐습니다. 해당 진술은 범행 순간의 단서가 아닙니다.`,
+      strength: "부분" as const,
+    }] : []),
   ]);
 
   const clues: Record<string, GemClue[]> = {};
-  let clueIndex = 0;
+  const investigators = orderedPlayers.filter((player) => !["thief", "accomplice"].includes(roles[player.id]));
+  const evidenceDeck = shuffle(cluePool);
+  investigators.forEach((player) => {
+    clues[player.id] = [evidenceDeck.shift() ?? cluePool[0]];
+  });
+  shuffle(investigators).slice(0, Math.max(1, Math.floor(players.length / 3))).forEach((player) => {
+    const bonus = evidenceDeck.shift();
+    if (bonus) clues[player.id].push(bonus);
+  });
+  if (detective && clues[detective.id]) {
+    const detectiveLead = evidenceDeck.shift();
+    if (detectiveLead) clues[detective.id].push({ ...detectiveLead, strength: "교차검증" });
+  }
+
   for (const player of orderedPlayers) {
     const role = roles[player.id];
     if (role === "thief") {
       clues[player.id] = [{
-        icon: "🃏",
+        icon: "위장",
         title: "위장 지침",
-        text: `당신의 가짜 알리바이는 ‘${thiefDossier.claimedAlibi.label}’입니다. 실제 장소와 특징을 들키지 마세요.`,
-        strength: "결정적",
+        text: `‘${thiefDossier.claimedAlibi.label}’을 자기 경험처럼 자연스럽게 말하세요. 실제 장소와 같은 표현은 포함되지 않습니다.`,
+        strength: "기밀",
       }];
     } else if (role === "accomplice") {
       clues[player.id] = [{
-        icon: "🤝",
+        icon: "공범",
         title: "공범의 비밀",
         text: `범인은 ${thief.name}입니다. 수사대가 다른 사람을 의심하도록 자연스럽게 흔드세요.`,
-        strength: "결정적",
+        strength: "기밀",
       }];
-    } else if (role === "detective") {
-      clues[player.id] = [
-        {
-          icon: thiefDossier.trait.icon,
-          title: "정밀 감식",
-          text: `범인의 정확한 특징은 ‘${thiefDossier.trait.label}’입니다.`,
-          strength: "결정적",
-        },
-        cluePool[clueIndex++ % cluePool.length],
-      ];
-    } else {
-      clues[player.id] = [cluePool[clueIndex++ % cluePool.length]];
     }
   }
 

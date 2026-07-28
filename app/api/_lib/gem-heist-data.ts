@@ -4,6 +4,8 @@ export type GemCard = {
   icon: string;
   detail: string;
   group?: string;
+  locationId?: string;
+  evidenceGroup?: "사진 기록" | "목격 진술" | "전자 기록" | "단독 진술";
 };
 
 export type GemScene = {
@@ -130,26 +132,26 @@ export const GEM_HEIST_DATA = {
   ] satisfies GemCard[],
 
   alibis: [
-    { id: "toast-photo", label: "건배 사진에 찍혔다", icon: "📸", detail: "환영 건배 순간 단체 사진 뒤편에 있었다" },
-    { id: "piano-request", label: "피아노 신청곡을 적었다", icon: "🎹", detail: "음악실에서 연주자에게 신청 카드를 건넸다" },
-    { id: "dessert-order", label: "디저트를 주문했다", icon: "🍰", detail: "연회장 직원에게 레몬 타르트를 부탁했다" },
-    { id: "umbrella-help", label: "우산을 정리했다", icon: "☂️", detail: "소나기 직후 현관의 젖은 우산을 옮겼다" },
-    { id: "phone-call", label: "테라스에서 통화했다", icon: "📱", detail: "분수 소리 때문에 야외에서 짧은 전화를 했다" },
-    { id: "lost-earring", label: "귀걸이를 찾고 있었다", icon: "🔎", detail: "복도와 분장실 바닥을 살피며 돌아다녔다" },
-    { id: "staff-question", label: "직원에게 길을 물었다", icon: "🗺️", detail: "처음 온 건물이라 기록보관소 방향을 물었다" },
-    { id: "wine-label", label: "와인 라벨을 구경했다", icon: "🍷", detail: "저장고 입구에서 오래된 빈티지 병을 살펴봤다" },
-    { id: "garden-photo", label: "온실 사진을 찍었다", icon: "🌿", detail: "유리 온실의 희귀 난초를 여러 장 촬영했다" },
-    { id: "coat-check", label: "외투를 맡겼다", icon: "🧥", detail: "현관 보관소에서 번호표를 다시 발급받았다" },
-    { id: "card-game", label: "라운지에서 카드게임을 했다", icon: "🃏", detail: "세 사람과 짧은 카드게임 한 판을 마쳤다" },
-    { id: "broken-glass", label: "깨진 잔을 치웠다", icon: "🥂", detail: "복도에 떨어진 잔 조각을 직원과 함께 정리했다" },
-    { id: "watch-fireworks", label: "불꽃놀이를 보고 있었다", icon: "🎆", detail: "대부분의 손님과 분수 테라스에 서 있었다" },
-    { id: "mirror-fix", label: "거울 앞에서 옷을 고쳤다", icon: "🪞", detail: "분장실에서 흐트러진 옷매무새를 정리했다" },
-    { id: "book-search", label: "서재에서 책을 찾았다", icon: "📚", detail: "주최자가 추천한 오래된 추리소설을 찾았다" },
-    { id: "pool-towel", label: "수영장에 수건을 가져갔다", icon: "🏊", detail: "실내 수영장에 두고 온 물건을 가지러 갔다" },
-    { id: "elevator-stuck", label: "엘리베이터를 기다렸다", icon: "🛗", detail: "고장 표시가 떠 한동안 층 버튼 앞에 있었다" },
-    { id: "delivery-sign", label: "배송 확인서에 서명했다", icon: "📦", detail: "후문 하역장에서 잘못 온 꽃상자를 확인했다" },
-    { id: "music-listen", label: "현악 연주를 들었다", icon: "🎻", detail: "음악실 문가에서 마지막 곡까지 듣고 있었다" },
-    { id: "security-report", label: "분실물을 신고했다", icon: "📹", detail: "보안 관제실 앞에서 잃어버린 지갑을 신고했다" },
+    { id: "toast-photo", label: "건배 사진에 찍혔다", icon: "📸", detail: "환영 건배 순간 단체 사진 뒤편에 있었다", locationId: "grand-hall", evidenceGroup: "사진 기록" },
+    { id: "piano-request", label: "피아노 신청곡을 적었다", icon: "🎹", detail: "음악실에서 연주자에게 신청 카드를 건넸다", locationId: "music-room", evidenceGroup: "목격 진술" },
+    { id: "dessert-order", label: "디저트를 주문했다", icon: "🍰", detail: "연회장 직원에게 레몬 타르트를 부탁했다", locationId: "grand-hall", evidenceGroup: "목격 진술" },
+    { id: "umbrella-help", label: "우산을 정리했다", icon: "☂️", detail: "소나기 직후 동쪽 복도의 젖은 우산을 옮겼다", locationId: "hallway", evidenceGroup: "목격 진술" },
+    { id: "phone-call", label: "테라스에서 통화했다", icon: "📱", detail: "분수 소리 때문에 야외에서 짧은 전화를 했다", locationId: "terrace", evidenceGroup: "전자 기록" },
+    { id: "lost-earring", label: "분장실에서 귀걸이를 찾았다", icon: "🔎", detail: "분장실 바닥을 살피며 혼자 돌아다녔다", locationId: "dressing", evidenceGroup: "단독 진술" },
+    { id: "staff-question", label: "복도에서 직원에게 길을 물었다", icon: "🗺️", detail: "처음 온 건물이라 기록보관소 방향을 물었다", locationId: "hallway", evidenceGroup: "목격 진술" },
+    { id: "wine-label", label: "와인 라벨을 구경했다", icon: "🍷", detail: "저장고에서 오래된 빈티지 병을 살펴봤다", locationId: "wine-cellar", evidenceGroup: "단독 진술" },
+    { id: "garden-photo", label: "온실 사진을 찍었다", icon: "🌿", detail: "유리 온실의 희귀 난초를 여러 장 촬영했다", locationId: "greenhouse", evidenceGroup: "사진 기록" },
+    { id: "coat-check", label: "후문에서 외투 번호표를 받았다", icon: "🧥", detail: "하역장 옆 임시 보관소에서 번호표를 다시 발급받았다", locationId: "loading", evidenceGroup: "전자 기록" },
+    { id: "card-game", label: "라운지에서 카드게임을 했다", icon: "🃏", detail: "세 사람과 짧은 카드게임 한 판을 마쳤다", locationId: "lounge", evidenceGroup: "목격 진술" },
+    { id: "broken-glass", label: "복도에서 깨진 잔을 치웠다", icon: "🥂", detail: "동쪽 복도에 떨어진 잔 조각을 직원과 함께 정리했다", locationId: "hallway", evidenceGroup: "목격 진술" },
+    { id: "watch-fireworks", label: "테라스에서 불꽃놀이를 봤다", icon: "🎆", detail: "대부분의 손님과 분수 테라스에 서 있었다", locationId: "terrace", evidenceGroup: "사진 기록" },
+    { id: "mirror-fix", label: "분장실에서 옷을 고쳤다", icon: "🪞", detail: "거울 앞에서 흐트러진 옷매무새를 정리했다", locationId: "dressing", evidenceGroup: "단독 진술" },
+    { id: "book-search", label: "서재에서 책을 찾았다", icon: "📚", detail: "주최자가 추천한 오래된 추리소설을 찾았다", locationId: "library", evidenceGroup: "단독 진술" },
+    { id: "pool-towel", label: "수영장에 수건을 가져갔다", icon: "🏊", detail: "실내 수영장에 두고 온 물건을 가지러 갔다", locationId: "pool", evidenceGroup: "단독 진술" },
+    { id: "elevator-stuck", label: "엘리베이터를 기다렸다", icon: "🛗", detail: "고장 표시가 떠 한동안 층 버튼 앞에 있었다", locationId: "elevator", evidenceGroup: "전자 기록" },
+    { id: "delivery-sign", label: "배송 확인서에 서명했다", icon: "📦", detail: "후문 하역장에서 잘못 온 꽃상자를 확인했다", locationId: "loading", evidenceGroup: "전자 기록" },
+    { id: "music-listen", label: "음악실에서 현악 연주를 들었다", icon: "🎻", detail: "음악실 문가에서 마지막 곡까지 듣고 있었다", locationId: "music-room", evidenceGroup: "목격 진술" },
+    { id: "security-report", label: "관제실에서 분실물을 신고했다", icon: "📹", detail: "보안 관제실에서 잃어버린 지갑을 신고했다", locationId: "security", evidenceGroup: "전자 기록" },
   ] satisfies GemCard[],
 
   questions: [
@@ -238,4 +240,3 @@ export const GEM_HEIST_DATA = {
     { id: "final-curtain", title: "막이 내린 뒤", icon: "🎬", report: "{time}, 공연의 막이 내려간 뒤 {location}의 조명이 켜지자 {item}은 이미 사라진 뒤였습니다." },
   ] satisfies GemScene[],
 } as const;
-

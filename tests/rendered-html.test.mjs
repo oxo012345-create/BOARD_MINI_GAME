@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 async function withDevServer(run) {
@@ -473,6 +473,21 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "accomplice").length, 0);
     const thiefState = gemStates.find((state) => state.room.game.gemPrivate.role === "thief");
     const thiefId = thiefState.room.meId;
+    const crimeLocationId = thiefState.room.game.gemCase.location.id;
+    assert.notEqual(thiefState.room.game.gemPrivate.dossier.claimedAlibi.locationId, crimeLocationId);
+    for (const state of gemStates.filter((item) => item.room.game.gemPrivate.role !== "thief")) {
+      assert.equal(state.room.game.gemPrivate.dossier.alibi.locationId, state.room.game.gemPrivate.dossier.location.id);
+    }
+    const investigatorClueCounts = gemStates
+      .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
+      .map((state) => state.room.game.gemPrivate.clues.length);
+    assert.equal(investigatorClueCounts.some((count) => count > 1), true);
+    assert.equal(new Set(investigatorClueCounts).size > 1, true);
+    const investigatorClueText = gemStates
+      .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
+      .flatMap((state) => state.room.game.gemPrivate.clues.map((clue) => clue.text))
+      .join("\n");
+    assert.doesNotMatch(investigatorClueText, /중 한 명입니다|정확한 특징은|동선은 범행 시각과 일치하지 않습니다/);
     const firstCaseKey = `${gemStates[0].room.game.gemCase.scene.id}:${gemStates[0].room.game.gemCase.stolenItem.id}`;
 
     const investigationResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
@@ -649,6 +664,8 @@ test("ships 1000 unique trivia questions and one fixed image catalog", async () 
 
 test("ships the complete illustrated gem-heist case library", async () => {
   const source = await readFile(new URL("../app/api/_lib/gem-heist-data.ts", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const expected = {
     locations: 20,
     stolenItems: 20,
@@ -665,4 +682,14 @@ test("ships the complete illustrated gem-heist case library", async () => {
     assert.equal((section[1].match(/\{ id: "/g) ?? []).length, count, `${key} should contain ${count} curated cards`);
     assert.equal((section[1].match(/icon: "/g) ?? []).length, count, `${key} should illustrate every card`);
   }
+  const alibis = source.match(/alibis: \[([\s\S]*?)\] satisfies/);
+  assert.ok(alibis);
+  assert.equal((alibis[1].match(/locationId: "/g) ?? []).length, 20);
+  assert.equal((alibis[1].match(/evidenceGroup: "/g) ?? []).length, 20);
+  for (const asset of ["gem-case-scene.webp", "gem-secret-dossier.webp", "gem-suspects.webp", "gem-alibi.webp", "gem-clue.webp", "gem-question.webp", "gem-evidence.webp"]) {
+    const info = await stat(new URL(`../public/${asset}`, import.meta.url));
+    assert.ok(info.size > 30_000, `${asset} should be a high-quality photographic asset`);
+    assert.match(`${page}\n${css}`, new RegExp(asset.replace(".", "\\.")));
+  }
+  assert.doesNotMatch(page, /gem-scene-location|gem-scene-gem|gem-scene-tool/);
 });
