@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 async function withDevServer(run) {
@@ -662,10 +662,11 @@ test("ships 1000 unique trivia questions and one fixed image catalog", async () 
   assert.equal(catalogImages, registeredImages);
 });
 
-test("ships the complete illustrated gem-heist case library", async () => {
+test("ships the complete 200-asset gem-heist visual system", async () => {
   const source = await readFile(new URL("../app/api/_lib/gem-heist-data.ts", import.meta.url), "utf8");
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const assets = await readFile(new URL("../app/gem-heist-assets.ts", import.meta.url), "utf8");
   const expected = {
     locations: 20,
     stolenItems: 20,
@@ -689,7 +690,49 @@ test("ships the complete illustrated gem-heist case library", async () => {
   for (const asset of ["gem-case-scene.webp", "gem-secret-dossier.webp", "gem-suspects.webp", "gem-alibi.webp", "gem-clue.webp", "gem-question.webp", "gem-evidence.webp"]) {
     const info = await stat(new URL(`../public/${asset}`, import.meta.url));
     assert.ok(info.size > 30_000, `${asset} should be a high-quality photographic asset`);
-    assert.match(`${page}\n${css}`, new RegExp(asset.replace(".", "\\.")));
+    if (asset !== "gem-clue.webp") assert.match(`${page}\n${css}\n${assets}`, new RegExp(asset.replace(".", "\\.")));
   }
+  const photographicAssets = {
+    locations: 20,
+    items: 20,
+    tools: 20,
+    traits: 30,
+    alibis: 20,
+    questions: 50,
+    scenes: 30,
+  };
+  const dataSectionByAssetKind = {
+    locations: "locations",
+    items: "stolenItems",
+    tools: "tools",
+    traits: "traits",
+    alibis: "alibis",
+    questions: "questions",
+    scenes: "backgrounds",
+  };
+  let photoCount = 0;
+  for (const [kind, expectedCount] of Object.entries(photographicAssets)) {
+    const files = (await readdir(new URL(`../public/gem-heist/${kind}/`, import.meta.url))).filter((file) => file.endsWith(".webp")).sort();
+    assert.equal(files.length, expectedCount, `${kind} should contain ${expectedCount} unique photographs`);
+    const section = source.match(new RegExp(`${dataSectionByAssetKind[kind]}: \\[([\\s\\S]*?)\\] satisfies`));
+    assert.ok(section);
+    const expectedFiles = [...section[1].matchAll(/\{ id: "([^"]+)"/g)].map((match) => `${match[1]}.webp`).sort();
+    assert.deepEqual(files, expectedFiles, `${kind} filenames should match every content ID exactly`);
+    photoCount += files.length;
+    for (const file of files) {
+      const info = await stat(new URL(`../public/gem-heist/${kind}/${file}`, import.meta.url));
+      assert.ok(info.size > 20_000, `${kind}/${file} should be a production photographic asset`);
+    }
+  }
+  assert.equal(photoCount, 190);
+  assert.equal(Object.values(photographicAssets).reduce((sum, count) => sum + count, 0) + 10, 200);
+  assert.match(page, /gemAsset\("locations", caseFile\.location\.id\)/);
+  assert.match(page, /gemAsset\("items", caseFile\.stolenItem\.id\)/);
+  assert.match(page, /gemAsset\("tools", caseFile\.tool\.id\)/);
+  assert.match(page, /gemAsset\("traits", dossier\.trait\.id\)/);
+  assert.match(page, /gemAsset\("alibis", shownAlibi\.id\)/);
+  assert.match(page, /gemAsset\("questions", currentGame\.gemQuestion\.id\)/);
+  assert.match(page, /gemAsset\("scenes", caseFile\.scene\.id\)/);
+  assert.match(page, /GEM_CLOCK_ANGLES/);
   assert.doesNotMatch(page, /gem-scene-location|gem-scene-gem|gem-scene-tool/);
 });

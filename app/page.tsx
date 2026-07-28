@@ -3,7 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import QRCode from "qrcode";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { gemAsset } from "./gem-heist-assets";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -22,6 +23,7 @@ type GemPrivate = {
   clues: GemClue[];
   thiefId?: string;
 };
+const GEM_CLUE_IMAGE_IDS = ["q43", "q44", "q35", "q21", "q30", "q40"];
 type GemResult = {
   thiefId?: string;
   detectiveId?: string;
@@ -289,7 +291,8 @@ function GemCaseBoard({ game, compact = false }: { game: GameRound; compact?: bo
   return <section className={`gem-case-board ${compact ? "compact" : ""}`}>
     <div className="gem-case-no">CASE {String(game.startedAt).slice(-6)}</div>
     <div className="gem-scene-art">
-      <img src="/gem-case-scene.webp" alt="" aria-hidden="true" />
+      <img className="gem-location-photo" src={gemAsset("locations", caseFile.location.id)} alt="" aria-hidden="true" />
+      <img className="gem-scene-motif" src={gemAsset("scenes", caseFile.scene.id)} alt="" aria-hidden="true" />
       <div className="gem-scene-status"><span>INCIDENT</span><strong>도난 사건</strong></div>
     </div>
     <div className="gem-scene-copy">
@@ -298,12 +301,40 @@ function GemCaseBoard({ game, compact = false }: { game: GameRound; compact?: bo
       <p>{caseFile.report}</p>
     </div>
     <div className="gem-evidence-grid">
-      <div className="evidence-item stolen"><i aria-hidden="true" /><span>도난품</span><strong>{caseFile.stolenItem.label}</strong></div>
-      <div className="evidence-item location"><i aria-hidden="true" /><span>사건 장소</span><strong>{caseFile.location.label}</strong></div>
-      <div className="evidence-item time"><i aria-hidden="true" /><span>범행 시각</span><strong>{caseFile.time.label}</strong></div>
-      <div className="evidence-item tool"><i aria-hidden="true" /><span>발견된 도구</span><strong>{caseFile.tool.label}</strong></div>
+      <div className="evidence-item stolen"><div className="gem-evidence-visual"><img src={gemAsset("items", caseFile.stolenItem.id)} alt="" aria-hidden="true" /></div><span>도난품</span><strong>{caseFile.stolenItem.label}</strong></div>
+      <div className="evidence-item location"><div className="gem-evidence-visual"><img src={gemAsset("locations", caseFile.location.id)} alt="" aria-hidden="true" /></div><span>사건 장소</span><strong>{caseFile.location.label}</strong></div>
+      <div className="evidence-item time"><GemClock time={caseFile.time} /><span>범행 시각</span><strong>{caseFile.time.label}</strong></div>
+      <div className="evidence-item tool"><div className="gem-evidence-visual"><img src={gemAsset("tools", caseFile.tool.id)} alt="" aria-hidden="true" /></div><span>발견된 도구</span><strong>{caseFile.tool.label}</strong></div>
     </div>
   </section>;
+}
+
+const GEM_CLOCK_ANGLES: Record<string, { hour: number; minute: number }> = {
+  dusk: { hour: 215, minute: 60 },
+  toast: { hour: 240, minute: 0 },
+  quartet: { hour: 260, minute: 240 },
+  blackout: { hour: 276.5, minute: 78 },
+  fireworks: { hour: 295, minute: 300 },
+  dessert: { hour: 310, minute: 120 },
+  rain: { hour: 323.5, minute: 282 },
+  midnight: { hour: 1.5, minute: 18 },
+  "after-midnight": { hour: 12.5, minute: 150 },
+  dawn: { hour: 35, minute: 60 },
+};
+
+function GemClock({ time }: { time: GemCard }) {
+  const angles = GEM_CLOCK_ANGLES[time.id] ?? { hour: 0, minute: 0 };
+  const style = {
+    "--gem-hour-angle": `${angles.hour}deg`,
+    "--gem-minute-angle": `${angles.minute}deg`,
+  } as CSSProperties;
+  return <div className="gem-clock-visual" aria-hidden="true">
+    <div className="gem-clock" style={style}>
+      <i className="hour" />
+      <i className="minute" />
+      <b />
+    </div>
+  </div>;
 }
 
 function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPrivate; room: Room; visible: boolean; onVisibleChange: (visible: boolean) => void }) {
@@ -318,6 +349,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
   };
   const dossier = info.dossier;
   const isThief = info.role === "thief";
+  const shownAlibi = isThief ? dossier.claimedAlibi : dossier.alibi;
   const roleMark = info.role === "thief" ? "T" : info.role === "detective" ? "D" : info.role === "accomplice" ? "A" : "I";
   return <button
     type="button"
@@ -335,17 +367,17 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
       <img src="/gem-secret-dossier.webp" alt="" aria-hidden="true" />
       <div><span>TOP SECRET · 개인 열람</span><strong>내 사건 파일 확인</strong><small>휴대폰을 가리고 누르고 계세요</small><i>누르는 동안만 보여요</i></div>
     </div> : <div className="gem-file-open">
-      <div className="gem-file-hero"><img src="/gem-suspects.webp" alt="" aria-hidden="true" /><span>PERSONAL CASE FILE</span></div>
+      <div className="gem-file-hero"><img src={gemAsset("traits", dossier.trait.id)} alt="" aria-hidden="true" /><span>PERSONAL CASE FILE</span></div>
       <div className="gem-role-stamp"><span>{roleMark}</span><div><small>당신의 역할</small><strong>{info.title}</strong></div></div>
       <p className="gem-role-goal">{info.goal}</p>
       {info.thiefId && info.role === "accomplice" && <div className="gem-accomplice-secret">범인 · <strong>{playerName(room, info.thiefId)}</strong></div>}
       <div className="gem-dossier-grid">
-        <div className="gem-dossier-item location"><i aria-hidden="true" /><div><span>{isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.label}</strong></div></div>
-        <div className="gem-dossier-item trait"><i aria-hidden="true" /><div><span>내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
-        <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" /><div><span>{isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{(isThief ? dossier.claimedAlibi : dossier.alibi).label}</strong></div></div>
+        <div className="gem-dossier-item location"><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("locations", dossier.location.id)}")` }} /><div><span>{isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.label}</strong></div></div>
+        <div className="gem-dossier-item trait"><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("traits", dossier.trait.id)}")` }} /><div><span>내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
+        <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("alibis", shownAlibi.id)}")` }} /><div><span>{isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{shownAlibi.label}</strong></div></div>
       </div>
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
-        <span className="gem-clue-photo" aria-hidden="true" /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
+        <span className="gem-clue-photo" aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("${gemAsset("questions", GEM_CLUE_IMAGE_IDS[index % GEM_CLUE_IMAGE_IDS.length])}")` }} /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
       </div>)}</div>
       <i>손을 떼면 기밀 파일이 닫혀요</i>
     </div>}
@@ -371,7 +403,7 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
   const thiefDossier = result.thiefId ? result.dossiers?.[result.thiefId] : undefined;
   const roleLabel = (role?: GemPrivate["role"]) => role === "thief" ? "보석 도둑" : role === "detective" ? "수석 탐정" : role === "accomplice" ? "비밀 공범" : "수사대";
   return <div className={`gem-result-panel ${result.caught ? "caught" : "escaped"}`}>
-    <div className="gem-result-hero"><img src="/gem-evidence.webp" alt="" aria-hidden="true" /></div>
+    <div className="gem-result-hero"><img src={gemAsset("items", game.gemCase?.stolenItem.id)} alt="" aria-hidden="true" /></div>
     <div className="gem-verdict-mark">{result.caught ? "CLOSED" : "UNSOLVED"}</div>
     <span className="gem-kicker">{result.caught ? "CASE CLOSED" : "CASE UNSOLVED"}</span>
     <h2>{result.caught ? "보석 도둑을 잡았습니다" : "범인이 흔적을 지웠습니다"}</h2>
@@ -888,7 +920,7 @@ export default function Home() {
       </section>}
       {currentGame.gemPhase === "investigation" && <section className="gem-phase-card investigation">
         <div className="gem-investigation-head"><div><span className="gem-kicker">STEP 02 · 공개 수사</span><h2>질문 카드 {Math.min(6, (currentGame.gemQuestionIndex ?? 0) + 1)} / 6</h2></div><strong className={(currentGame.deadline ?? synchronizedNow) <= synchronizedNow ? "expired" : ""}>{formatClock((currentGame.deadline ?? synchronizedNow) - synchronizedNow)}</strong></div>
-        {currentGame.gemQuestion && <div className="gem-question-card"><img src="/gem-question.webp" alt="" aria-hidden="true" /><div><span>INTERVIEW QUESTION</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
+        {currentGame.gemQuestion && <div className="gem-question-card"><img src={gemAsset("questions", currentGame.gemQuestion.id)} alt="" aria-hidden="true" /><div><span>INTERVIEW QUESTION</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
         <p className="gem-discussion-tip">자신의 알리바이와 특징을 말하고, 개인 단서는 원하는 순간에 공개하세요. 도둑과 공범의 말에는 거짓이 섞여 있을 수 있어요.</p>
         {isHost ? <div className="gem-host-actions"><button className="button secondary" disabled={hostActionLocked || (currentGame.gemQuestionIndex ?? 0) >= 5} onClick={() => void nextGemQuestion()}>다음 질문</button><button className="button primary" disabled={hostActionLocked} onClick={() => void startGemVote()}>최종 지목 시작</button></div> : <div className="waiting"><span className="pulse" />공개 수사 진행 중</div>}
       </section>}

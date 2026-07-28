@@ -428,7 +428,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-case-no { position: absolute; z-index: 2; top: 13px; right: 14px; color: rgba(255,255,255,.3); font: 800 8px/1 ui-monospace, monospace; letter-spacing: .13em; }
 .gem-scene-art { position: relative; height: 196px; overflow: hidden; background: #080b10; }
 .gem-scene-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,7,10,.04) 35%, rgba(8,10,14,.86)); pointer-events: none; }
-.gem-scene-art > img { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; transform: scale(1.015); }
+.gem-scene-art > .gem-location-photo { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; transform: scale(1.015); }
+.gem-scene-motif { position: absolute; z-index: 1; bottom: 13px; left: 14px; width: 70px; height: 70px; border: 1px solid rgba(245,202,114,.42); border-radius: 12px; object-fit: cover; box-shadow: 0 10px 28px rgba(0,0,0,.52); }
 .gem-scene-status { position: absolute; z-index: 1; right: 14px; bottom: 13px; display: grid; gap: 3px; padding: 8px 10px; border: 1px solid rgba(245,202,114,.38); border-radius: 9px; background: rgba(8,10,14,.72); backdrop-filter: blur(8px); text-align: right; }
 .gem-scene-status span { color: var(--gem-gold); font: 900 7px/1 ui-monospace, monospace; letter-spacing: .16em; }
 .gem-scene-status strong { color: #fff; font-size: 10px; }
@@ -437,11 +438,17 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-scene-copy p { margin: 0; color: #b9c0ca; font-size: 12px; line-height: 1.65; }
 .gem-evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border-top: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.06); text-align: left; }
 .gem-evidence-grid > div { min-width: 0; padding: 0 0 13px; overflow: hidden; background: #12161d; }
-.gem-evidence-grid .evidence-item > i { display: block; height: 72px; margin-bottom: 11px; background-image: linear-gradient(180deg, transparent 40%, rgba(10,12,16,.85)), url("/gem-evidence.webp"); background-size: auto 250px; background-repeat: no-repeat; }
-.gem-evidence-grid .evidence-item.stolen > i { background-position: 12% 31%; }
-.gem-evidence-grid .evidence-item.location > i { background-image: linear-gradient(180deg, transparent 40%, rgba(10,12,16,.85)), url("/gem-case-scene.webp"); background-size: cover; background-position: center 55%; }
-.gem-evidence-grid .evidence-item.time > i { background-position: 6% 95%; }
-.gem-evidence-grid .evidence-item.tool > i { background-position: 95% 84%; }
+.gem-evidence-visual, .gem-clock-visual { position: relative; display: grid; place-items: center; height: 82px; margin-bottom: 11px; overflow: hidden; background: #090c11; }
+.gem-evidence-visual::after, .gem-clock-visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(10,12,16,.82)); pointer-events: none; }
+.gem-evidence-visual img { width: 100%; height: 100%; object-fit: cover; }
+.evidence-item.location .gem-evidence-visual img { object-position: center 52%; }
+.gem-clock-visual { background: radial-gradient(circle at 50% 46%, #28303a, #11161e 55%, #080a0e); }
+.gem-clock { position: relative; width: 62px; height: 62px; border: 2px solid rgba(245,202,114,.72); border-radius: 50%; background: radial-gradient(circle, rgba(245,202,114,.12), rgba(8,10,14,.45) 68%); box-shadow: 0 0 0 5px rgba(245,202,114,.05), 0 12px 24px rgba(0,0,0,.35); }
+.gem-clock::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: repeating-conic-gradient(from -1deg, rgba(255,255,255,.68) 0 1deg, transparent 1deg 30deg); -webkit-mask: radial-gradient(circle, transparent 0 78%, #000 79%); mask: radial-gradient(circle, transparent 0 78%, #000 79%); }
+.gem-clock i { position: absolute; z-index: 1; bottom: 50%; left: calc(50% - 1px); width: 2px; border-radius: 2px; background: #f5ca72; transform-origin: 50% 100%; }
+.gem-clock .hour { height: 17px; transform: rotate(var(--gem-hour-angle)); }
+.gem-clock .minute { height: 23px; background: #f3f5f7; transform: rotate(var(--gem-minute-angle)); }
+.gem-clock b { position: absolute; z-index: 2; top: calc(50% - 3px); left: calc(50% - 3px); width: 6px; height: 6px; border-radius: 50%; background: #f5ca72; box-shadow: 0 0 0 2px #171b21; }
 .gem-evidence-grid span, .gem-evidence-grid strong, .gem-evidence-grid small { display: block; }
 .gem-evidence-grid span { padding: 0 12px; color: #747d89; font-size: 8px; font-weight: 900; letter-spacing: .07em; }
 .gem-evidence-grid strong { margin-top: 6px; padding: 0 12px; font-size: 12px; overflow-wrap: anywhere; }
@@ -449,7 +456,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-case-board.compact { display: grid; grid-template-columns: 105px 1fr; }
 .gem-case-board.compact .gem-case-no, .gem-case-board.compact .gem-evidence-grid { display: none; }
 .gem-case-board.compact .gem-scene-art { height: auto; min-height: 118px; }
-.gem-case-board.compact .gem-scene-art > img { object-position: 48% 50%; }
+.gem-case-board.compact .gem-scene-art > .gem-location-photo { object-position: 48% 50%; }
+.gem-case-board.compact .gem-scene-motif { display: none; }
 .gem-case-board.compact .gem-scene-status { right: 7px; bottom: 7px; padding: 6px 7px; }
 .gem-case-board.compact .gem-scene-status strong { display: none; }
 .gem-case-board.compact .gem-scene-copy { display: grid; align-content: center; padding: 16px; }
@@ -488,16 +496,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-dossier-grid > div.cover { border-color: rgba(255,107,114,.22); background: rgba(255,107,114,.055); }
 .gem-dossier-item { display: grid; grid-template-columns: 82px 1fr; min-height: 72px; overflow: hidden; }
 .gem-dossier-item > i { display: block; min-height: 72px; background-position: center; background-size: cover; }
-.gem-dossier-item.location > i { background-image: linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("/gem-case-scene.webp"); }
-.gem-dossier-item.trait > i { background-image: linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("/gem-suspects.webp"); }
-.gem-dossier-item.alibi > i { background-image: linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("/gem-alibi.webp"); }
 .gem-dossier-item > div { display: grid; align-content: center; padding: 11px 12px; }
 .gem-dossier-grid span, .gem-dossier-grid strong { display: block; }
 .gem-dossier-grid span { color: #7f8791; -webkit-text-fill-color: #7f8791; font-size: 8px; font-weight: 900; }
 .gem-dossier-grid strong { margin-top: 5px; font-size: 13px; line-height: 1.35; }
 .gem-clue-stack { display: grid; gap: 7px; margin-top: 8px; }
 .gem-clue-card { display: grid; grid-template-columns: 76px 1fr; align-items: stretch; min-height: 82px; overflow: hidden; border: 1px solid rgba(139,231,255,.17); border-radius: 13px; background: rgba(139,231,255,.055); }
-.gem-clue-photo { display: block; min-height: 82px; background-image: linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("/gem-clue.webp"); background-position: 35% center; background-size: cover; }
+.gem-clue-photo { display: block; min-height: 82px; background-position: 35% center; background-size: cover; }
 .gem-clue-card.clue-1 .gem-clue-photo { background-position: 62% center; }
 .gem-clue-card.clue-2 .gem-clue-photo { background-position: 82% center; }
 .gem-clue-card > div { display: grid; align-content: center; padding: 11px; }
