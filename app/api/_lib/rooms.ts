@@ -44,6 +44,14 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const storytellerId = typeof game.storytellerId === "string" ? game.storytellerId : undefined;
     const imageSource = typeof game.imageSource === "string" ? game.imageSource : undefined;
     const liarMode = game.liarMode;
+    const gemRoles = internal.gemRoles;
+    const gemDossiers = internal.gemDossiers;
+    const gemClues = internal.gemClues;
+    const gemVotes = internal.gemVotes;
+    const gemThiefId = internal.gemThiefId;
+    const gemDetectiveId = internal.gemDetectiveId;
+    const gemAccompliceId = internal.gemAccompliceId;
+    const gemQuestions = internal.gemQuestions;
 
     delete game.answer;
     delete game.liarId;
@@ -58,6 +66,19 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.telestrationChains;
     delete game.telestrationOrder;
     delete game.selections;
+    delete game.gemRoles;
+    delete game.gemDossiers;
+    delete game.gemClues;
+    delete game.gemVotes;
+    delete game.gemThiefId;
+    delete game.gemDetectiveId;
+    delete game.gemAccompliceId;
+    delete game.gemQuestions;
+
+    if (internal.id === "gem-heist") {
+      game.gemQuestion = gemQuestions?.[internal.gemQuestionIndex ?? 0];
+      game.gemVoteStatus = Object.keys(gemVotes ?? {});
+    }
 
     if (room.view === "result") {
       if (answer) game.answer = answer;
@@ -69,6 +90,18 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
       if (internal.fakeMemoryText) game.fakeMemoryText = internal.fakeMemoryText;
       if (internal.telestrationChains) game.telestrationResults = internal.telestrationChains;
       if (internal.selections) game.selections = internal.selections;
+      if (internal.id === "gem-heist") {
+        game.gemResult = {
+          thiefId: gemThiefId,
+          detectiveId: gemDetectiveId,
+          accompliceId: gemAccompliceId,
+          roles: gemRoles,
+          dossiers: gemDossiers,
+          clues: gemClues,
+          votes: gemVotes,
+          caught: internal.gemCaught,
+        };
+      }
     } else if (viewerId) {
       if (["liar", "body-liar", "face-liar", "unknown"].includes(String(game.id))) {
         const roleLabel = String(game.category ?? "제시어");
@@ -101,6 +134,24 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
           action: round === 4 ? "guess" : "draw",
         } : undefined;
       }
+      if (internal.id === "gem-heist" && gemRoles?.[viewerId] && gemDossiers?.[viewerId]) {
+        const role = gemRoles[viewerId];
+        const roleMeta = role === "thief"
+          ? { title: "보석 도둑", icon: "♠", goal: "가짜 알리바이로 정체를 숨기고 최종 투표에서 살아남으세요." }
+          : role === "detective"
+            ? { title: "수석 탐정", icon: "⌕", goal: "두 개의 감식 단서를 연결해 범인을 지목하세요." }
+            : role === "accomplice"
+              ? { title: "비밀 공범", icon: "♣", goal: "범인을 알고 있습니다. 수사대의 의심을 자연스럽게 다른 곳으로 돌리세요." }
+              : { title: "수사대", icon: "◆", goal: "개인 단서를 공개하고 다른 사람의 알리바이에서 모순을 찾으세요." };
+        game.gemPrivate = {
+          role,
+          ...roleMeta,
+          dossier: gemDossiers[viewerId],
+          clues: gemClues?.[viewerId] ?? [],
+          thiefId: role === "accomplice" || role === "thief" ? gemThiefId : undefined,
+        };
+        game.gemMyVote = gemVotes?.[viewerId];
+      }
     }
     if (room.view !== "result" && Array.isArray(internal.history)) {
       game.history = internal.history.map((item) => ({ prompt: item.prompt, imageId: item.imageId }));
@@ -120,6 +171,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     players: room.players.map((player) => ({ id: player.id, name: player.name, avatar: player.avatar, joinedAt: player.joinedAt, lastSeen: player.lastSeen, status: player.status })),
     view: room.view,
     roundNumber: room.roundNumber,
+    revision: room.revision ?? 0,
     game,
     surprise: clientSurprise(room.surprise, room.players, viewerId),
     meId: viewerId,

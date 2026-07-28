@@ -98,7 +98,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!room) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
-      choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string;
+      choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string;
     };
 
     if (payload.action === "join") {
@@ -138,12 +138,21 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       const gameId = payload.gameId || String(room.game?.id ?? "");
       if (!GAME_IDS.includes(gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
+      if (gameId === "gem-heist" && (room.players.length < 4 || room.players.length > 8)) {
+        return Response.json({ error: "사라진 보석은 4~8명이 함께할 수 있어요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const pendingGame = room.game as GameRound | undefined;
       const previousContentKey = pendingGame?.id === gameId
         ? pendingGame.previousContentKey ?? (room.view === "briefing" ? undefined : roundContentKey(pendingGame))
         : undefined;
-      const game = makeRound(gameId, room.players, payload.mode === "dumb" ? "dumb" : "normal", previousContentKey);
+      const game = makeRound(
+        gameId,
+        room.players,
+        payload.mode === "dumb" ? "dumb" : "normal",
+        previousContentKey,
+        gameId === "gem-heist" && room.players.length >= 4 && Boolean(payload.specialRoles),
+      );
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
       room.view = "game";
       room.roundNumber += 1;
@@ -182,6 +191,49 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (payload.action === "gem-start-investigation") {
+      if (!isHost || game.id !== "gem-heist") return Response.json({ error: "방장만 수사를 시작할 수 있어요." }, { status: 403 });
+      game.gemPhase = "investigation";
+      game.gemQuestionIndex = 0;
+      game.deadline = Date.now() + 3 * 60 * 1000;
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "gem-next-question") {
+      if (!isHost || game.id !== "gem-heist" || game.gemPhase !== "investigation") return Response.json({ error: "수사 중에 방장만 질문을 넘길 수 있어요." }, { status: 403 });
+      const lastIndex = Math.max(0, (game.gemQuestions?.length ?? 1) - 1);
+      game.gemQuestionIndex = Math.min(lastIndex, (game.gemQuestionIndex ?? 0) + 1);
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "gem-start-vote") {
+      if (!isHost || game.id !== "gem-heist") return Response.json({ error: "방장만 최종 지목을 시작할 수 있어요." }, { status: 403 });
+      game.gemPhase = "vote";
+      game.deadline = undefined;
+      game.gemVotes = {};
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "gem-vote") {
+      if (game.id !== "gem-heist" || game.gemPhase !== "vote") return Response.json({ error: "지금은 범인을 지목할 수 없어요." }, { status: 409 });
+      const suspectId = String(payload.suspectId ?? "");
+      const activePlayers = room.players.filter((player) => player.status === "active");
+      if (suspectId === viewer.id) return Response.json({ error: "자기 자신은 지목할 수 없어요." }, { status: 400 });
+      if (!activePlayers.some((player) => player.id === suspectId)) return Response.json({ error: "참가자를 다시 선택해 주세요." }, { status: 400 });
+      game.gemVotes = { ...(game.gemVotes ?? {}), [viewer.id]: suspectId };
+      if (activePlayers.every((player) => Boolean(game.gemVotes?.[player.id]))) {
+        const counts = activePlayers.reduce<Record<string, number>>((result, player) => {
+          result[player.id] = Object.values(game.gemVotes ?? {}).filter((targetId) => targetId === player.id).length;
+          return result;
+        }, {});
+        const highest = Math.max(...Object.values(counts));
+        const leaders = Object.entries(counts).filter(([, count]) => count === highest).map(([playerId]) => playerId);
+        game.gemCaught = leaders.length === 1 && leaders[0] === game.gemThiefId;
+        room.view = "result";
+      }
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (payload.action === "accept-telestration-answer") {
       if (!isHost || game.id !== "telestration" || room.view !== "result") return Response.json({ error: "결과 화면에서 방장만 정답을 인정할 수 있어요." }, { status: 403 });

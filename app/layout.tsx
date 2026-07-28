@@ -21,9 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "ko_KR",
       title,
       description,
-      images: [{ url: "/og.png", width: 1536, height: 1024, alt: "한판 모바일 술게임" }],
+      images: [{ url: "/og-gem-heist.png", width: 1536, height: 1024, alt: "한판 사라진 보석 추리게임" }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og-gem-heist.png"] },
   };
 }
 

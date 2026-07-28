@@ -56,6 +56,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(body.room.players[0].name, "테스터");
     assert.equal(body.room.authenticated, true);
     assert.ok(body.room.meId);
+    assert.ok(body.room.revision >= 1);
     assert.ok(Math.abs(body.room.serverNow - Date.now()) < 2_000);
     assert.equal(JSON.stringify(body.room).includes("sessionHash"), false);
 
@@ -83,6 +84,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(soloStartBody.room.view, "hub");
     const pushedHubState = await realtimeHubState;
     assert.equal(pushedHubState.room.meId, body.room.meId);
+    assert.ok(pushedHubState.room.revision > body.room.revision);
     assert.equal(pushedHubState.room.authenticated, true);
 
     const briefingResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
@@ -438,6 +440,102 @@ test("server-renders the Hanpan mobile app shell", async () => {
       body: JSON.stringify({ action: "start-game", gameId: "liar", mode: "dumb" }),
     });
 
+    const gemGuests = [];
+    for (const [name, avatar] of [["탐정셋", "🦊"], ["탐정넷", "🐻"]]) {
+      const response = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", player: { name, avatar } }),
+      });
+      assert.equal(response.status, 200);
+      gemGuests.push(response.headers.get("set-cookie").split(";")[0]);
+    }
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "gem-heist" }),
+    });
+    const gemStartResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "gem-heist", specialRoles: true }),
+    });
+    assert.equal(gemStartResponse.status, 200);
+    const gemCookies = [hostCookie, guestCookie, ...gemGuests];
+    const gemStates = [];
+    for (const cookie of gemCookies) {
+      gemStates.push(await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: cookie } })).json());
+    }
+    assert.equal(gemStates.every((state) => state.room.game.gemCase.stolenItem.label), true);
+    assert.equal(gemStates.every((state) => state.room.game.gemPrivate && !state.room.game.gemRoles && !state.room.game.gemThiefId), true);
+    assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "thief").length, 1);
+    assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "detective").length, 1);
+    assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "accomplice").length, 0);
+    const thiefState = gemStates.find((state) => state.room.game.gemPrivate.role === "thief");
+    const thiefId = thiefState.room.meId;
+    const firstCaseKey = `${gemStates[0].room.game.gemCase.scene.id}:${gemStates[0].room.game.gemCase.stolenItem.id}`;
+
+    const investigationResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "gem-start-investigation" }),
+    });
+    const investigationBody = await investigationResponse.json();
+    assert.equal(investigationBody.room.game.gemPhase, "investigation");
+    const firstQuestion = investigationBody.room.game.gemQuestion.id;
+    const nextGemQuestionResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "gem-next-question" }),
+    });
+    assert.notEqual((await nextGemQuestionResponse.json()).room.game.gemQuestion.id, firstQuestion);
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "gem-start-vote" }),
+    });
+    const activeIds = gemStates.map((state) => state.room.meId);
+    for (let index = 0; index < gemCookies.length; index += 1) {
+      const voterId = activeIds[index];
+      const suspectId = voterId === thiefId ? activeIds.find((id) => id !== thiefId) : thiefId;
+      const voteResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: gemCookies[index] },
+        body: JSON.stringify({ action: "gem-vote", suspectId }),
+      });
+      assert.equal(voteResponse.status, 200);
+    }
+    const gemResult = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: hostCookie } })).json();
+    assert.equal(gemResult.room.view, "result");
+    assert.equal(gemResult.room.game.gemResult.caught, true);
+    assert.equal(gemResult.room.game.gemResult.thiefId, thiefId);
+    assert.equal(Object.keys(gemResult.room.game.gemResult.votes).length, 4);
+
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "prepare-game", gameId: "gem-heist" }),
+    });
+    const repeatedGem = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "gem-heist", specialRoles: false }),
+    })).json();
+    assert.notEqual(`${repeatedGem.room.game.gemCase.scene.id}:${repeatedGem.room.game.gemCase.stolenItem.id}`, firstCaseKey);
+    for (let index = 0; index < gemGuests.length; index += 1) {
+      const leave = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: gemGuests[index] },
+        body: JSON.stringify({ action: "leave" }),
+      });
+      assert.equal(leave.status, 200);
+    }
+    await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: hostCookie },
+      body: JSON.stringify({ action: "start-game", gameId: "liar", mode: "normal" }),
+    });
+
     const hostLeaveResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -547,4 +645,24 @@ test("ships 1000 unique trivia questions and one fixed image catalog", async () 
   const registeredImages = [...imageSource.matchAll(/wiki\("[^"]+",/g)].length;
   const catalogImages = (generatedImages.match(/\"id\":/g) ?? []).length;
   assert.equal(catalogImages, registeredImages);
+});
+
+test("ships the complete illustrated gem-heist case library", async () => {
+  const source = await readFile(new URL("../app/api/_lib/gem-heist-data.ts", import.meta.url), "utf8");
+  const expected = {
+    locations: 20,
+    stolenItems: 20,
+    tools: 20,
+    times: 10,
+    traits: 30,
+    alibis: 20,
+    questions: 50,
+    backgrounds: 30,
+  };
+  for (const [key, count] of Object.entries(expected)) {
+    const section = source.match(new RegExp(`${key}: \\[([\\s\\S]*?)\\] satisfies`));
+    assert.ok(section, `${key} section should exist`);
+    assert.equal((section[1].match(/\{ id: "/g) ?? []).length, count, `${key} should contain ${count} curated cards`);
+    assert.equal((section[1].match(/icon: "/g) ?? []).length, count, `${key} should illustrate every card`);
+  }
 });
