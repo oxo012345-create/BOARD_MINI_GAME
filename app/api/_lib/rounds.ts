@@ -15,8 +15,23 @@ export type GemDossier = {
   trait: GemCard;
   alibi: GemCard;
   claimedAlibi: GemCard;
+  statement: {
+    locationClaim: string;
+    witnessClaim: string;
+    observedEvent: string;
+    timeClaim: string;
+    pressurePoint: string;
+    privateSecret: string;
+  };
 };
 export type GemClue = { icon: string; title: string; text: string; strength: "정황" | "부분" | "교차검증" | "기밀" };
+export type GemDifficulty = "easy" | "normal" | "hard";
+export type GemSolution = {
+  culpritSignature: string[];
+  decisiveClues: Array<{ title: string; explanation: string }>;
+  reconstruction: string;
+  decoyIds: string[];
+};
 export type GemCase = {
   scene: GemScene;
   location: GemCard;
@@ -69,6 +84,7 @@ export type GameRound = {
   telestrationAutoCorrectChainIds?: string[];
   telestrationAcceptedChainIds?: string[];
   gemSpecialRoles?: boolean;
+  gemDifficulty?: GemDifficulty;
   gemPhase?: "dossier" | "investigation" | "vote";
   gemCase?: GemCase;
   gemRoles?: Record<string, GemRole>;
@@ -81,6 +97,7 @@ export type GameRound = {
   gemQuestionIndex?: number;
   gemVotes?: Record<string, string>;
   gemCaught?: boolean;
+  gemSolution?: GemSolution;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -181,19 +198,84 @@ function uniqueValues(values: Array<string | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
-function ambiguousValues(target: string | undefined, others: Array<string | undefined>) {
-  if (!target) return [];
-  const matching = others.filter((value) => value === target).length;
-  if (matching > 0) return [target];
-  const decoy = pick(uniqueValues(others).filter((value) => value !== target));
-  return decoy ? shuffle([target, decoy]) : [target];
-}
-
 function joinedEvidence(values: string[]) {
   return values.length > 1 ? values.join("·") : values[0] ?? "복수";
 }
 
-function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boolean): GameRound {
+const GEM_QUESTION_GROUPS: Record<string, string[]> = {
+  시간: ["q01", "q05", "q09", "q20", "q23", "q28", "q29"],
+  장소: ["q04", "q18", "q19", "q33", "q39", "q40"],
+  목격: ["q02", "q10", "q14", "q15", "q24", "q38"],
+  도구: ["q03", "q08", "q26", "q30"],
+  교차신문: ["q06", "q07", "q12", "q13", "q16", "q21", "q31", "q43", "q44"],
+  압박: ["q11", "q17", "q22", "q25", "q27", "q32", "q35", "q36", "q37", "q42", "q46", "q49"],
+};
+
+const GEM_TOOL_BY_LOCATION_GROUP: Record<string, string[]> = {
+  "공개 구역": ["sleep-perfume", "smoke-capsule", "music-timer", "fishing-line"],
+  "전시 구역": ["glass-cutter", "wire-hook", "signal-jammer", "uv-lamp", "fishing-line"],
+  "야외 구역": ["rope-launcher", "fishing-line", "magnet-cane", "smoke-capsule"],
+  "지하 구역": ["copied-key", "wax-impression", "stethoscope", "ice-spray"],
+  "개인 구역": ["copied-key", "mirror-shard", "sleep-perfume", "hollow-coin"],
+  "업무 구역": ["fake-badge", "remote-cloner", "signal-jammer", "code-notebook"],
+  "이동 구역": ["fake-badge", "remote-cloner", "magnet-cane", "mirror-shard"],
+};
+
+function gemQuestionsByPurpose() {
+  const byId = new Map(GEM_HEIST_DATA.questions.map((question) => [question.id, question]));
+  return Object.entries(GEM_QUESTION_GROUPS).map(([group, ids]) => {
+    const candidates = ids.map((id) => byId.get(id)).filter((question): question is GemCard => Boolean(question));
+    return { ...pick(candidates), group };
+  });
+}
+
+function compatibleGemTool(location: GemCard) {
+  const compatibleIds = GEM_TOOL_BY_LOCATION_GROUP[location.group ?? ""] ?? [];
+  const candidates = GEM_HEIST_DATA.tools.filter((item) => compatibleIds.includes(item.id));
+  return pick(candidates.length ? candidates : [...GEM_HEIST_DATA.tools]);
+}
+
+function balancedGemAlibis() {
+  const groups = shuffle(uniqueValues(GEM_HEIST_DATA.alibis.map((item) => item.evidenceGroup)));
+  const pools = Object.fromEntries(groups.map((group) => [
+    group,
+    shuffle(GEM_HEIST_DATA.alibis.filter((item) => item.evidenceGroup === group)),
+  ])) as Record<string, GemCard[]>;
+  const result: GemCard[] = [];
+  while (result.length < GEM_HEIST_DATA.alibis.length) {
+    for (const group of groups) {
+      const next = pools[group]?.shift();
+      if (next) result.push(next);
+    }
+  }
+  return result;
+}
+
+function statementForPlayer(
+  player: Player,
+  role: GemRole,
+  dossier: Omit<GemDossier, "statement">,
+  claimedLocation: GemCard,
+  time: GemCard,
+  witness?: Player,
+) {
+  const isThief = role === "thief";
+  const location = isThief ? claimedLocation : dossier.location;
+  return {
+    locationClaim: `${location.label}에서 ${isThief ? dossier.claimedAlibi.detail : dossier.alibi.detail.replace(/[.]$/, "")}고 말하세요.`,
+    witnessClaim: witness ? `${witness.name}을 이동 중 잠깐 봤다고 말할 수 있습니다.` : "직접 알리바이를 보증할 목격자는 없다고 말하세요.",
+    observedEvent: `${location.detail.split(/[,.]/)[0]}에서 주변 상황을 확인했다고 설명하세요.`,
+    timeClaim: `${time.label} 전후 10분의 일만 답하고, 분 단위 시각은 추측하지 마세요.`,
+    pressurePoint: isThief
+      ? "누구와 함께 있었는지 재질문받으면 먼저 다른 사람의 진술을 확인하세요."
+      : `${dossier.alibi.evidenceGroup ?? "진술"}만으로는 완전한 증명이 아니라는 점을 솔직히 인정하세요.`,
+    privateSecret: isThief
+      ? `실제 범행 장소는 ${dossier.location.label}입니다. 이 장소와 실제 특징을 직접 말하면 안 됩니다.`
+      : `${player.name}은 사건과 무관하게 출입 제한 표지판을 지나쳤습니다. 질문받기 전에는 먼저 꺼내지 마세요.`,
+  };
+}
+
+function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boolean, difficulty: GemDifficulty): GameRound {
   const orderedPlayers = shuffle(players);
   const thief = orderedPlayers[0];
   const remaining = orderedPlayers.slice(1);
@@ -201,14 +283,14 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
   const accomplice = specialRoles && players.length >= 6 ? remaining[1] : undefined;
   const crimeLocation = pick([...GEM_HEIST_DATA.locations]);
   const stolenItem = pick([...GEM_HEIST_DATA.stolenItems]);
-  const tool = pick([...GEM_HEIST_DATA.tools]);
+  const tool = compatibleGemTool(crimeLocation);
   const time = pick([...GEM_HEIST_DATA.times]);
   const scene = pick([...GEM_HEIST_DATA.backgrounds]);
   const traits = shuffle([...GEM_HEIST_DATA.traits]);
-  const alibis = shuffle([...GEM_HEIST_DATA.alibis]);
+  const alibis = balancedGemAlibis();
   const coverAlibis = shuffle(GEM_HEIST_DATA.alibis.filter((item) => item.locationId !== crimeLocation.id));
   const roles: Record<string, GemRole> = {};
-  const dossiers: Record<string, GemDossier> = {};
+  const rawDossiers: Record<string, Omit<GemDossier, "statement">> = {};
 
   orderedPlayers.forEach((player, index) => {
     const role: GemRole = player.id === thief?.id
@@ -222,7 +304,7 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     const alibi = alibis[index % alibis.length];
     const alibiLocation = GEM_HEIST_DATA.locations.find((location) => location.id === alibi.locationId)
       ?? pick(GEM_HEIST_DATA.locations.filter((location) => location.id !== crimeLocation.id));
-    dossiers[player.id] = {
+    rawDossiers[player.id] = {
       location: player.id === thief?.id ? crimeLocation : alibiLocation,
       trait: traits[index % traits.length],
       alibi,
@@ -230,20 +312,58 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     };
   });
 
-  const thiefDossier = dossiers[thief.id];
-  const otherDossiers = orderedPlayers.filter((player) => player.id !== thief.id).map((player) => dossiers[player.id]);
-  const claimedLocation = GEM_HEIST_DATA.locations.find((location) => location.id === thiefDossier.claimedAlibi.locationId)
+  const thiefRawDossier = rawDossiers[thief.id];
+  const claimedLocation = GEM_HEIST_DATA.locations.find((location) => location.id === thiefRawDossier.claimedAlibi.locationId)
     ?? crimeLocation;
+  const dossiers: Record<string, GemDossier> = {};
+  orderedPlayers.forEach((player, index) => {
+    const raw = rawDossiers[player.id];
+    const sameAreaWitness = orderedPlayers.find((candidate) =>
+      candidate.id !== player.id
+      && rawDossiers[candidate.id].location.group === raw.location.group
+      && roles[candidate.id] !== "thief"
+    );
+    const fallbackWitness = orderedPlayers[(index + 1) % orderedPlayers.length];
+    dossiers[player.id] = {
+      ...raw,
+      statement: statementForPlayer(player, roles[player.id], raw, claimedLocation, time, sameAreaWitness ?? fallbackWitness),
+    };
+  });
+
+  const thiefDossier = dossiers[thief.id];
+  const otherPlayers = orderedPlayers.filter((player) => player.id !== thief.id);
+  const otherDossiers = otherPlayers.map((player) => dossiers[player.id]);
+  const decoyPlayers = shuffle(otherPlayers);
+  const traitDecoyPlayer = decoyPlayers[0];
+  const locationDecoyPlayer = decoyPlayers.find((player) =>
+    player.id !== traitDecoyPlayer?.id && dossiers[player.id].location.label !== claimedLocation.label
+  ) ?? decoyPlayers.find((player) => dossiers[player.id].location.label !== claimedLocation.label) ?? decoyPlayers[1] ?? decoyPlayers[0];
+  const evidenceDecoyPlayer = decoyPlayers.find((player) =>
+    player.id !== traitDecoyPlayer?.id
+    && player.id !== locationDecoyPlayer?.id
+    && dossiers[player.id].alibi.evidenceGroup !== thiefDossier.claimedAlibi.evidenceGroup
+  ) ?? decoyPlayers.find((player) => dossiers[player.id].alibi.evidenceGroup !== thiefDossier.claimedAlibi.evidenceGroup) ?? decoyPlayers[2] ?? decoyPlayers[0];
+  const traitDecoy = dossiers[traitDecoyPlayer?.id] ?? otherDossiers[0];
+  const locationDecoy = dossiers[locationDecoyPlayer?.id] ?? otherDossiers[1] ?? otherDossiers[0];
+  const evidenceDecoy = dossiers[evidenceDecoyPlayer?.id] ?? otherDossiers[2] ?? otherDossiers[0];
   const traitSignals = shuffle([
     thiefDossier.trait.label,
-    pick(otherDossiers.map((dossier) => dossier.trait.label)),
+    traitDecoy.trait.label,
   ]);
-  const locationDecoys = otherDossiers.map((dossier) => dossier.location.label).filter((label) => label !== claimedLocation.label);
   const locationSignals = shuffle([
     claimedLocation.label,
-    pick(locationDecoys.length > 0 ? locationDecoys : otherDossiers.map((dossier) => dossier.location.label)),
+    locationDecoy.location.label,
   ]);
-  const alibiSignals = ambiguousValues(thiefDossier.claimedAlibi.evidenceGroup, otherDossiers.map((dossier) => dossier.alibi.evidenceGroup));
+  const alibiSignals = uniqueValues(shuffle([
+    thiefDossier.claimedAlibi.evidenceGroup,
+    evidenceDecoy.alibi.evidenceGroup,
+  ]));
+  const displayedTraitSignals = difficulty === "hard"
+    ? uniqueValues(shuffle([thiefDossier.trait.group, traitDecoy.trait.group]))
+    : traitSignals;
+  const displayedLocationSignals = difficulty === "hard"
+    ? uniqueValues(shuffle([claimedLocation.group, locationDecoy.location.group]))
+    : locationSignals;
   const locationGroups = uniqueValues(orderedPlayers.map((player) => dossiers[player.id].location.group));
   const traitGroups = uniqueValues(orderedPlayers.map((player) => dossiers[player.id].trait.group));
   const evidenceGroups = uniqueValues(orderedPlayers.map((player) =>
@@ -268,13 +388,13 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     {
       icon: "특징",
       title: "인상착의 대조",
-      text: `현장 영상에 남은 습관은 ‘${joinedEvidence(traitSignals)}’ 중 하나입니다. 두 특징의 주인을 후보로 남기세요.`,
+      text: `현장 영상에 남은 습관은 ‘${joinedEvidence(displayedTraitSignals)}’ 중 하나입니다. 해당 특징의 주인을 후보로 남기세요.`,
       strength: "부분",
     },
     {
       icon: "동선",
       title: "이동 기록 대조",
-      text: `범인이 내세운 동선은 ‘${joinedEvidence(locationSignals)}’ 중 한 곳과 연결됩니다. 두 장소를 말한 사람을 확인하세요.`,
+      text: `범인이 내세운 동선은 ‘${joinedEvidence(displayedLocationSignals)}’ 중 한 곳과 연결됩니다. 해당 장소를 말한 사람을 확인하세요.`,
       strength: "부분",
     },
     {
@@ -352,15 +472,21 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
   const coreDeck = shuffle(coreClues);
   const supportDeck = shuffle(supportClues);
   investigators.forEach((player, index) => {
-    clues[player.id] = [index < coreDeck.length ? coreDeck[index] : supportDeck.shift() ?? coreClues[index % coreClues.length]];
-  });
-  shuffle(investigators).slice(0, Math.max(1, Math.floor(players.length / 3))).forEach((player) => {
-    const bonus = supportDeck.shift();
-    if (bonus) clues[player.id].push(bonus);
+    const first = index < coreDeck.length ? coreDeck[index] : supportDeck[index % supportDeck.length];
+    const second = supportDeck[(index + coreDeck.length) % supportDeck.length] ?? coreClues[(index + 1) % coreClues.length];
+    clues[player.id] = [first, second];
+    if (difficulty === "easy") {
+      const sharedLead = coreDeck[(index + 1) % coreDeck.length];
+      if (!clues[player.id].some((clue) => clue.title === sharedLead.title)) clues[player.id].push(sharedLead);
+    }
   });
   if (detective && clues[detective.id]) {
-    const detectiveLead = supportDeck.shift();
-    if (detectiveLead) clues[detective.id].push({ ...detectiveLead, strength: "교차검증" });
+    clues[detective.id].push({
+      icon: "수석",
+      title: "교차 분석 권한",
+      text: `세 핵심 기록의 공통 후보를 찾으세요. 특징은 ‘${joinedEvidence(displayedTraitSignals)}’, 동선은 ‘${joinedEvidence(displayedLocationSignals)}’, 증거 형식은 ‘${joinedEvidence(alibiSignals)}’입니다.`,
+      strength: "교차검증",
+    });
   }
 
   for (const player of orderedPlayers) {
@@ -382,12 +508,28 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     }
   }
 
+  const decisiveClues = [
+    {
+      title: "인상착의 대조",
+      explanation: `${thief.name}의 특징 ‘${thiefDossier.trait.label}’이 현장 영상 후보에 포함됐습니다.`,
+    },
+    {
+      title: "이동 기록 대조",
+      explanation: `${thief.name}이 주장한 장소 ‘${claimedLocation.label}’가 조작 가능 동선 후보에 포함됐습니다.`,
+    },
+    {
+      title: "증거 형식 대조",
+      explanation: `가짜 알리바이의 증거 형식 ‘${thiefDossier.claimedAlibi.evidenceGroup}’이 감식 후보와 일치했습니다.`,
+    },
+  ];
+
   return {
     ...base,
     prompt: scene.title,
     category: "추리 · 심리전",
     playerOrder: shuffle(players.map((player) => player.id)),
     gemSpecialRoles: specialRoles,
+    gemDifficulty: difficulty,
     gemPhase: "dossier",
     gemCase: {
       scene,
@@ -403,9 +545,15 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     gemThiefId: thief.id,
     gemDetectiveId: detective?.id,
     gemAccompliceId: accomplice?.id,
-    gemQuestions: shuffle([...GEM_HEIST_DATA.questions]).slice(0, 6),
+    gemQuestions: gemQuestionsByPurpose(),
     gemQuestionIndex: 0,
     gemVotes: {},
+    gemSolution: {
+      culpritSignature: [thiefDossier.trait.label, claimedLocation.label, thiefDossier.claimedAlibi.evidenceGroup ?? "단독 진술"],
+      decisiveClues,
+      reconstruction: `${thief.name}은 실제로 ${crimeLocation.label}에 있었지만 ‘${thiefDossier.claimedAlibi.label}’이라고 진술했습니다. ${tool.label}을 이용해 ${stolenItem.label}을 가져간 뒤 ${claimedLocation.label}에 있었던 것처럼 동선을 꾸몄습니다.`,
+      decoyIds: uniqueValues([traitDecoyPlayer?.id, locationDecoyPlayer?.id, evidenceDecoyPlayer?.id]),
+    },
   };
 }
 
@@ -489,7 +637,7 @@ export function removePlayerFromRound(game: GameRound | undefined, playerId: str
   if (game.playerOrder?.length) game.currentPlayerIndex = (game.currentPlayerIndex ?? 0) % game.playerOrder.length;
 }
 
-function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal", specialRoles = false): GameRound | null {
+function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal", specialRoles = false, gemDifficulty: GemDifficulty = "normal"): GameRound | null {
   const info = GAME_INFO[id];
   if (!info) return null;
   const base: GameRound = { id, title: info.title, prompt: "준비!", startedAt: Date.now() };
@@ -536,7 +684,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "ten-seconds") return { ...base, prompt: "진행중", timerResults: [] };
   if (id === "color") return { ...base, prompt: pick(getList("colors", ["파랑"])), photoSubmissions: [] };
   if (id === "object-initial") return { ...base, prompt: pick(getList("objectInitials", ["ㄱ"])), photoSubmissions: [] };
-  if (id === "gem-heist") return makeGemHeistRound(base, players, specialRoles);
+  if (id === "gem-heist") return makeGemHeistRound(base, players, specialRoles, gemDifficulty);
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));
@@ -576,18 +724,53 @@ export function roundContentKey(game: GameRound | undefined) {
     const prompts = game.telestrationChains?.map((chain) => chain.prompt);
     return prompts?.length ? `${game.id}:${prompts.join("\u0000")}` : undefined;
   }
-  if (game.id === "gem-heist") return game.gemCase ? `${game.id}:${game.gemCase.scene.id}:${game.gemCase.stolenItem.id}` : undefined;
+  if (game.id === "gem-heist") return game.gemCase ? `${game.id}:${game.gemCase.scene.id}:${game.gemCase.stolenItem.id}:${game.gemThiefId ?? ""}` : undefined;
   if (["ten-seconds"].includes(game.id)) return undefined;
   return game.prompt ? `${game.id}:${game.prompt}` : undefined;
 }
 
-export function makeRound(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal", previousContentKey?: string, specialRoles = false): GameRound | null {
+export function makeRound(
+  id: string,
+  players: Player[],
+  liarMode: "normal" | "dumb" = "normal",
+  previousContentKey?: string,
+  specialRoles = false,
+  gemDifficulty: GemDifficulty = "normal",
+): GameRound | null {
   let round: GameRound | null = null;
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    round = makeRoundCandidate(id, players, liarMode, specialRoles);
-    if (!round || !previousContentKey || roundContentKey(round) !== previousContentKey) return round;
+    round = makeRoundCandidate(id, players, liarMode, specialRoles, gemDifficulty);
+    if (round?.id === "gem-heist" && validateGemRound(round, players).length > 0) continue;
+    if (!round || !previousContentKey) return round;
+    if (id === "gem-heist") {
+      const [, previousScene, previousItem, previousThief] = previousContentKey.split(":");
+      const repeatsCasePart = round.gemCase?.scene.id === previousScene || round.gemCase?.stolenItem.id === previousItem;
+      if (!repeatsCasePart && round.gemThiefId !== previousThief) return round;
+    } else if (roundContentKey(round) !== previousContentKey) {
+      return round;
+    }
   }
+  if (round?.id === "gem-heist" && validateGemRound(round, players).length > 0) return null;
   return round;
+}
+
+export function validateGemRound(round: GameRound, players: Player[]) {
+  const errors: string[] = [];
+  if (round.id !== "gem-heist" || !round.gemCase || !round.gemThiefId) return ["사건 데이터가 없습니다."];
+  const roles = round.gemRoles ?? {};
+  const dossiers = round.gemDossiers ?? {};
+  const clues = round.gemClues ?? {};
+  if (Object.values(roles).filter((role) => role === "thief").length !== 1) errors.push("범인은 정확히 한 명이어야 합니다.");
+  if (dossiers[round.gemThiefId]?.claimedAlibi.locationId === round.gemCase.location.id) errors.push("범인의 가짜 알리바이가 범행 장소와 같습니다.");
+  for (const player of players) {
+    if (!dossiers[player.id]?.statement) errors.push(`${player.id}의 진술 가이드가 없습니다.`);
+    if (!["thief", "accomplice"].includes(roles[player.id]) && (clues[player.id]?.length ?? 0) < 2) errors.push(`${player.id}의 단서가 부족합니다.`);
+  }
+  const questionGroups = uniqueValues(round.gemQuestions?.map((question) => question.group) ?? []);
+  if (round.gemQuestions?.length !== 6 || questionGroups.length !== 6) errors.push("질문 카드 유형이 고르게 구성되지 않았습니다.");
+  if ((round.gemSolution?.decisiveClues.length ?? 0) < 2) errors.push("결정적 단서 해설이 부족합니다.");
+  if ((round.gemSolution?.decoyIds.length ?? 0) < Math.min(2, players.length - 1)) errors.push("미끼 용의자가 부족합니다.");
+  return errors;
 }
 
 export function assignedTelestrationChain(game: GameRound, playerId: string) {

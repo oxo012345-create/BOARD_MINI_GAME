@@ -13,7 +13,20 @@ type HistoryItem = { prompt: string; answer?: string; imageId?: string; imageSou
 type TelestrationChain = { id: string; prompt: string; steps: Array<{ playerId: string; strokes?: Stroke[]; guess?: string }> };
 type GemCard = { id: string; label: string; icon: string; detail: string; group?: string; locationId?: string; evidenceGroup?: string };
 type GemClue = { icon: string; title: string; text: string; strength: "정황" | "부분" | "교차검증" | "기밀" };
-type GemDossier = { location: GemCard; trait: GemCard; alibi: GemCard; claimedAlibi: GemCard };
+type GemDossier = {
+  location: GemCard;
+  trait: GemCard;
+  alibi: GemCard;
+  claimedAlibi: GemCard;
+  statement: {
+    locationClaim: string;
+    witnessClaim: string;
+    observedEvent: string;
+    timeClaim: string;
+    pressurePoint: string;
+    privateSecret: string;
+  };
+};
 type GemPrivate = {
   role: "thief" | "detective" | "accomplice" | "investigator";
   title: string;
@@ -33,6 +46,12 @@ type GemResult = {
   clues?: Record<string, GemClue[]>;
   votes?: Record<string, string>;
   caught?: boolean;
+  solution?: {
+    culpritSignature: string[];
+    decisiveClues: Array<{ title: string; explanation: string }>;
+    reconstruction: string;
+    decoyIds: string[];
+  };
 };
 type GemCase = {
   scene: { id: string; title: string; icon: string; report: string };
@@ -56,6 +75,7 @@ type GameRound = {
   telestrationResults?: TelestrationChain[]; telestrationComplete?: boolean; telestrationCorrectCount?: number; telestrationSubmitted?: string[];
   telestrationAutoCorrectChainIds?: string[]; telestrationAcceptedChainIds?: string[];
   gemSpecialRoles?: boolean; gemPhase?: "dossier" | "investigation" | "vote"; gemCase?: GemCase; gemPrivate?: GemPrivate;
+  gemDifficulty?: "easy" | "normal" | "hard";
   gemQuestion?: GemCard; gemQuestionIndex?: number; gemVoteStatus?: string[]; gemMyVote?: string; gemResult?: GemResult; gemCaught?: boolean;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
@@ -436,6 +456,18 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
         <div className="gem-dossier-item trait"><i aria-hidden="true" style={{ backgroundImage: `url("${gemAsset("traits", dossier.trait.id)}")` }} /><div><span>{dossier.trait.group} · 내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
         <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" style={{ backgroundImage: `url("${gemAsset("alibis", shownAlibi.id)}")` }} /><div><span>{shownAlibi.evidenceGroup} · {isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{shownAlibi.label}</strong></div></div>
       </div>
+      <div className="gem-statement-file">
+        <div className="gem-file-section-title"><span>STATEMENT GUIDE</span><strong>이렇게 진술하세요</strong></div>
+        <div className="gem-statement-grid">
+          <div><small>장소와 행동</small><strong>{dossier.statement.locationClaim}</strong></div>
+          <div><small>목격자</small><strong>{dossier.statement.witnessClaim}</strong></div>
+          <div><small>목격한 상황</small><strong>{dossier.statement.observedEvent}</strong></div>
+          <div><small>말해도 되는 시간</small><strong>{dossier.statement.timeClaim}</strong></div>
+          <div><small>약한 부분</small><strong>{dossier.statement.pressurePoint}</strong></div>
+        </div>
+        <div className="gem-private-secret"><small>절대 먼저 공개하지 마세요</small><strong>{dossier.statement.privateSecret}</strong></div>
+      </div>
+      <div className="gem-file-section-title clue-title"><span>EVIDENCE</span><strong>내가 가진 단서</strong></div>
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
         <span className="gem-clue-photo" aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("${gemAsset("questions", GEM_CLUE_IMAGE_IDS[index % GEM_CLUE_IMAGE_IDS.length])}")` }} /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
       </div>)}</div>
@@ -477,6 +509,14 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
       <div><span>실제 위치</span><strong>{thiefDossier.location.label}</strong></div>
       <div><span>가짜 알리바이</span><strong>{thiefDossier.claimedAlibi.label}</strong></div>
     </div>}
+    {result.solution && <div className="gem-case-explanation">
+      <div className="gem-file-section-title"><span>CASE RECONSTRUCTION</span><strong>사건의 전말</strong></div>
+      <p>{result.solution.reconstruction}</p>
+      <div className="gem-decisive-clues">
+        {result.solution.decisiveClues.map((clue, index) => <div key={clue.title}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{clue.title}</small><strong>{clue.explanation}</strong></div></div>)}
+      </div>
+      <div className="gem-signature"><span>범인을 가리킨 세 가지 교집합</span><strong>{result.solution.culpritSignature.join(" · ")}</strong></div>
+    </div>}
     <div className="gem-vote-result">
       <h3>최종 지목</h3>
       {voteCounts.map(({ player, count }) => <div key={player.id}><span>{player.avatar} {player.name}<small>{roleLabel(result.roles?.[player.id])}</small></span><strong>{count}표</strong></div>)}
@@ -507,6 +547,7 @@ export default function Home() {
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState(0);
   const [liarMode, setLiarMode] = useState<"normal" | "dumb">("normal");
   const [gemSpecialRoles, setGemSpecialRoles] = useState(false);
+  const [gemDifficulty, setGemDifficulty] = useState<"easy" | "normal" | "hard">("normal");
   const [gemSuspect, setGemSuspect] = useState("");
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
@@ -851,8 +892,8 @@ export default function Home() {
     setBusy(false);
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
-  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") setGemSpecialRoles(false); await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
   const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
   const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
   const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
@@ -967,6 +1008,14 @@ export default function Home() {
             <span><b>3</b><strong>비밀 지목</strong><small>도둑을 잡으면 수사대 승리</small></span>
           </div>
           {isHost && <div className="gem-special-picker">
+            <div className="gem-picker-heading"><span>추리 난이도</span><small>단서의 공개 범위와 교차 정보량이 달라져요</small></div>
+            <div className="gem-difficulty-picker">
+              <button className={gemDifficulty === "easy" ? "active" : ""} onClick={() => setGemDifficulty("easy")}><strong>쉬움</strong><small>핵심 단서를 여러 명이 공유</small></button>
+              <button className={gemDifficulty === "normal" ? "active" : ""} onClick={() => setGemDifficulty("normal")}><strong>보통</strong><small>추천 · 단서를 합쳐 추리</small></button>
+              <button className={gemDifficulty === "hard" ? "active" : ""} onClick={() => setGemDifficulty("hard")}><strong>어려움</strong><small>보조 정보가 많고 교차 확인 필수</small></button>
+            </div>
+          </div>}
+          {isHost && <div className="gem-special-picker">
             <div className="gem-picker-heading"><span>특수 역할</span><small>{room.players.length < 4 ? "4명 이상부터 선택할 수 있어요" : room.players.length >= 6 ? "수석 탐정과 비밀 공범이 추가돼요" : "수석 탐정이 추가돼요"}</small></div>
             <div className="mode-picker">
               <button className={!gemSpecialRoles ? "active" : ""} onClick={() => setGemSpecialRoles(false)}><strong>기본 수사</strong><small>보석 도둑 1명 · 나머지는 수사대</small></button>
@@ -1062,7 +1111,7 @@ export default function Home() {
       </section>}
       {currentGame.gemPhase === "investigation" && <section className="gem-phase-card investigation">
         <div className="gem-investigation-head"><div><span className="gem-kicker">STEP 02 · 공개 수사</span><h2>질문 카드 {Math.min(6, (currentGame.gemQuestionIndex ?? 0) + 1)} / 6</h2></div><strong className={(currentGame.deadline ?? synchronizedNow) <= synchronizedNow ? "expired" : ""}>{formatClock((currentGame.deadline ?? synchronizedNow) - synchronizedNow)}</strong></div>
-        {currentGame.gemQuestion && <div className="gem-question-card"><img src={gemAsset("questions", currentGame.gemQuestion.id)} alt="" aria-hidden="true" /><div><span>INTERVIEW QUESTION</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
+        {currentGame.gemQuestion && <div className="gem-question-card"><img src={gemAsset("questions", currentGame.gemQuestion.id)} alt="" aria-hidden="true" /><div><span>{currentGame.gemQuestion.group ?? "교차신문"} · INTERVIEW</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
         <p className="gem-discussion-tip">자신의 알리바이와 특징을 말하고, 개인 단서는 원하는 순간에 공개하세요. 도둑과 공범의 말에는 거짓이 섞여 있을 수 있어요.</p>
         {isHost ? <div className="gem-host-actions"><button className="button secondary" disabled={hostActionLocked || (currentGame.gemQuestionIndex ?? 0) >= 5} onClick={() => void nextGemQuestion()}>다음 질문</button><button className="button primary" disabled={hostActionLocked} onClick={() => void startGemVote()}>최종 지목 시작</button></div> : <div className="waiting"><span className="pulse" />공개 수사 진행 중</div>}
       </section>}

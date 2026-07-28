@@ -999,3 +999,187 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 #gem-secret-file {
   scroll-margin-top: calc(126px + env(safe-area-inset-top));
 }
+
+.gem-difficulty-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.gem-difficulty-picker button {
+  min-height: 76px;
+  padding: 10px 7px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #13161b;
+  color: #9ca3ad;
+  text-align: left;
+}
+.gem-difficulty-picker button.active {
+  border-color: rgba(245,202,114,.62);
+  background: rgba(245,202,114,.09);
+  color: var(--gem-gold);
+  box-shadow: inset 0 0 0 1px rgba(245,202,114,.12);
+}
+.gem-difficulty-picker strong,
+.gem-difficulty-picker small {
+  display: block;
+}
+.gem-difficulty-picker strong {
+  font-size: 13px;
+}
+.gem-difficulty-picker small {
+  margin-top: 5px;
+  color: #818995;
+  font-size: 8px;
+  line-height: 1.4;
+}
+.gem-file-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 15px 0 9px;
+}
+.gem-file-section-title span {
+  color: var(--gem-gold);
+  -webkit-text-fill-color: var(--gem-gold);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+.gem-file-section-title strong {
+  color: #f5f1e8;
+  -webkit-text-fill-color: #f5f1e8;
+  font-size: 14px;
+}
+.gem-statement-file {
+  padding: 0 12px 2px;
+}
+.gem-statement-grid {
+  display: grid;
+  gap: 7px;
+}
+.gem-statement-grid > div {
+  padding: 11px 12px;
+  border: 1px solid #2c3139;
+  border-radius: 12px;
+  background: #15181d;
+}
+.gem-statement-grid small,
+.gem-statement-grid strong,
+.gem-private-secret small,
+.gem-private-secret strong {
+  display: block;
+}
+.gem-statement-grid small {
+  color: #88919e;
+  -webkit-text-fill-color: #88919e;
+  font-size: 8px;
+  font-weight: 850;
+}
+.gem-statement-grid strong {
+  margin-top: 4px;
+  color: #e4e8ed;
+  -webkit-text-fill-color: #e4e8ed;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.gem-private-secret {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255,107,114,.36);
+  border-radius: 13px;
+  background: rgba(255,107,114,.075);
+}
+.gem-private-secret small {
+  color: var(--danger);
+  -webkit-text-fill-color: var(--danger);
+  font-size: 8px;
+  font-weight: 900;
+}
+.gem-private-secret strong {
+  margin-top: 5px;
+  color: #f4e5e7;
+  -webkit-text-fill-color: #f4e5e7;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.gem-file-section-title.clue-title {
+  padding: 0 12px;
+}
+.gem-case-explanation {
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid rgba(245,202,114,.25);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(245,202,114,.06), rgba(139,231,255,.025));
+}
+.gem-case-explanation > p {
+  color: #c8cdd4;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.gem-decisive-clues {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+.gem-decisive-clues > div {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 9px;
+  align-items: start;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+}
+.gem-decisive-clues > div > span {
+  color: var(--gem-gold);
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 900;
+}
+.gem-decisive-clues small,
+.gem-decisive-clues strong {
+  display: block;
+}
+.gem-decisive-clues small {
+  color: #8f98a5;
+  font-size: 8px;
+}
+.gem-decisive-clues strong {
+  margin-top: 3px;
+  color: #edf0f3;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.gem-signature {
+  margin-top: 10px;
+  padding: 11px;
+  border-radius: 12px;
+  background: rgba(139,231,255,.07);
+}
+.gem-signature span,
+.gem-signature strong {
+  display: block;
+}
+.gem-signature span {
+  color: var(--gem-ice);
+  font-size: 8px;
+  font-weight: 900;
+}
+.gem-signature strong {
+  margin-top: 4px;
+  color: #edf8fb;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 360px) {
+  .gem-difficulty-picker {
+    grid-template-columns: 1fr;
+  }
+  .gem-difficulty-picker button {
+    min-height: 58px;
+  }
+}

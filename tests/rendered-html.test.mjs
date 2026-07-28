@@ -504,6 +504,9 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "thief").length, 1);
     assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "detective").length, 1);
     assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "accomplice").length, 0);
+    assert.equal(gemStates.every((state) => state.room.game.gemPrivate.dossier.statement.locationClaim), true);
+    assert.equal(gemStates.every((state) => state.room.game.gemPrivate.dossier.statement.privateSecret), true);
+    assert.equal(gemStates.every((state) => !state.room.game.gemSolution), true);
     const thiefState = gemStates.find((state) => state.room.game.gemPrivate.role === "thief");
     const thiefId = thiefState.room.meId;
     const crimeLocationId = thiefState.room.game.gemCase.location.id;
@@ -514,7 +517,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const investigatorClueCounts = gemStates
       .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
       .map((state) => state.room.game.gemPrivate.clues.length);
-    assert.equal(investigatorClueCounts.some((count) => count > 1), true);
+    assert.equal(investigatorClueCounts.every((count) => count >= 2), true);
     assert.equal(new Set(investigatorClueCounts).size > 1, true);
     const investigatorClueText = gemStates
       .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
@@ -537,12 +540,20 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const investigationBody = await investigationResponse.json();
     assert.equal(investigationBody.room.game.gemPhase, "investigation");
     const firstQuestion = investigationBody.room.game.gemQuestion.id;
-    const nextGemQuestionResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: hostCookie },
-      body: JSON.stringify({ action: "gem-next-question" }),
-    });
-    assert.notEqual((await nextGemQuestionResponse.json()).room.game.gemQuestion.id, firstQuestion);
+    const questionIds = [firstQuestion];
+    const questionGroups = [investigationBody.room.game.gemQuestion.group];
+    for (let questionIndex = 1; questionIndex < 6; questionIndex += 1) {
+      const nextGemQuestionResponse = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: hostCookie },
+        body: JSON.stringify({ action: "gem-next-question" }),
+      });
+      const nextGemQuestionBody = await nextGemQuestionResponse.json();
+      questionIds.push(nextGemQuestionBody.room.game.gemQuestion.id);
+      questionGroups.push(nextGemQuestionBody.room.game.gemQuestion.group);
+    }
+    assert.equal(new Set(questionIds).size, 6);
+    assert.equal(new Set(questionGroups).size, 6);
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
@@ -564,6 +575,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemResult.room.game.gemResult.caught, true);
     assert.equal(gemResult.room.game.gemResult.thiefId, thiefId);
     assert.equal(Object.keys(gemResult.room.game.gemResult.votes).length, 4);
+    assert.equal(gemResult.room.game.gemResult.solution.decisiveClues.length, 3);
+    assert.match(gemResult.room.game.gemResult.solution.reconstruction, /실제로|가짜|진술/);
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -573,9 +586,47 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const repeatedGem = await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: hostCookie },
-      body: JSON.stringify({ action: "start-game", gameId: "gem-heist", specialRoles: false }),
+      body: JSON.stringify({ action: "start-game", gameId: "gem-heist", specialRoles: false, difficulty: "easy" }),
     })).json();
     assert.notEqual(`${repeatedGem.room.game.gemCase.scene.id}:${repeatedGem.room.game.gemCase.stolenItem.id}`, firstCaseKey);
+    assert.equal(repeatedGem.room.game.gemDifficulty, "easy");
+    const repeatedGemStates = [];
+    for (const cookie of gemCookies) {
+      repeatedGemStates.push(await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: cookie } })).json());
+    }
+    const repeatedThiefId = repeatedGemStates.find((state) => state.room.game.gemPrivate.role === "thief").room.meId;
+    assert.notEqual(repeatedThiefId, thiefId);
+    assert.equal(repeatedGemStates
+      .filter((state) => state.room.game.gemPrivate.role === "investigator")
+      .every((state) => state.room.game.gemPrivate.clues.length >= 3), true);
+    let previousGemFingerprint = {
+      scene: repeatedGem.room.game.gemCase.scene.id,
+      item: repeatedGem.room.game.gemCase.stolenItem.id,
+      thief: repeatedThiefId,
+    };
+    for (let roundIndex = 0; roundIndex < 12; roundIndex += 1) {
+      const difficulty = ["easy", "normal", "hard"][roundIndex % 3];
+      const stressStart = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: hostCookie },
+        body: JSON.stringify({ action: "start-game", gameId: "gem-heist", specialRoles: roundIndex % 2 === 0, difficulty }),
+      });
+      assert.equal(stressStart.status, 200);
+      const stressStates = [];
+      for (const cookie of gemCookies) {
+        stressStates.push(await (await fetch(`${baseUrl}/api/rooms/${body.room.code}`, { headers: { Cookie: cookie } })).json());
+      }
+      const stressGame = stressStates[0].room.game;
+      const stressThief = stressStates.find((state) => state.room.game.gemPrivate.role === "thief").room.meId;
+      assert.notEqual(stressGame.gemCase.scene.id, previousGemFingerprint.scene);
+      assert.notEqual(stressGame.gemCase.stolenItem.id, previousGemFingerprint.item);
+      assert.notEqual(stressThief, previousGemFingerprint.thief);
+      assert.equal(stressStates.every((state) => state.room.game.gemPrivate.dossier.statement.pressurePoint), true);
+      assert.equal(stressStates
+        .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
+        .every((state) => state.room.game.gemPrivate.clues.length >= (difficulty === "easy" ? 3 : 2)), true);
+      previousGemFingerprint = { scene: stressGame.gemCase.scene.id, item: stressGame.gemCase.stolenItem.id, thief: stressThief };
+    }
     for (let index = 0; index < gemGuests.length; index += 1) {
       const leave = await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
         method: "PATCH",

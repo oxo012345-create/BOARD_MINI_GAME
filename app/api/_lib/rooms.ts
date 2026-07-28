@@ -52,6 +52,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const gemDetectiveId = internal.gemDetectiveId;
     const gemAccompliceId = internal.gemAccompliceId;
     const gemQuestions = internal.gemQuestions;
+    const gemSolution = internal.gemSolution;
 
     delete game.answer;
     delete game.liarId;
@@ -74,6 +75,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.gemDetectiveId;
     delete game.gemAccompliceId;
     delete game.gemQuestions;
+    delete game.gemSolution;
 
     if (internal.id === "gem-heist") {
       game.gemQuestion = gemQuestions?.[internal.gemQuestionIndex ?? 0];
@@ -100,6 +102,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
           clues: gemClues,
           votes: gemVotes,
           caught: internal.gemCaught,
+          solution: gemSolution,
         };
       }
     } else if (viewerId) {

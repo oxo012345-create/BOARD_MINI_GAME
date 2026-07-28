@@ -1,5 +1,5 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
-import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type Stroke } from "../../_lib/rounds";
+import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
 
@@ -106,7 +106,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!room) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
-      choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string;
+      choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
     };
 
     if (payload.action === "join") {
@@ -162,6 +162,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         payload.mode === "dumb" ? "dumb" : "normal",
         previousContentKey,
         gameId === "gem-heist" && room.players.length >= 4 && Boolean(payload.specialRoles),
+        payload.difficulty === "easy" || payload.difficulty === "hard" ? payload.difficulty : "normal",
       );
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
       room.view = "game";
