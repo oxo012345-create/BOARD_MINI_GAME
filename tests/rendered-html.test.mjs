@@ -487,6 +487,12 @@ test("server-renders the Hanpan mobile app shell", async () => {
       .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
       .flatMap((state) => state.room.game.gemPrivate.clues.map((clue) => clue.text))
       .join("\n");
+    const investigatorClueTitles = gemStates
+      .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
+      .flatMap((state) => state.room.game.gemPrivate.clues.map((clue) => clue.title));
+    for (const coreTitle of ["인상착의 대조", "이동 기록 대조", "증거 형식 대조"]) {
+      assert.equal(investigatorClueTitles.includes(coreTitle), true);
+    }
     assert.doesNotMatch(investigatorClueText, /중 한 명입니다|정확한 특징은|동선은 범행 시각과 일치하지 않습니다/);
     const firstCaseKey = `${gemStates[0].room.game.gemCase.scene.id}:${gemStates[0].room.game.gemCase.stolenItem.id}`;
 
@@ -733,6 +739,9 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
   assert.match(page, /gemAsset\("alibis", shownAlibi\.id\)/);
   assert.match(page, /gemAsset\("questions", currentGame\.gemQuestion\.id\)/);
   assert.match(page, /gemAsset\("scenes", caseFile\.scene\.id\)/);
+  assert.match(page, /className="gem-scene-photo"/);
+  assert.match(page, /className="gem-evidence-copy"/);
+  assert.match(page, /className="gem-role-overlay"/);
   assert.match(page, /GEM_CLOCK_ANGLES/);
   assert.doesNotMatch(page, /gem-scene-location|gem-scene-gem|gem-scene-tool/);
 });

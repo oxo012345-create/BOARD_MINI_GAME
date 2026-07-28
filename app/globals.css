@@ -588,3 +588,339 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .gem-evidence-grid { grid-template-columns: 1fr; }
   .gem-host-actions { grid-template-columns: 1fr; }
 }
+/* Gem heist cinematic poster layout */
+.gem-case-board {
+  position: relative;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(245,202,114,.2);
+  border-radius: 24px;
+  background: #090b10;
+  box-shadow: 0 24px 70px rgba(0,0,0,.46);
+}
+.gem-case-board .gem-scene-art {
+  position: relative;
+  min-height: 650px;
+  height: auto;
+  overflow: hidden;
+  background: #080b10;
+}
+.gem-case-board .gem-scene-art::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5,7,10,.06) 0%, rgba(6,8,12,.25) 26%, rgba(6,8,12,.82) 61%, #090b10 100%);
+  pointer-events: none;
+}
+.gem-scene-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.02);
+}
+.gem-case-board .gem-case-no {
+  position: absolute;
+  z-index: 3;
+  top: 15px;
+  right: auto;
+  left: 16px;
+  color: rgba(255,255,255,.58);
+}
+.gem-case-board .gem-scene-status {
+  z-index: 3;
+  top: 15px;
+  right: 15px;
+  bottom: auto;
+  border-color: rgba(245,202,114,.52);
+}
+.gem-case-board .gem-scene-copy {
+  position: absolute;
+  z-index: 2;
+  top: 240px;
+  left: 0;
+  right: 0;
+  padding: 26px 20px 22px;
+  text-align: left;
+}
+.gem-case-board .gem-scene-copy h2 {
+  margin: 7px 0 9px;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.04;
+  letter-spacing: -.06em;
+  text-shadow: 0 3px 18px rgba(0,0,0,.8);
+}
+.gem-case-board .gem-scene-copy p {
+  margin: 0;
+  max-width: 430px;
+  color: #d7dce2;
+  font-size: 12px;
+  line-height: 1.6;
+  text-shadow: 0 2px 10px rgba(0,0,0,.9);
+}
+.gem-case-board .gem-evidence-grid {
+  position: absolute;
+  z-index: 2;
+  left: 13px;
+  right: 13px;
+  bottom: 13px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.gem-case-board .gem-evidence-grid > div {
+  position: relative;
+  min-width: 0;
+  height: 116px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 15px;
+  background: rgba(11,14,19,.8);
+  box-shadow: 0 12px 24px rgba(0,0,0,.28);
+}
+.gem-case-board .gem-evidence-visual,
+.gem-case-board .gem-clock-visual {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  inset: 0;
+  height: auto;
+  margin: 0;
+  overflow: hidden;
+  background: #090c11;
+}
+.gem-case-board .gem-evidence-visual::after,
+.gem-case-board .gem-clock-visual::after {
+  background: linear-gradient(180deg, rgba(7,9,12,.04) 22%, rgba(7,9,12,.9) 92%);
+}
+.gem-case-board .gem-evidence-copy {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 25px 11px 10px;
+  background: linear-gradient(180deg, transparent, rgba(6,8,12,.9));
+}
+.gem-case-board .gem-evidence-grid span,
+.gem-case-board .gem-evidence-grid strong {
+  display: block;
+  padding: 0;
+}
+.gem-case-board .gem-evidence-grid span {
+  color: var(--gem-gold);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-shadow: 0 1px 8px #000;
+}
+.gem-case-board .gem-evidence-grid strong {
+  margin-top: 4px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 10px #000;
+}
+.gem-case-board.compact {
+  display: block;
+}
+.gem-case-board.compact .gem-scene-art {
+  min-height: 240px;
+}
+.gem-case-board.compact .gem-case-no,
+.gem-case-board.compact .gem-evidence-grid {
+  display: none;
+}
+.gem-case-board.compact .gem-scene-photo {
+  object-position: center 45%;
+}
+.gem-case-board.compact .gem-scene-status {
+  top: 10px;
+  right: 10px;
+  bottom: auto;
+  padding: 6px 7px;
+}
+.gem-case-board.compact .gem-scene-copy {
+  top: auto;
+  bottom: 0;
+  display: grid;
+  align-content: end;
+  padding: 45px 16px 16px;
+  background: linear-gradient(180deg, transparent, rgba(7,9,12,.9));
+}
+.gem-case-board.compact .gem-scene-copy h2 {
+  margin: 5px 0 6px;
+  font-size: 22px;
+}
+
+.gem-file-open {
+  padding: 0 12px 16px;
+}
+.gem-file-open .gem-file-hero {
+  position: relative;
+  min-height: 245px;
+  height: 245px;
+  margin: 0 -12px 10px;
+  overflow: hidden;
+}
+.gem-file-open .gem-file-hero::after {
+  background: linear-gradient(180deg, rgba(8,10,14,.03) 18%, rgba(9,10,13,.18) 36%, rgba(12,12,15,.96) 100%);
+}
+.gem-file-hero > span {
+  top: 13px;
+  right: 14px;
+  bottom: auto;
+  z-index: 2;
+}
+.gem-role-overlay {
+  position: absolute;
+  z-index: 2;
+  left: 15px;
+  right: 15px;
+  bottom: 15px;
+}
+.gem-role-overlay .gem-role-stamp {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+}
+.gem-role-stamp > b {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(245,202,114,.56);
+  border-radius: 14px;
+  background: rgba(8,10,13,.42);
+  color: var(--gem-gold);
+  -webkit-text-fill-color: var(--gem-gold);
+  font-size: 23px;
+  font-weight: 500;
+  backdrop-filter: blur(6px);
+}
+.gem-role-overlay .gem-role-stamp small {
+  color: #c8cdd3;
+  -webkit-text-fill-color: #c8cdd3;
+  text-shadow: 0 2px 8px #000;
+}
+.gem-role-overlay .gem-role-stamp strong {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 24px;
+  text-shadow: 0 3px 12px #000;
+}
+.gem-secret-file.role-thief .gem-role-stamp > b {
+  border-color: rgba(255,107,114,.66);
+  color: var(--danger);
+  -webkit-text-fill-color: var(--danger);
+}
+.gem-secret-file.role-detective .gem-role-stamp > b {
+  border-color: rgba(139,231,255,.66);
+  color: var(--gem-ice);
+  -webkit-text-fill-color: var(--gem-ice);
+}
+.gem-secret-file.role-accomplice .gem-role-stamp > b {
+  border-color: rgba(156,140,255,.66);
+  color: var(--gem-violet);
+  -webkit-text-fill-color: var(--gem-violet);
+}
+.gem-role-overlay .gem-role-goal {
+  margin: 11px 0 0;
+  color: #edf0f3;
+  -webkit-text-fill-color: #edf0f3;
+  text-shadow: 0 2px 10px #000;
+}
+.gem-dossier-grid > div {
+  border-color: rgba(255,255,255,.11);
+  border-radius: 15px;
+}
+.gem-dossier-item {
+  position: relative;
+  display: block;
+  min-height: 112px;
+  overflow: hidden;
+}
+.gem-dossier-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7,9,12,.03) 25%, rgba(7,9,12,.92) 100%);
+}
+.gem-dossier-item > i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  min-height: 0;
+  background-position: center;
+  background-size: cover;
+}
+.gem-dossier-item > div {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  align-content: end;
+  padding: 32px 13px 12px;
+}
+.gem-dossier-grid span {
+  color: var(--gem-gold);
+  -webkit-text-fill-color: var(--gem-gold);
+  text-shadow: 0 2px 8px #000;
+}
+.gem-dossier-grid strong {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 14px;
+  text-shadow: 0 2px 10px #000;
+}
+.gem-clue-card {
+  position: relative;
+  display: block;
+  min-height: 122px;
+  overflow: hidden;
+  border-color: rgba(139,231,255,.22);
+  border-radius: 15px;
+}
+.gem-clue-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7,9,12,.04) 22%, rgba(7,9,12,.95) 100%);
+}
+.gem-clue-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  min-height: 0;
+}
+.gem-clue-card > div {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  align-content: end;
+  padding: 36px 13px 12px;
+}
+.gem-clue-card small,
+.gem-clue-card strong {
+  text-shadow: 0 2px 10px #000;
+}
+.gem-clue-card strong {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}

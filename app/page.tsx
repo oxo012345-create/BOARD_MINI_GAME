@@ -289,22 +289,33 @@ function GemCaseBoard({ game, compact = false }: { game: GameRound; compact?: bo
   const caseFile = game.gemCase;
   if (!caseFile) return null;
   return <section className={`gem-case-board ${compact ? "compact" : ""}`}>
-    <div className="gem-case-no">CASE {String(game.startedAt).slice(-6)}</div>
     <div className="gem-scene-art">
-      <img className="gem-location-photo" src={gemAsset("locations", caseFile.location.id)} alt="" aria-hidden="true" />
-      <img className="gem-scene-motif" src={gemAsset("scenes", caseFile.scene.id)} alt="" aria-hidden="true" />
+      <img className="gem-scene-photo" src={gemAsset("scenes", caseFile.scene.id)} alt="" aria-hidden="true" />
+      <div className="gem-case-no">CASE {String(game.startedAt).slice(-6)}</div>
       <div className="gem-scene-status"><span>INCIDENT</span><strong>도난 사건</strong></div>
-    </div>
-    <div className="gem-scene-copy">
-      <span className="gem-kicker">사건 발생</span>
-      <h2>{caseFile.scene.title}</h2>
-      <p>{caseFile.report}</p>
-    </div>
-    <div className="gem-evidence-grid">
-      <div className="evidence-item stolen"><div className="gem-evidence-visual"><img src={gemAsset("items", caseFile.stolenItem.id)} alt="" aria-hidden="true" /></div><span>도난품</span><strong>{caseFile.stolenItem.label}</strong></div>
-      <div className="evidence-item location"><div className="gem-evidence-visual"><img src={gemAsset("locations", caseFile.location.id)} alt="" aria-hidden="true" /></div><span>사건 장소</span><strong>{caseFile.location.label}</strong></div>
-      <div className="evidence-item time"><GemClock time={caseFile.time} /><span>범행 시각</span><strong>{caseFile.time.label}</strong></div>
-      <div className="evidence-item tool"><div className="gem-evidence-visual"><img src={gemAsset("tools", caseFile.tool.id)} alt="" aria-hidden="true" /></div><span>발견된 도구</span><strong>{caseFile.tool.label}</strong></div>
+      <div className="gem-scene-copy">
+        <span className="gem-kicker">사건 발생</span>
+        <h2>{caseFile.scene.title}</h2>
+        <p>{caseFile.report}</p>
+      </div>
+      <div className="gem-evidence-grid">
+        <div className="evidence-item stolen">
+          <div className="gem-evidence-visual"><img src={gemAsset("items", caseFile.stolenItem.id)} alt="" aria-hidden="true" /></div>
+          <div className="gem-evidence-copy"><span>도난품</span><strong>{caseFile.stolenItem.label}</strong></div>
+        </div>
+        <div className="evidence-item location">
+          <div className="gem-evidence-visual"><img src={gemAsset("locations", caseFile.location.id)} alt="" aria-hidden="true" /></div>
+          <div className="gem-evidence-copy"><span>사건 장소</span><strong>{caseFile.location.label}</strong></div>
+        </div>
+        <div className="evidence-item time">
+          <GemClock time={caseFile.time} />
+          <div className="gem-evidence-copy"><span>범행 시각</span><strong>{caseFile.time.label}</strong></div>
+        </div>
+        <div className="evidence-item tool">
+          <div className="gem-evidence-visual"><img src={gemAsset("tools", caseFile.tool.id)} alt="" aria-hidden="true" /></div>
+          <div className="gem-evidence-copy"><span>발견된 도구</span><strong>{caseFile.tool.label}</strong></div>
+        </div>
+      </div>
     </div>
   </section>;
 }
@@ -367,14 +378,19 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
       <img src="/gem-secret-dossier.webp" alt="" aria-hidden="true" />
       <div><span>TOP SECRET · 개인 열람</span><strong>내 사건 파일 확인</strong><small>휴대폰을 가리고 누르고 계세요</small><i>누르는 동안만 보여요</i></div>
     </div> : <div className="gem-file-open">
-      <div className="gem-file-hero"><img src={gemAsset("traits", dossier.trait.id)} alt="" aria-hidden="true" /><span>PERSONAL CASE FILE</span></div>
-      <div className="gem-role-stamp"><span>{roleMark}</span><div><small>당신의 역할</small><strong>{info.title}</strong></div></div>
-      <p className="gem-role-goal">{info.goal}</p>
+      <div className="gem-file-hero">
+        <img src={gemAsset("traits", dossier.trait.id)} alt="" aria-hidden="true" />
+        <span>PERSONAL CASE FILE</span>
+        <div className="gem-role-overlay">
+          <div className="gem-role-stamp"><b>{roleMark}</b><div><small>당신의 역할</small><strong>{info.title}</strong></div></div>
+          <p className="gem-role-goal">{info.goal}</p>
+        </div>
+      </div>
       {info.thiefId && info.role === "accomplice" && <div className="gem-accomplice-secret">범인 · <strong>{playerName(room, info.thiefId)}</strong></div>}
       <div className="gem-dossier-grid">
-        <div className="gem-dossier-item location"><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("locations", dossier.location.id)}")` }} /><div><span>{isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.label}</strong></div></div>
-        <div className="gem-dossier-item trait"><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("traits", dossier.trait.id)}")` }} /><div><span>내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
-        <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(13,15,19,.25)), url("${gemAsset("alibis", shownAlibi.id)}")` }} /><div><span>{isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{shownAlibi.label}</strong></div></div>
+        <div className="gem-dossier-item location"><i aria-hidden="true" style={{ backgroundImage: `url("${gemAsset("locations", dossier.location.id)}")` }} /><div><span>{dossier.location.group} · {isThief ? "실제 범행 위치" : "사건 당시 위치"}</span><strong>{dossier.location.label}</strong></div></div>
+        <div className="gem-dossier-item trait"><i aria-hidden="true" style={{ backgroundImage: `url("${gemAsset("traits", dossier.trait.id)}")` }} /><div><span>{dossier.trait.group} · 내 프로필 특징</span><strong>{dossier.trait.label}</strong></div></div>
+        <div className={`gem-dossier-item alibi ${isThief ? "cover" : ""}`}><i aria-hidden="true" style={{ backgroundImage: `url("${gemAsset("alibis", shownAlibi.id)}")` }} /><div><span>{shownAlibi.evidenceGroup} · {isThief ? "말해야 할 가짜 알리바이" : "내 알리바이"}</span><strong>{shownAlibi.label}</strong></div></div>
       </div>
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
         <span className="gem-clue-photo" aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("${gemAsset("questions", GEM_CLUE_IMAGE_IDS[index % GEM_CLUE_IMAGE_IDS.length])}")` }} /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
