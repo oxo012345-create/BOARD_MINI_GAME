@@ -349,13 +349,26 @@ function GemClock({ time }: { time: GemCard }) {
 }
 
 function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPrivate; room: Room; visible: boolean; onVisibleChange: (visible: boolean) => void }) {
+  const touchRevealRef = useRef(false);
+  useEffect(() => {
+    if (!visible || !touchRevealRef.current) return;
+    const releaseTouch = () => {
+      touchRevealRef.current = false;
+      onVisibleChange(false);
+    };
+    window.addEventListener("touchend", releaseTouch, { passive: true });
+    window.addEventListener("touchcancel", releaseTouch, { passive: true });
+    return () => {
+      window.removeEventListener("touchend", releaseTouch);
+      window.removeEventListener("touchcancel", releaseTouch);
+    };
+  }, [visible, onVisibleChange]);
   const reveal = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    touchRevealRef.current = event.pointerType === "touch";
     onVisibleChange(true);
   };
   const hide = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.pointerType === "touch") return;
     onVisibleChange(false);
   };
   const dossier = info.dossier;
@@ -370,6 +383,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
     onPointerDown={reveal}
     onPointerUp={hide}
     onPointerCancel={hide}
+    onPointerLeave={hide}
     onBlur={() => onVisibleChange(false)}
     onContextMenu={(event) => event.preventDefault()}
     onDragStart={(event) => event.preventDefault()}

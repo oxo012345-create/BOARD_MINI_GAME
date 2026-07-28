@@ -742,6 +742,8 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
   assert.match(page, /className="gem-scene-photo"/);
   assert.match(page, /className="gem-evidence-copy"/);
   assert.match(page, /className="gem-role-overlay"/);
+  assert.match(page, /addEventListener\("touchend", releaseTouch/);
+  assert.match(css, /\.gem-secret-file\s*\{[\s\S]*?touch-action:\s*pan-y/);
   assert.match(page, /GEM_CLOCK_ANGLES/);
   assert.doesNotMatch(page, /gem-scene-location|gem-scene-gem|gem-scene-tool/);
 });

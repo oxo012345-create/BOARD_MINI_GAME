@@ -924,3 +924,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   color: #fff;
   -webkit-text-fill-color: #fff;
 }
+
+/* Keep the role visible while a finger scrolls, then hide it on release. */
+.gem-secret-file {
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
