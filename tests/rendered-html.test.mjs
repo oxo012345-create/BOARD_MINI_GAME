@@ -506,6 +506,21 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemStates.filter((state) => state.room.game.gemPrivate.role === "accomplice").length, 0);
     assert.equal(gemStates.every((state) => state.room.game.gemPrivate.dossier.statement.locationClaim), true);
     assert.equal(gemStates.every((state) => state.room.game.gemPrivate.dossier.statement.privateSecret), true);
+    const gemStateByPlayer = new Map(gemStates.map((state) => [state.room.meId, state]));
+    for (const state of gemStates) {
+      const statement = state.room.game.gemPrivate.dossier.statement;
+      assert.equal(statement.witnessIds.length >= 1, true);
+      for (const witnessId of statement.witnessIds) {
+        const witnessStatement = gemStateByPlayer.get(witnessId).room.game.gemPrivate.dossier.statement;
+        assert.equal(witnessStatement.witnessIds.includes(state.room.meId), true);
+        assert.equal(witnessStatement.witnessLocationId, statement.witnessLocationId);
+      }
+    }
+    const publicAlibiIds = gemStates.map((state) => {
+      const info = state.room.game.gemPrivate;
+      return info.role === "thief" ? info.dossier.claimedAlibi.id : info.dossier.alibi.id;
+    });
+    assert.equal(new Set(publicAlibiIds).size, gemStates.length);
     assert.equal(gemStates.every((state) => !state.room.game.gemSolution), true);
     const thiefState = gemStates.find((state) => state.room.game.gemPrivate.role === "thief");
     const thiefId = thiefState.room.meId;
@@ -576,7 +591,10 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemResult.room.game.gemResult.thiefId, thiefId);
     assert.equal(Object.keys(gemResult.room.game.gemResult.votes).length, 4);
     assert.equal(gemResult.room.game.gemResult.solution.decisiveClues.length, 3);
-    assert.match(gemResult.room.game.gemResult.solution.reconstruction, /실제로|가짜|진술/);
+    assert.equal(gemResult.room.game.gemResult.solution.candidateSets.traits.length, 2);
+    assert.equal(gemResult.room.game.gemResult.solution.candidateSets.locations.length, 2);
+    assert.equal(gemResult.room.game.gemResult.solution.candidateSets.evidenceGroups.length, 2);
+    assert.match(gemResult.room.game.gemResult.solution.reconstruction, /세 후보군|실제로|가짜|진술/);
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
       method: "PATCH",
@@ -622,6 +640,10 @@ test("server-renders the Hanpan mobile app shell", async () => {
       assert.notEqual(stressGame.gemCase.stolenItem.id, previousGemFingerprint.item);
       assert.notEqual(stressThief, previousGemFingerprint.thief);
       assert.equal(stressStates.every((state) => state.room.game.gemPrivate.dossier.statement.pressurePoint), true);
+      assert.equal(new Set(stressStates.map((state) => {
+        const info = state.room.game.gemPrivate;
+        return info.role === "thief" ? info.dossier.claimedAlibi.id : info.dossier.alibi.id;
+      })).size, stressStates.length);
       assert.equal(stressStates
         .filter((state) => ["investigator", "detective"].includes(state.room.game.gemPrivate.role))
         .every((state) => state.room.game.gemPrivate.clues.length >= (difficulty === "easy" ? 3 : 2)), true);
@@ -672,13 +694,14 @@ test("server-renders the Hanpan mobile app shell", async () => {
 });
 
 test("keeps the requested game set and removes excluded modes", async () => {
-  const [page, layout, hosting, surprise, realtime, eventsRoute] = await Promise.all([
+  const [page, layout, hosting, surprise, realtime, eventsRoute, roomRoute] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/surprise.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/_lib/realtime.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/rooms/[code]/events/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/rooms/[code]/route.ts", import.meta.url), "utf8"),
   ]);
   for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
     assert.match(page, new RegExp(required));
@@ -697,6 +720,10 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(surprise, /5 \* 60 \* 1000/);
   assert.match(page, /RANDOM_GAMES = ALL_GAMES\.filter\(\(game\) => game\.id !== "syllable"\)/);
   assert.match(rounds, /telestrationDeadline = nextRound === 4 \? undefined/);
+  assert.match(rounds, /gemCandidateIds/);
+  assert.match(rounds, /사건 시각과 맞지 않는 알리바이가 있습니다/);
+  assert.match(rounds, /모든 단서를 합쳐도 범인이 한 명으로 좁혀지지 않습니다/);
+  assert.match(roomRoute, /handleGemInvestigationTimeout/);
   assert.match(page, /누르는 동안만 보여요/);
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
   assert.match(page, /IDLE_SYNC_INTERVAL_MS = 1400/);

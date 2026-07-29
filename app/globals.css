@@ -1104,6 +1104,18 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   font-size: 10px;
   line-height: 1.55;
 }
+.gem-private-secret.truth {
+  border-color: rgba(139,231,255,.3);
+  background: rgba(139,231,255,.065);
+}
+.gem-private-secret.truth small {
+  color: var(--gem-ice);
+  -webkit-text-fill-color: var(--gem-ice);
+}
+.gem-private-secret.truth strong {
+  color: #e4f4f8;
+  -webkit-text-fill-color: #e4f4f8;
+}
 .gem-file-section-title.clue-title {
   padding: 0 12px;
 }

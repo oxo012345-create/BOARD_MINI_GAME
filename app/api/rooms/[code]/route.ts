@@ -58,6 +58,15 @@ function handleTelestrationTimeout(room: RoomState) {
   return true;
 }
 
+function handleGemInvestigationTimeout(room: RoomState) {
+  const game = room.game as GameRound | undefined;
+  if (game?.id !== "gem-heist" || game.gemPhase !== "investigation" || !game.deadline || Date.now() < game.deadline) return false;
+  game.gemPhase = "vote";
+  game.deadline = undefined;
+  game.gemVotes = {};
+  return true;
+}
+
 async function persistAndRespond(room: RoomState, viewerId: string) {
   const expectedRevision = room.revision ?? 0;
   tickSurprise(room);
@@ -84,7 +93,8 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const playersChanged = touchAndPrunePlayers(room, viewer?.id);
     const surpriseChanged = tickSurprise(room);
     const telestrationChanged = handleTelestrationTimeout(room);
-    const changed = playersChanged || surpriseChanged || telestrationChanged;
+    const gemChanged = handleGemInvestigationTimeout(room);
+    const changed = playersChanged || surpriseChanged || telestrationChanged || gemChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });

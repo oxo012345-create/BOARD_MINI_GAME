@@ -48,6 +48,11 @@ type GemResult = {
   caught?: boolean;
   solution?: {
     culpritSignature: string[];
+    candidateSets: {
+      traits: string[];
+      locations: string[];
+      evidenceGroups: string[];
+    };
     decisiveClues: Array<{ title: string; explanation: string }>;
     reconstruction: string;
     decoyIds: string[];
@@ -424,12 +429,12 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
         <div className="gem-file-section-title"><span>STATEMENT GUIDE</span><strong>이렇게 진술하세요</strong></div>
         <div className="gem-statement-grid">
           <div><small>장소와 행동</small><strong>{dossier.statement.locationClaim}</strong></div>
-          <div><small>목격자</small><strong>{dossier.statement.witnessClaim}</strong></div>
-          <div><small>목격한 상황</small><strong>{dossier.statement.observedEvent}</strong></div>
-          <div><small>말해도 되는 시간</small><strong>{dossier.statement.timeClaim}</strong></div>
-          <div><small>약한 부분</small><strong>{dossier.statement.pressurePoint}</strong></div>
+          <div><small>사건 전 마주친 사람</small><strong>{dossier.statement.witnessClaim}</strong></div>
+          <div><small>사건 직전 행동</small><strong>{dossier.statement.observedEvent}</strong></div>
+          <div><small>사건 시각의 행동</small><strong>{dossier.statement.timeClaim}</strong></div>
+          <div><small>알리바이의 한계</small><strong>{dossier.statement.pressurePoint}</strong></div>
         </div>
-        <div className="gem-private-secret"><small>절대 먼저 공개하지 마세요</small><strong>{dossier.statement.privateSecret}</strong></div>
+        <div className={`gem-private-secret ${isThief || info.role === "accomplice" ? "" : "truth"}`}><small>{isThief || info.role === "accomplice" ? "절대 먼저 공개하지 마세요" : "수사대 진술 원칙"}</small><strong>{dossier.statement.privateSecret}</strong></div>
       </div>
       <div className="gem-file-section-title clue-title"><span>EVIDENCE</span><strong>내가 가진 단서</strong></div>
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
