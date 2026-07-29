@@ -789,8 +789,9 @@ test("uses natural Korean subject particles in case reports", async () => {
   assert.equal(withSubjectParticle("왕관"), "왕관이");
 });
 
-test("ships the complete 200-asset gem-heist visual system", async () => {
+test("ships the complete 230-asset gem-heist visual system", async () => {
   const source = await readFile(new URL("../app/api/_lib/gem-heist-data.ts", import.meta.url), "utf8");
+  const roundsSource = await readFile(new URL("../app/api/_lib/rounds.ts", import.meta.url), "utf8");
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const assets = await readFile(new URL("../app/gem-heist-assets.ts", import.meta.url), "utf8");
@@ -800,7 +801,7 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
     tools: 20,
     times: 10,
     traits: 30,
-    alibis: 20,
+    alibis: 50,
     questions: 50,
     backgrounds: 30,
   };
@@ -812,8 +813,43 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
   }
   const alibis = source.match(/alibis: \[([\s\S]*?)\] satisfies/);
   assert.ok(alibis);
-  assert.equal((alibis[1].match(/locationId: "/g) ?? []).length, 20);
-  assert.equal((alibis[1].match(/evidenceGroup: "/g) ?? []).length, 20);
+  assert.equal((alibis[1].match(/locationId: "/g) ?? []).length, 50);
+  assert.equal((alibis[1].match(/evidenceGroup: "/g) ?? []).length, 50);
+  const alibiCards = [...alibis[1].matchAll(/\{ id: "([^"]+)", label: "([^"]+)", icon: "([^"]+)", detail: "([^"]+)", locationId: "([^"]+)", evidenceGroup: "([^"]+)" \}/g)]
+    .map((match) => ({ id: match[1], label: match[2], detail: match[4], locationId: match[5], evidenceGroup: match[6] }));
+  assert.equal(alibiCards.length, 50);
+  for (const field of ["id", "label", "detail"]) {
+    assert.equal(new Set(alibiCards.map((card) => card[field])).size, 50, `alibi ${field} values should all be unique`);
+  }
+  const locationIds = new Set([...source.match(/locations: \[([\s\S]*?)\] satisfies/)?.[1].matchAll(/\{ id: "([^"]+)"/g) ?? []].map((match) => match[1]));
+  assert.equal(alibiCards.every((card) => locationIds.has(card.locationId)), true);
+  const evidenceCounts = Object.groupBy(alibiCards, (card) => card.evidenceGroup);
+  assert.deepEqual(Object.keys(evidenceCounts).sort(), ["단독 진술", "목격 진술", "사진 기록", "전자 기록"]);
+  assert.equal(Object.values(evidenceCounts).every((cards) => cards.length >= 8), true);
+  const compactBigrams = (text) => {
+    const compact = text.replace(/[^가-힣a-z0-9]/gi, "");
+    return new Set([...compact].slice(0, -1).map((character, index) => character + compact[index + 1]));
+  };
+  for (let left = 0; left < alibiCards.length; left += 1) {
+    for (let right = left + 1; right < alibiCards.length; right += 1) {
+      const a = compactBigrams(alibiCards[left].label);
+      const b = compactBigrams(alibiCards[right].label);
+      const overlap = [...a].filter((value) => b.has(value)).length;
+      const similarity = overlap / new Set([...a, ...b]).size;
+      assert.ok(similarity < 0.72, `alibis are too similar: ${alibiCards[left].label} / ${alibiCards[right].label}`);
+    }
+  }
+  const timeIds = [...source.match(/times: \[([\s\S]*?)\] satisfies/)?.[1].matchAll(/\{ id: "([^"]+)"/g) ?? []].map((match) => match[1]);
+  const timeMapBody = roundsSource.match(/const GEM_ALIBI_TIME_IDS:[\s\S]*?= \{([\s\S]*?)\n\};/)?.[1] ?? "";
+  const allowedTimes = new Map([...timeMapBody.matchAll(/"([^"]+)": \[([^\]]+)\]/g)]
+    .map((match) => [match[1], [...match[2].matchAll(/"([^"]+)"/g)].map((time) => time[1])]));
+  assert.equal([...allowedTimes.keys()].every((id) => alibiCards.some((card) => card.id === id)), true);
+  assert.equal([...allowedTimes.values()].flat().every((id) => timeIds.includes(id)), true);
+  for (const timeId of timeIds) {
+    const compatible = alibiCards.filter((card) => !allowedTimes.has(card.id) || allowedTimes.get(card.id).includes(timeId));
+    assert.ok(compatible.length >= 8, `${timeId} should have enough compatible alibis for eight players`);
+    assert.equal(new Set(compatible.map((card) => card.evidenceGroup)).size, 4, `${timeId} should retain every evidence type`);
+  }
   for (const asset of ["gem-case-scene.webp", "gem-secret-dossier.webp", "gem-suspects.webp", "gem-alibi.webp", "gem-clue.webp", "gem-question.webp", "gem-evidence.webp"]) {
     const info = await stat(new URL(`../public/${asset}`, import.meta.url));
     assert.ok(info.size > 30_000, `${asset} should be a high-quality photographic asset`);
@@ -824,7 +860,7 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
     items: 20,
     tools: 20,
     traits: 30,
-    alibis: 20,
+    alibis: 50,
     questions: 50,
     scenes: 30,
   };
@@ -851,8 +887,8 @@ test("ships the complete 200-asset gem-heist visual system", async () => {
       assert.ok(info.size > 20_000, `${kind}/${file} should be a production photographic asset`);
     }
   }
-  assert.equal(photoCount, 190);
-  assert.equal(Object.values(photographicAssets).reduce((sum, count) => sum + count, 0) + 10, 200);
+  assert.equal(photoCount, 220);
+  assert.equal(Object.values(photographicAssets).reduce((sum, count) => sum + count, 0) + 10, 230);
   assert.match(page, /gemAsset\("locations", caseFile\.location\.id\)/);
   assert.match(page, /gemAsset\("items", caseFile\.stolenItem\.id\)/);
   assert.match(page, /gemAsset\("tools", caseFile\.tool\.id\)/);

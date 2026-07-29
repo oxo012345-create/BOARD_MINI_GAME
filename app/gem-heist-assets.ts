@@ -15,7 +15,7 @@ export const GEM_ASSET_COUNTS = {
   items: 20,
   tools: 20,
   traits: 30,
-  alibis: 20,
+  alibis: 50,
   questions: 50,
   scenes: 30,
 };
