@@ -501,6 +501,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-dossier-grid span { color: #7f8791; -webkit-text-fill-color: #7f8791; font-size: 8px; font-weight: 900; }
 .gem-dossier-grid strong { margin-top: 5px; font-size: 13px; line-height: 1.35; }
 .gem-clue-stack { display: grid; gap: 7px; margin-top: 8px; }
+.gem-one-clue-rule { display: grid; gap: 4px; margin: 8px 0 11px; padding: 12px 13px; border: 1px solid rgba(245,202,114,.32); border-radius: 13px; background: linear-gradient(135deg, rgba(245,202,114,.1), rgba(245,202,114,.035)); }
+.gem-one-clue-rule b { color: var(--gem-gold); -webkit-text-fill-color: var(--gem-gold); font: 900 8px/1 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.gem-one-clue-rule strong { color: #fff5dd; -webkit-text-fill-color: #fff5dd; font-size: 12px; line-height: 1.45; }
+.gem-one-clue-rule small { color: #aeb2b8; -webkit-text-fill-color: #aeb2b8; font-size: 9px; line-height: 1.45; }
+.gem-one-clue-rule.briefing { margin-top: 12px; text-align: left; }
+.gem-one-clue-rule.investigation-rule { margin: 13px 0 10px; text-align: left; }
 .gem-clue-card { display: grid; grid-template-columns: 76px 1fr; align-items: stretch; min-height: 82px; overflow: hidden; border: 1px solid rgba(139,231,255,.17); border-radius: 13px; background: rgba(139,231,255,.055); }
 .gem-clue-photo { display: block; min-height: 82px; background-position: 35% center; background-size: cover; }
 .gem-clue-card.clue-1 .gem-clue-photo { background-position: 62% center; }
@@ -1130,6 +1136,24 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   color: #c8cdd4;
   font-size: 11px;
   line-height: 1.65;
+}
+.gem-final-suspects {
+  display: grid;
+  gap: 4px;
+  margin: 11px 0;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: rgba(139,231,255,.07);
+}
+.gem-final-suspects small {
+  color: var(--gem-ice);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+.gem-final-suspects strong {
+  color: #effbff;
+  font-size: 15px;
 }
 .gem-decisive-clues {
   display: grid;

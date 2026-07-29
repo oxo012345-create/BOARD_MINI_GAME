@@ -594,6 +594,9 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.equal(gemResult.room.game.gemResult.solution.candidateSets.traits.length, 2);
     assert.equal(gemResult.room.game.gemResult.solution.candidateSets.locations.length, 2);
     assert.equal(gemResult.room.game.gemResult.solution.candidateSets.evidenceGroups.length, 2);
+    assert.equal(gemResult.room.game.gemResult.solution.finalSuspectIds.length, 2);
+    assert.equal(gemResult.room.game.gemResult.solution.finalSuspectIds.includes(thiefId), true);
+    assert.equal(gemResult.room.game.gemResult.solution.decoyIds.length, 1);
     assert.match(gemResult.room.game.gemResult.solution.reconstruction, /세 후보군|실제로|가짜|진술/);
 
     await fetch(`${baseUrl}/api/rooms/${body.room.code}`, {
@@ -724,7 +727,8 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(rounds, /telestrationDeadline = nextRound === 4 \? undefined/);
   assert.match(rounds, /gemCandidateIds/);
   assert.match(rounds, /사건 시각과 맞지 않는 알리바이가 있습니다/);
-  assert.match(rounds, /모든 단서를 합쳐도 범인이 한 명으로 좁혀지지 않습니다/);
+  assert.match(rounds, /모든 단서를 합쳤을 때 범인을 포함한 용의자 두 명이 남지 않습니다/);
+  assert.match(page, /수사대는 자신이 가진 단서 중 하나만 말할 수 있어요/);
   assert.match(roomRoute, /handleGemInvestigationTimeout/);
   assert.match(page, /누르는 동안만 보여요/);
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);

@@ -48,6 +48,7 @@ type GemResult = {
   caught?: boolean;
   solution?: {
     culpritSignature: string[];
+    finalSuspectIds?: string[];
     candidateSets: {
       traits: string[];
       locations: string[];
@@ -439,6 +440,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
         <div className={`gem-private-secret ${isThief || info.role === "accomplice" ? "" : "truth"}`}><small>{isThief || info.role === "accomplice" ? "절대 먼저 공개하지 마세요" : "수사대 진술 원칙"}</small><strong>{dossier.statement.privateSecret}</strong></div>
       </div>
       <div className="gem-file-section-title clue-title"><span>EVIDENCE</span><strong>내가 가진 단서</strong></div>
+      {!["thief", "accomplice"].includes(info.role) && <div className="gem-one-clue-rule"><b>공개 규칙</b><strong>아래 단서 중 딱 하나만 골라 말하세요.</strong><small>선택하지 않은 단서는 끝까지 비밀로 유지해요.</small></div>}
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
         <span className="gem-clue-photo" aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("${gemAsset("questions", GEM_CLUE_IMAGE_IDS[index % GEM_CLUE_IMAGE_IDS.length])}")` }} /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
       </div>)}</div>
@@ -482,11 +484,12 @@ function GemResultPanel({ room, game }: { room: Room; game: GameRound }) {
     </div>}
     {result.solution && <div className="gem-case-explanation">
       <div className="gem-file-section-title"><span>CASE RECONSTRUCTION</span><strong>사건의 전말</strong></div>
+      {(result.solution.finalSuspectIds?.length ?? 0) > 0 && <div className="gem-final-suspects"><small>모든 단서로 남은 최종 용의자</small><strong>{result.solution.finalSuspectIds?.map((playerId) => playerName(room, playerId)).join(" · ")}</strong></div>}
       <p>{result.solution.reconstruction}</p>
       <div className="gem-decisive-clues">
         {result.solution.decisiveClues.map((clue, index) => <div key={clue.title}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{clue.title}</small><strong>{clue.explanation}</strong></div></div>)}
       </div>
-      <div className="gem-signature"><span>범인을 가리킨 세 가지 교집합</span><strong>{result.solution.culpritSignature.join(" · ")}</strong></div>
+      <div className="gem-signature"><span>최종 두 용의자를 남긴 세 가지 교집합</span><strong>{result.solution.culpritSignature.join(" · ")}</strong></div>
     </div>}
     <div className="gem-vote-result">
       <h3>최종 지목</h3>
@@ -974,10 +977,11 @@ export default function Home() {
         {LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}
         {currentGame.id === "gem-heist" && <>
           <div className="gem-briefing-steps">
-            <span><b>1</b><strong>기밀 파일 확인</strong><small>역할·특징·알리바이·개인 단서</small></span>
-            <span><b>2</b><strong>3분 공개 수사</strong><small>질문 카드로 모순 찾기</small></span>
+            <span><b>1</b><strong>기밀 파일 확인</strong><small>내 단서 중 말할 하나를 선택</small></span>
+            <span><b>2</b><strong>3분 공개 수사</strong><small>각자 단서 하나만 말하며 추리</small></span>
             <span><b>3</b><strong>비밀 지목</strong><small>도둑을 잡으면 수사대 승리</small></span>
           </div>
+          <div className="gem-one-clue-rule briefing"><b>핵심 규칙</b><strong>수사대는 자신이 가진 단서 중 하나만 말할 수 있어요.</strong><small>모든 단서를 합쳐도 최종 용의자는 두 명입니다. 대화와 알리바이의 모순으로 범인을 고르세요.</small></div>
           {isHost && <div className="gem-special-picker">
             <div className="gem-picker-heading"><span>추리 난이도</span><small>단서의 공개 범위와 교차 정보량이 달라져요</small></div>
             <div className="gem-difficulty-picker">
@@ -1077,13 +1081,14 @@ export default function Home() {
         <span className="gem-kicker">STEP 01 · 비공개</span>
         <h2>기밀 파일을 확인하세요</h2>
         <p>각자 휴대폰을 가리고 역할, 특징, 알리바이와 단서를 확인하세요. 수사대는 진실을 말하고, 도둑과 공범은 거짓말할 수 있습니다.</p>
-        <div className="gem-mini-rules"><span><b>01</b>파일 내용은 말로만 공유</span><span><b>02</b>범인은 가짜 알리바이 사용</span><span><b>03</b>단서 두세 개를 연결해 추리</span></div>
+        <div className="gem-mini-rules"><span><b>01</b>수사대는 단서 하나만 말하기</span><span><b>02</b>선택하지 않은 단서는 비밀</span><span><b>03</b>최종 두 명은 대화로 판별</span></div>
         {isHost ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void startGemInvestigation()}>모두 확인했어요 · 수사 시작</button> : <div className="waiting"><span className="pulse" />모두의 확인을 기다리는 중</div>}
       </section>}
       {currentGame.gemPhase === "investigation" && <section className="gem-phase-card investigation">
         <div className="gem-investigation-head"><div><span className="gem-kicker">STEP 02 · 공개 수사</span><h2>질문 카드 {Math.min(6, (currentGame.gemQuestionIndex ?? 0) + 1)} / 6</h2></div><strong className={(currentGame.deadline ?? synchronizedNow) <= synchronizedNow ? "expired" : ""}>{formatClock((currentGame.deadline ?? synchronizedNow) - synchronizedNow)}</strong></div>
         {currentGame.gemQuestion && <div className="gem-question-card"><img src={gemAsset("questions", currentGame.gemQuestion.id)} alt="" aria-hidden="true" /><div><span>{currentGame.gemQuestion.group ?? "교차신문"} · INTERVIEW</span><h3>{currentGame.gemQuestion.label}</h3><p>{currentGame.gemQuestion.detail}</p></div></div>}
-        <p className="gem-discussion-tip">자신의 알리바이와 특징을 말하고, 개인 단서는 원하는 순간에 공개하세요. 도둑과 공범의 말에는 거짓이 섞여 있을 수 있어요.</p>
+        <div className="gem-one-clue-rule investigation-rule"><b>공개 제한</b><strong>수사대는 개인 단서를 딱 하나만 말할 수 있어요.</strong><small>알리바이와 프로필 특징은 자유롭게 말할 수 있지만, 나머지 개인 단서는 끝까지 비밀입니다.</small></div>
+        <p className="gem-discussion-tip">모든 단서를 합쳐도 두 명이 남습니다. 두 사람의 진술과 가짜 알리바이에서 생기는 모순을 찾아 마지막 한 명을 고르세요.</p>
         {isHost ? <div className="gem-host-actions"><button className="button secondary" disabled={hostActionLocked || (currentGame.gemQuestionIndex ?? 0) >= 5} onClick={() => void nextGemQuestion()}>다음 질문</button><button className="button primary" disabled={hostActionLocked} onClick={() => void startGemVote()}>최종 지목 시작</button></div> : <div className="waiting"><span className="pulse" />공개 수사 진행 중</div>}
       </section>}
       {currentGame.gemPhase === "vote" && <section className="gem-phase-card vote">

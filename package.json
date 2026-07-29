@@ -10,6 +10,7 @@
     "build": "node scripts/sync-catalog-data.mjs && vinext build",
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test:gem-logic": "tsx scripts/gem-two-suspect-audit.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "sync:catalog": "node scripts/sync-catalog-data.mjs"

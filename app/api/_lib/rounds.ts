@@ -30,6 +30,7 @@ export type GemClue = { icon: string; title: string; text: string; strength: "�
 export type GemDifficulty = "easy" | "normal" | "hard";
 export type GemSolution = {
   culpritSignature: string[];
+  finalSuspectIds: string[];
   candidateSets: {
     traits: string[];
     locations: string[];
@@ -121,7 +122,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   "ten-seconds": { title: "정확히 10초", briefing: "각자 화면을 보지 않고 정확히 10초를 맞혀보세요. 한 사람당 한 번만 도전할 수 있습니다.", category: "solo" },
   color: { title: "색깔 찾기", briefing: "제시된 색깔의 물건을 찾아 카메라로 찍어 올리세요. 촬영 순서대로 사진이 표시됩니다.", category: "solo" },
   "object-initial": { title: "초성 물건 찾기", briefing: "제시된 초성으로 시작하는 물건을 찾아 카메라로 찍어 올리세요.", category: "solo" },
-  "gem-heist": { title: "사라진 보석", briefing: "범인은 가짜 알리바이로 정체를 숨기고, 수사대는 각자의 단서를 합쳐 범인을 찾습니다. 사건 파일을 확인한 뒤 질문하고 마지막에 비밀 투표하세요.", category: "solo" },
+  "gem-heist": { title: "사라진 보석", briefing: "범인은 가짜 알리바이로 정체를 숨깁니다. 각자 단서 하나만 말해 두 용의자로 좁힌 뒤, 대화의 모순을 찾아 비밀 투표하세요.", category: "solo" },
   telestration: { title: "텔레그레이션", briefing: "45초·40초·35초 동안 그림을 이어 그립니다. 마지막 그림의 정답 입력에는 제한시간이 없고, 두 명 이상 맞히면 통과입니다.", category: "coop" },
   people: { title: "인물 퀴즈", briefing: "한 사람씩 5초 안에 사진 속 인물을 맞힙니다. 전원이 성공하면 통과하고, 방장이 다음 문제 또는 실패를 선택합니다.", category: "coop" },
   chain: { title: "줄줄이 말해요", briefing: "같은 주제로 한 사람씩 5초 안에 답합니다. 전원이 성공하면 통과하고, 주제는 도중에 바뀌지 않습니다.", category: "coop" },
@@ -437,8 +438,10 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
   });
 
   const thiefDossier = dossiers[thief.id];
-  const otherPlayers = orderedPlayers.filter((player) => player.id !== thief.id);
-  const decoyPlayers = shuffle(otherPlayers);
+  const innocentPlayers = orderedPlayers.filter((player) =>
+    player.id !== thief.id && player.id !== accomplice?.id
+  );
+  const decoyPlayers = shuffle(innocentPlayers);
   const publicLocation = (player: Player) => player.id === thief.id ? claimedLocation : dossiers[player.id].location;
   const publicAlibi = (player: Player) => player.id === thief.id ? dossiers[player.id].claimedAlibi : dossiers[player.id].alibi;
   const traitValue = (player: Player) => difficulty === "hard" ? dossiers[player.id].trait.group : dossiers[player.id].trait.label;
@@ -449,32 +452,32 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     location: locationValue(thief) ?? "",
     evidence: evidenceValue(thief) ?? "",
   };
-  const traitChoices = decoyPlayers.filter((player) => traitValue(player) !== thiefValues.trait);
-  const locationChoices = decoyPlayers.filter((player) => locationValue(player) !== thiefValues.location);
-  const evidenceChoices = decoyPlayers.filter((player) => evidenceValue(player) !== thiefValues.evidence);
-  const decoyCombinations = shuffle(traitChoices.flatMap((traitPlayer) =>
-    locationChoices.flatMap((locationPlayer) =>
-      evidenceChoices.map((evidencePlayer) => ({ traitPlayer, locationPlayer, evidencePlayer }))
-    )
-  ));
-  const decoySelection = decoyCombinations.find(({ traitPlayer, locationPlayer, evidencePlayer }) => {
-    if (new Set([traitPlayer.id, locationPlayer.id, evidencePlayer.id]).size < 2) return false;
-    const candidateTraits = new Set([thiefValues.trait, traitValue(traitPlayer) ?? ""]);
-    const candidateLocations = new Set([thiefValues.location, locationValue(locationPlayer) ?? ""]);
-    const candidateEvidence = new Set([thiefValues.evidence, evidenceValue(evidencePlayer) ?? ""]);
+  const shadowPlayer = decoyPlayers.find((player) => {
+    const shadowValues = {
+      trait: traitValue(player) ?? "",
+      location: locationValue(player) ?? "",
+      evidence: evidenceValue(player) ?? "",
+    };
+    if (
+      shadowValues.trait === thiefValues.trait
+      || shadowValues.location === thiefValues.location
+      || shadowValues.evidence === thiefValues.evidence
+    ) return false;
+    const candidateTraits = new Set([thiefValues.trait, shadowValues.trait]);
+    const candidateLocations = new Set([thiefValues.location, shadowValues.location]);
+    const candidateEvidence = new Set([thiefValues.evidence, shadowValues.evidence]);
     const candidates = orderedPlayers.filter((player) =>
       candidateTraits.has(traitValue(player) ?? "")
       && candidateLocations.has(locationValue(player) ?? "")
       && candidateEvidence.has(evidenceValue(player) ?? "")
     );
-    return candidates.length === 1 && candidates[0].id === thief.id;
+    return candidates.length === 2
+      && candidates.some((candidate) => candidate.id === thief.id)
+      && candidates.some((candidate) => candidate.id === player.id);
   });
-  const traitDecoyPlayer = decoySelection?.traitPlayer ?? traitChoices[0] ?? decoyPlayers[0];
-  const locationDecoyPlayer = decoySelection?.locationPlayer ?? locationChoices[0] ?? decoyPlayers[1] ?? decoyPlayers[0];
-  const evidenceDecoyPlayer = decoySelection?.evidencePlayer ?? evidenceChoices[0] ?? decoyPlayers[2] ?? decoyPlayers[0];
-  const displayedTraitSignals = uniqueValues(shuffle([thiefValues.trait, traitValue(traitDecoyPlayer)]));
-  const displayedLocationSignals = uniqueValues(shuffle([thiefValues.location, locationValue(locationDecoyPlayer)]));
-  const alibiSignals = uniqueValues(shuffle([thiefValues.evidence, evidenceValue(evidenceDecoyPlayer)]));
+  const displayedTraitSignals = uniqueValues(shuffle([thiefValues.trait, traitValue(shadowPlayer ?? decoyPlayers[0])]));
+  const displayedLocationSignals = uniqueValues(shuffle([thiefValues.location, locationValue(shadowPlayer ?? decoyPlayers[0])]));
+  const alibiSignals = uniqueValues(shuffle([thiefValues.evidence, evidenceValue(shadowPlayer ?? decoyPlayers[0])]));
   const locationGroups = uniqueValues(orderedPlayers.map((player) => publicLocation(player).group));
   const traitGroups = uniqueValues(orderedPlayers.map((player) => dossiers[player.id].trait.group));
   const evidenceGroups = uniqueValues(orderedPlayers.map((player) =>
@@ -595,7 +598,7 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     clues[detective.id].push({
       icon: "수석",
       title: "교차 분석 권한",
-      text: `세 핵심 기록의 공통 후보를 찾으세요. 특징은 ‘${joinedEvidence(displayedTraitSignals)}’, 동선은 ‘${joinedEvidence(displayedLocationSignals)}’, 증거 형식은 ‘${joinedEvidence(alibiSignals)}’입니다.`,
+      text: "공개된 단서를 특징·동선·알리바이 세 칸으로 나눠 정리하세요. 세 칸에 모두 남는 두 사람의 진술을 마지막에 비교하세요.",
       strength: "교차검증",
     });
   }
@@ -661,14 +664,15 @@ function makeGemHeistRound(base: GameRound, players: Player[], specialRoles: boo
     gemVotes: {},
     gemSolution: {
       culpritSignature: [thiefDossier.trait.label, claimedLocation.label, thiefDossier.claimedAlibi.evidenceGroup ?? "단독 진술"],
+      finalSuspectIds: shuffle([thief.id, shadowPlayer?.id].filter((id): id is string => Boolean(id))),
       candidateSets: {
         traits: displayedTraitSignals,
         locations: displayedLocationSignals,
         evidenceGroups: alibiSignals,
       },
       decisiveClues,
-      reconstruction: `특징·도구 이동 흔적·알리바이 증거 형식의 세 후보군을 모두 겹쳤을 때 ${thief.name}만 남았습니다. ${thief.name}은 실제로 ${crimeLocation.label}에서 ${tool.label}을 이용해 ${stolenItem.label}을 가져간 뒤, ‘${thiefDossier.claimedAlibi.label}’으로 ${claimedLocation.label}에 있었던 것처럼 동선을 꾸몄습니다.`,
-      decoyIds: uniqueValues([traitDecoyPlayer?.id, locationDecoyPlayer?.id, evidenceDecoyPlayer?.id]),
+      reconstruction: `특징·도구 이동 흔적·알리바이 증거 형식의 세 후보군을 모두 겹쳐도 ${thief.name}과 ${shadowPlayer?.name ?? "또 다른 용의자"} 두 명이 남았습니다. 마지막 판단은 두 사람의 진술과 가짜 알리바이의 모순에 달려 있었습니다. ${thief.name}은 실제로 ${crimeLocation.label}에서 ${tool.label}을 이용해 ${stolenItem.label}을 가져간 뒤, ‘${thiefDossier.claimedAlibi.label}’으로 ${claimedLocation.label}에 있었던 것처럼 동선을 꾸몄습니다.`,
+      decoyIds: shadowPlayer ? [shadowPlayer.id] : [],
     },
   };
 }
@@ -854,7 +858,7 @@ export function makeRound(
   gemDifficulty: GemDifficulty = "normal",
 ): GameRound | null {
   let round: GameRound | null = null;
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     round = makeRoundCandidate(id, players, liarMode, specialRoles, gemDifficulty);
     if (round?.id === "gem-heist" && validateGemRound(round, players).length > 0) continue;
     if (!round || !previousContentKey) return round;
@@ -935,9 +939,20 @@ export function validateGemRound(round: GameRound, players: Player[]) {
     errors.push("핵심 단서의 후보군이 두 개씩 구성되지 않았습니다.");
   }
   const candidates = gemCandidateIds(round);
-  if (candidates.length !== 1 || candidates[0] !== round.gemThiefId) errors.push("모든 단서를 합쳐도 범인이 한 명으로 좁혀지지 않습니다.");
+  if (candidates.length !== 2 || !candidates.includes(round.gemThiefId)) errors.push("모든 단서를 합쳤을 때 범인을 포함한 용의자 두 명이 남지 않습니다.");
+  const finalSuspectIds = uniqueValues(round.gemSolution?.finalSuspectIds ?? []);
+  if (
+    finalSuspectIds.length !== 2
+    || finalSuspectIds.some((playerId) => !candidates.includes(playerId))
+    || candidates.some((playerId) => !finalSuspectIds.includes(playerId))
+  ) errors.push("최종 용의자 명단과 단서 교집합이 일치하지 않습니다.");
   if ((round.gemSolution?.decisiveClues.length ?? 0) < 2) errors.push("결정적 단서 해설이 부족합니다.");
-  if ((round.gemSolution?.decoyIds.length ?? 0) < Math.min(2, players.length - 1)) errors.push("미끼 용의자가 부족합니다.");
+  if (
+    round.gemSolution?.decoyIds.length !== 1
+    || round.gemSolution.decoyIds[0] === round.gemThiefId
+    || round.gemSolution.decoyIds[0] === round.gemAccompliceId
+    || !candidates.includes(round.gemSolution.decoyIds[0])
+  ) errors.push("무고한 최종 용의자가 정확히 한 명이어야 합니다.");
   return errors;
 }
 
