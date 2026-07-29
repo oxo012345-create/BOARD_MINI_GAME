@@ -925,7 +925,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   -webkit-text-fill-color: #fff;
 }
 
-/* Keep the role visible while a finger scrolls, then hide it on release. */
+/* The gem dossier stays open after a tap so its full contents can be scrolled. */
 .gem-secret-file {
   touch-action: pan-y;
   overscroll-behavior-y: contain;

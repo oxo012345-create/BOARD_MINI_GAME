@@ -388,28 +388,6 @@ function GemClock({ time }: { time: GemCard }) {
 }
 
 function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPrivate; room: Room; visible: boolean; onVisibleChange: (visible: boolean) => void }) {
-  const touchRevealRef = useRef(false);
-  useEffect(() => {
-    if (!visible || !touchRevealRef.current) return;
-    const releaseTouch = () => {
-      touchRevealRef.current = false;
-      onVisibleChange(false);
-    };
-    window.addEventListener("touchend", releaseTouch, { passive: true });
-    window.addEventListener("touchcancel", releaseTouch, { passive: true });
-    return () => {
-      window.removeEventListener("touchend", releaseTouch);
-      window.removeEventListener("touchcancel", releaseTouch);
-    };
-  }, [visible, onVisibleChange]);
-  const reveal = (event: React.PointerEvent<HTMLButtonElement>) => {
-    touchRevealRef.current = event.pointerType === "touch";
-    onVisibleChange(true);
-  };
-  const hide = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType === "touch") return;
-    onVisibleChange(false);
-  };
   const dossier = info.dossier;
   const isThief = info.role === "thief";
   const shownAlibi = isThief ? dossier.claimedAlibi : dossier.alibi;
@@ -420,27 +398,13 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
     className={`gem-secret-file ${visible ? "revealed" : ""} role-${info.role}`}
     draggable={false}
     aria-pressed={visible}
-    onPointerDown={reveal}
-    onPointerUp={hide}
-    onPointerCancel={hide}
-    onPointerLeave={hide}
-    onKeyDown={(event) => {
-      if (event.key !== " " && event.key !== "Enter") return;
-      event.preventDefault();
-      onVisibleChange(true);
-    }}
-    onKeyUp={(event) => {
-      if (event.key !== " " && event.key !== "Enter") return;
-      event.preventDefault();
-      onVisibleChange(false);
-    }}
-    onBlur={() => onVisibleChange(false)}
+    onClick={() => onVisibleChange(!visible)}
     onContextMenu={(event) => event.preventDefault()}
     onDragStart={(event) => event.preventDefault()}
   >
     {!visible ? <div className="gem-file-closed">
       <img src="/gem-secret-dossier.webp" alt="" aria-hidden="true" />
-      <div><span>TOP SECRET · 개인 열람</span><strong>내 사건 파일 확인</strong><small>휴대폰을 가리고 누르고 계세요</small><i>누르는 동안만 보여요</i></div>
+      <div><span>TOP SECRET · 개인 열람</span><strong>내 사건 파일 확인</strong><small>휴대폰을 가리고 눌러 확인하세요</small><i>한 번 더 누르면 닫혀요</i></div>
     </div> : <div className="gem-file-open">
       <div className="gem-file-hero">
         <img src={gemAsset("traits", dossier.trait.id)} alt="" aria-hidden="true" />
@@ -471,7 +435,7 @@ function GemSecretFile({ info, room, visible, onVisibleChange }: { info: GemPriv
       <div className="gem-clue-stack">{info.clues.map((clue, index) => <div className={`gem-clue-card clue-${index % 3}`} key={`${clue.title}-${index}`}>
         <span className="gem-clue-photo" aria-hidden="true" style={{ backgroundImage: `linear-gradient(90deg, transparent, rgba(11,15,19,.34)), url("${gemAsset("questions", GEM_CLUE_IMAGE_IDS[index % GEM_CLUE_IMAGE_IDS.length])}")` }} /><div><small>{clue.title} · {clue.strength}</small><strong>{clue.text}</strong></div>
       </div>)}</div>
-      <i>손을 떼면 기밀 파일이 닫혀요</i>
+      <i>확인을 마치면 사건 파일을 한 번 더 눌러 닫아주세요</i>
     </div>}
   </button>;
 }
