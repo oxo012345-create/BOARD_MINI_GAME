@@ -703,9 +703,11 @@ test("keeps the requested game set and removes excluded modes", async () => {
     readFile(new URL("../app/api/rooms/[code]/events/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/rooms/[code]/route.ts", import.meta.url), "utf8"),
   ]);
-  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
-    assert.match(page, new RegExp(required));
+  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "미니(보드)게임", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
+    assert.ok(page.includes(required), `${required} should be present`);
   }
+  assert.match(page, /const BOARD_GAMES:[\s\S]*?id: "gem-heist"[\s\S]*?category: "board"/);
+  assert.match(page, /const ALL_GAMES = \[\.\.\.SOLO_GAMES, \.\.\.COOP_GAMES, \.\.\.BOARD_GAMES\]/);
   for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다", "누가 걸렸는지는 우리끼리 판정", "마이크 판정 없음", "점수표 없음", "팀전 없음", "우리끼리 판정하고 있어요", "vote-correct"]) {
     assert.doesNotMatch(page, new RegExp(removed));
   }

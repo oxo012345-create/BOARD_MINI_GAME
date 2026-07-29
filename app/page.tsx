@@ -85,7 +85,7 @@ type GameRound = {
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
-type GameMeta = { id: string; title: string; icon: string; description: string; category: "solo" | "coop" };
+type GameMeta = { id: string; title: string; icon: string; description: string; category: "solo" | "coop" | "board" };
 
 const AVATARS = ["😎", "🥳", "🤠", "👻", "🐥", "🐰", "🐻", "🦊"];
 const SOLO_GAMES: GameMeta[] = [
@@ -94,7 +94,6 @@ const SOLO_GAMES: GameMeta[] = [
   { id: "body-liar", title: "몸으로 라이어", icon: "🕺", description: "말 없이 몸으로 표현해요", category: "solo" },
   { id: "face-liar", title: "얼굴로 라이어", icon: "😶", description: "표정만으로 제시어를 표현해요", category: "solo" },
   { id: "unknown", title: "라이어-질문", icon: "❓", description: "한 명만 질문을 모르거나 달라요", category: "solo" },
-  { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "solo" },
   { id: "initial", title: "초성 퀴즈", icon: "ㄱ", description: "술래 오른쪽부터 틀릴 때까지", category: "solo" },
   { id: "hunmin", title: "무한 훈민정음", icon: "ㅎ", description: "초성 단어를 막힐 때까지 말해요", category: "solo" },
   { id: "taste", title: "취향 일치", icon: "🤝", description: "휴대폰으로 취향을 선택해요", category: "solo" },
@@ -113,7 +112,10 @@ const COOP_GAMES: GameMeta[] = [
   { id: "character", title: "캐릭터 퀴즈", icon: "🧸", description: "한 명씩 5초, 전원 성공하면 통과", category: "coop" },
   { id: "group-initial", title: "단체 초성 퀴즈", icon: "👥", description: "3초 안에 초성 단어를 말해요", category: "coop" },
 ];
-const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES];
+const BOARD_GAMES: GameMeta[] = [
+  { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
+];
+const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
 const LIAR_OPTION_GAMES = ["liar", "body-liar", "face-liar", "unknown"];
 const FAST_SYNC_INTERVAL_MS = 500;
@@ -505,7 +507,7 @@ export default function Home() {
   const [avatar, setAvatar] = useState(() => getStoredValue("hanpan-avatar", AVATARS[0]));
   const [joinCode, setJoinCode] = useState(getFreshRoomCodeFromUrl);
   const [intent, setIntent] = useState<"create" | "join" | null>(null);
-  const [tab, setTab] = useState<"solo" | "coop">("solo");
+  const [tab, setTab] = useState<"solo" | "coop" | "board">("solo");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [roleVisible, setRoleVisible] = useState(false);
@@ -958,7 +960,7 @@ export default function Home() {
 
   if (me?.status === "waiting") return <main className="app-shell">{topBar("다음 판 대기")}<section className="waiting-card"><span className="big-emoji">👋</span><h2>현재 게임이 진행 중이에요</h2><p>이번 판이 끝나면 동일한 참가자로 자동 참여해요.</p></section>{commonOverlays}</main>;
 
-  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : COOP_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className={`game-icon ${game.id === "gem-heist" ? "gem-photo-icon" : ""}`}>{game.id === "gem-heist" ? "" : game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
+  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : tab === "coop" ? COOP_GAMES : BOARD_GAMES; return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(RANDOM_GAMES))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{RANDOM_GAMES.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button><button role="tab" aria-selected={tab === "board"} className={tab === "board" ? "active" : ""} onClick={() => setTab("board")}>미니(보드)게임 <span>{BOARD_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className={`game-icon ${game.id === "gem-heist" ? "gem-photo-icon" : ""}`}>{game.id === "gem-heist" ? "" : game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
 
   if (room.view === "briefing" && currentGame) {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
