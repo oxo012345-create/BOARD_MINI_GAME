@@ -728,7 +728,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(rounds, /gemCandidateIds/);
   assert.match(rounds, /사건 시각과 맞지 않는 알리바이가 있습니다/);
   assert.match(rounds, /모든 단서를 합쳤을 때 범인을 포함한 용의자 두 명이 남지 않습니다/);
-  assert.match(page, /수사대는 자신이 가진 단서 중 하나만 말할 수 있어요/);
+  assert.match(page, /단서 1개만 공개 · 최종 2명은 대화로 판별/);
   assert.match(roomRoute, /handleGemInvestigationTimeout/);
   assert.match(page, /누르는 동안만 보여요/);
   assert.match(page, /FAST_SYNC_INTERVAL_MS = 500/);
@@ -905,8 +905,11 @@ test("ships the complete 230-asset gem-heist visual system", async () => {
   assert.match(page, /className="gem-scene-photo"/);
   assert.match(page, /className="gem-evidence-copy"/);
   assert.match(page, /className="gem-role-overlay"/);
-  assert.match(page, /onClick=\{\(\) => onVisibleChange\(!visible\)\}/);
-  assert.match(page, /한 번 더 누르면 닫혀요/);
+  assert.match(page, /onClick=\{\(\) => onVisibleChange\(true\)\}/);
+  assert.match(page, /onClick=\{\(\) => onVisibleChange\(false\)\}/);
+  assert.match(page, /자세한 진술 보기/);
+  assert.match(page, /사건의 전말 보기/);
+  assert.match(page, /사건 파일 닫기/);
   assert.doesNotMatch(page, /addEventListener\("touchend", releaseTouch/);
   assert.match(css, /\.gem-secret-file\s*\{[\s\S]*?touch-action:\s*pan-y/);
   assert.match(page, /GEM_CLOCK_ANGLES/);

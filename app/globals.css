@@ -464,8 +464,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-case-board.compact .gem-scene-copy h2 { margin: 5px 0 6px; font-size: 19px; }
 .gem-case-board.compact .gem-scene-copy p { display: -webkit-box; overflow: hidden; font-size: 9px; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
-.gem-secret-file { display: block; width: 100%; min-height: 150px; margin-bottom: 12px; padding: 0; overflow: hidden; border: 1px dashed rgba(245,202,114,.35); border-radius: 22px; background: linear-gradient(145deg, #1a1715, #12151b); color: #f7f4ec !important; -webkit-text-fill-color: #f7f4ec; text-align: left; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
-.gem-secret-file * { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.gem-secret-file { display: block; width: 100%; min-height: 150px; margin-bottom: 12px; padding: 0; overflow: hidden; border: 1px dashed rgba(245,202,114,.35); border-radius: 22px; background: linear-gradient(145deg, #1a1715, #12151b); color: #f7f4ec !important; -webkit-text-fill-color: #f7f4ec; text-align: left; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
+.gem-file-toggle { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation; }
+.gem-file-toggle * { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
 .gem-file-closed { position: relative; min-height: 190px; overflow: hidden; text-align: center; }
 .gem-file-closed::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,8,10,.18), rgba(7,8,10,.88)); }
 .gem-file-closed > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
@@ -480,6 +481,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-file-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,10,14,.02), #151518); }
 .gem-file-hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
 .gem-file-hero span { position: absolute; z-index: 1; right: 14px; bottom: 10px; color: rgba(255,255,255,.7); -webkit-text-fill-color: rgba(255,255,255,.7); font: 850 7px/1 ui-monospace, monospace; letter-spacing: .16em; }
+.gem-file-close { position: absolute; z-index: 3; top: 10px; right: 12px; min-height: 32px; padding: 0 12px; border: 1px solid rgba(255,255,255,.22); border-radius: 10px; background: rgba(8,10,14,.72); color: #fff; -webkit-text-fill-color: #fff; font-size: 10px; font-weight: 850; cursor: pointer; touch-action: manipulation; }
+.gem-file-close-bottom { width: 100%; min-height: 44px; margin-top: 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 13px; background: rgba(255,255,255,.045); color: #c9cdd3; -webkit-text-fill-color: #c9cdd3; font-size: 11px; font-weight: 850; cursor: pointer; touch-action: manipulation; }
 .gem-role-stamp { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .gem-role-stamp > span { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid rgba(245,202,114,.4); border-radius: 14px; color: var(--gem-gold); -webkit-text-fill-color: var(--gem-gold); font-size: 23px; }
 .gem-role-stamp small, .gem-role-stamp strong { display: block; }
@@ -507,6 +510,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-one-clue-rule small { color: #aeb2b8; -webkit-text-fill-color: #aeb2b8; font-size: 9px; line-height: 1.45; }
 .gem-one-clue-rule.briefing { margin-top: 12px; text-align: left; }
 .gem-one-clue-rule.investigation-rule { margin: 13px 0 10px; text-align: left; }
+.gem-one-clue-rule.compact { grid-template-columns: auto 1fr; align-items: center; gap: 8px; padding: 10px 12px; }
+.gem-one-clue-rule.compact small { grid-column: 1 / -1; }
 .gem-clue-card { display: grid; grid-template-columns: 76px 1fr; align-items: stretch; min-height: 82px; overflow: hidden; border: 1px solid rgba(139,231,255,.17); border-radius: 13px; background: rgba(139,231,255,.055); }
 .gem-clue-photo { display: block; min-height: 82px; background-position: 35% center; background-size: cover; }
 .gem-clue-card.clue-1 .gem-clue-photo { background-position: 62% center; }
@@ -1058,8 +1063,42 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   -webkit-text-fill-color: #f5f1e8;
   font-size: 14px;
 }
+.gem-disclosure {
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  overflow: hidden;
+}
+.gem-disclosure summary {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  padding: 11px 38px 11px 13px;
+  list-style: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.gem-disclosure summary::-webkit-details-marker,
+.gem-result-disclosure summary::-webkit-details-marker { display: none; }
+.gem-disclosure summary::after,
+.gem-result-disclosure summary::after {
+  content: "+";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  color: var(--gem-gold);
+  font-size: 18px;
+  font-weight: 500;
+  transform: translateY(-50%);
+}
+.gem-disclosure[open] summary::after,
+.gem-result-disclosure[open] summary::after { content: "−"; }
+.gem-disclosure summary span { color: #e7e9ec; -webkit-text-fill-color: #e7e9ec; font-size: 12px; font-weight: 900; }
+.gem-disclosure summary small { color: #7f8791; -webkit-text-fill-color: #7f8791; font-size: 8px; }
 .gem-statement-file {
-  padding: 0 12px 2px;
+  padding: 0 10px 10px;
 }
 .gem-statement-grid {
   display: grid;
@@ -1133,6 +1172,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   background: linear-gradient(145deg, rgba(245,202,114,.06), rgba(139,231,255,.025));
 }
 .gem-case-explanation > p {
+  margin: 0;
   color: #c8cdd4;
   font-size: 11px;
   line-height: 1.65;
@@ -1155,6 +1195,29 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   color: #effbff;
   font-size: 15px;
 }
+.gem-result-disclosure {
+  margin-top: 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  overflow: hidden;
+}
+.gem-result-disclosure summary {
+  position: relative;
+  min-height: 50px;
+  padding: 16px 42px 14px 14px;
+  color: #e5e8ec;
+  font-size: 12px;
+  font-weight: 900;
+  list-style: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.gem-result-disclosure .gem-case-explanation { margin: 0 10px 10px; }
+.gem-result-disclosure .gem-decisive-clues { margin: 0 10px 10px; }
+.gem-result-disclosure .gem-signature { margin: 0 10px 10px; }
+.gem-result-disclosure .gem-vote-result { margin: 0 10px; }
+.gem-result-disclosure .gem-vote-map { margin: 8px 10px 10px; }
 .gem-decisive-clues {
   display: grid;
   gap: 7px;
