@@ -2,6 +2,7 @@ import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayer
 import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
+import { createMazeState } from "../../_lib/maze";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -161,6 +162,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "gem-heist" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "사라진 보석은 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
+      if (gameId === "maze-courier" && room.players.length > 8) {
+        return Response.json({ error: "미로의 배달부는 최대 8명까지 함께할 수 있어요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const pendingGame = room.game as GameRound | undefined;
       const previousContentKey = pendingGame?.id === gameId
@@ -175,6 +179,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         payload.difficulty === "easy" || payload.difficulty === "hard" ? payload.difficulty : "normal",
       );
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
+      if (gameId === "maze-courier") game.maze = createMazeState(room.players);
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;

@@ -106,6 +106,7 @@ export type GameRound = {
   gemVotes?: Record<string, string>;
   gemCaught?: boolean;
   gemSolution?: GemSolution;
+  maze?: import("./maze").MazeState;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -123,6 +124,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   color: { title: "색깔 찾기", briefing: "제시된 색깔의 물건을 찾아 카메라로 찍어 올리세요. 촬영 순서대로 사진이 표시됩니다.", category: "solo" },
   "object-initial": { title: "초성 물건 찾기", briefing: "제시된 초성으로 시작하는 물건을 찾아 카메라로 찍어 올리세요.", category: "solo" },
   "gem-heist": { title: "사라진 보석", briefing: "범인은 가짜 알리바이로 정체를 숨깁니다. 각자 단서 하나만 말해 두 용의자로 좁힌 뒤, 대화의 모순을 찾아 비밀 투표하세요.", category: "solo" },
+  "maze-courier": { title: "미로의 배달부", briefing: "최대 8명이 같은 3D 미로에서 재료를 찾아 중앙 조리대로 배달합니다. 길을 막고, 밀치고, 캐릭터 스킬을 활용해 제한 시간 안에 가장 많은 요리를 완성하세요.", category: "solo" },
   telestration: { title: "텔레그레이션", briefing: "45초·40초·35초 동안 그림을 이어 그립니다. 마지막 그림의 정답 입력에는 제한시간이 없고, 두 명 이상 맞히면 통과입니다.", category: "coop" },
   people: { title: "인물 퀴즈", briefing: "한 사람씩 5초 안에 사진 속 인물을 맞힙니다. 전원이 성공하면 통과하고, 방장이 다음 문제 또는 실패를 선택합니다.", category: "coop" },
   chain: { title: "줄줄이 말해요", briefing: "같은 주제로 한 사람씩 5초 안에 답합니다. 전원이 성공하면 통과하고, 주제는 도중에 바뀌지 않습니다.", category: "coop" },
@@ -805,6 +807,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "color") return { ...base, prompt: pick(getList("colors", ["파랑"])), photoSubmissions: [] };
   if (id === "object-initial") return { ...base, prompt: pick(getList("objectInitials", ["ㄱ"])), photoSubmissions: [] };
   if (id === "gem-heist") return makeGemHeistRound(base, players, specialRoles, gemDifficulty);
+  if (id === "maze-courier") return { ...base, prompt: "서버 판정 3D 배달 대결" };
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));

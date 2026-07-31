@@ -83,6 +83,7 @@ type GameRound = {
   gemSpecialRoles?: boolean; gemPhase?: "dossier" | "investigation" | "vote"; gemCase?: GemCase; gemPrivate?: GemPrivate;
   gemDifficulty?: "easy" | "normal" | "hard";
   gemQuestion?: GemCard; gemQuestionIndex?: number; gemVoteStatus?: string[]; gemMyVote?: string; gemResult?: GemResult; gemCaught?: boolean;
+  mazeStartedAt?: number;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -114,6 +115,7 @@ const COOP_GAMES: GameMeta[] = [
   { id: "group-initial", title: "단체 초성 퀴즈", icon: "👥", description: "3초 안에 초성 단어를 말해요", category: "coop" },
 ];
 const BOARD_GAMES: GameMeta[] = [
+  { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
@@ -976,6 +978,7 @@ export default function Home() {
 
   if (room.view === "briefing" && currentGame) {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
+    const mazePlayerCountValid = room.players.length <= 8;
     return <main className={`app-shell briefing-shell ${currentGame.id === "gem-heist" ? "gem-briefing-shell" : ""}`}>
       {topBar("게임 설명")}
       <section className="briefing-card">
@@ -1008,8 +1011,16 @@ export default function Home() {
           </div>}
           <div className={`gem-player-rule ${gemPlayerCountValid ? "ready" : "warning"}`}><span>{gemPlayerCountValid ? "✓" : "!"}</span><div><strong>4~8명 전용 게임</strong><small>현재 {room.players.length}명 · {gemPlayerCountValid ? "수사를 시작할 수 있어요" : room.players.length < 4 ? `${4 - room.players.length}명 더 필요해요` : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
         </>}
+        {currentGame.id === "maze-courier" && <>
+          <div className="maze-briefing-steps">
+            <span><b>1</b><strong>재료 찾기</strong><small>맵 가장자리 8개 출입구</small></span>
+            <span><b>2</b><strong>미로 돌파</strong><small>밀치기와 캐릭터 스킬</small></span>
+            <span><b>3</b><strong>중앙 배달</strong><small>요리 완성으로 점수 획득</small></span>
+          </div>
+          <div className={`gem-player-rule ${mazePlayerCountValid ? "ready" : "warning"}`}><span>{mazePlayerCountValid ? "✓" : "!"}</span><div><strong>서버 판정 · 최대 8인</strong><small>현재 {room.players.length}명 · {mazePlayerCountValid ? "모든 이동·충돌·아이템을 서버가 검증해요" : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
+        </>}
       </section>
-      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
+      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;
   }
@@ -1040,6 +1051,19 @@ export default function Home() {
   }
 
   if (!currentGame) return <main className="app-shell"><div className="waiting-card">게임 정보를 불러오는 중</div>{commonOverlays}</main>;
+  if (currentGame.id === "maze-courier") return <main className="maze-courier-shell">
+    <iframe
+      key={`${room.code}-${currentGame.mazeStartedAt ?? currentGame.startedAt}`}
+      src={`/maze-courier/characters.html?select=1&embedded=1&online=1&room=${room.code}`}
+      title="미로의 배달부"
+      allow="autoplay; fullscreen"
+    />
+    <div className="maze-courier-toolbar">
+      <span><b>{room.code}</b> · {room.players.length}/8명</span>
+      {isHost && <button type="button" onClick={() => setConfirmType("finish")}>게임 종료</button>}
+    </div>
+    {commonOverlays}
+  </main>;
   const privateRole = currentGame.privateRole;
   const submissions = [...(currentGame.photoSubmissions ?? [])].sort((a, b) => a.submittedAt - b.submittedAt);
   const hasPhoto = submissions.some((item) => item.playerId === room.meId);

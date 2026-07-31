@@ -1,0 +1,340 @@
+:root {
+  color-scheme: dark;
+  font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
+  background: #081225;
+  color: #f7f9ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.embedded .multiplayer-lobby { display: none; }
+
+html,
+body,
+.character-shell {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(44, 76, 128, 0.4), transparent 43%),
+    #081225;
+}
+
+.character-shell {
+  position: relative;
+}
+
+#character-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+#character-canvas:active {
+  cursor: grabbing;
+}
+
+.title-card,
+#character-detail,
+#character-list,
+.multiplayer-lobby,
+.selection-actions {
+  position: absolute;
+  z-index: 2;
+}
+
+.title-card,
+#character-detail,
+.multiplayer-lobby,
+.selection-actions {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(5, 13, 29, 0.72);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(14px);
+}
+
+.multiplayer-lobby {
+  top: 18px;
+  right: 18px;
+  width: min(285px, calc(100vw - 36px));
+  padding: 11px;
+  border-radius: 16px;
+}
+
+.lobby-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: #eaf8ff;
+  font-size: 12px;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5cf5a5;
+  box-shadow: 0 0 12px rgba(92, 245, 165, 0.65);
+}
+
+.room-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.multiplayer-lobby input,
+.multiplayer-lobby button {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  font: 850 11px/1 Pretendard, "Noto Sans KR", system-ui, sans-serif;
+}
+
+.multiplayer-lobby input {
+  min-width: 0;
+  padding: 0 10px;
+  outline: none;
+  background: rgba(7, 17, 36, 0.86);
+  color: #fff;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.multiplayer-lobby input:focus {
+  border-color: rgba(98, 230, 255, 0.74);
+}
+
+.multiplayer-lobby button {
+  padding: 0 11px;
+  background: rgba(37, 58, 94, 0.92);
+  color: #e9f3ff;
+  cursor: pointer;
+}
+
+#create-room {
+  width: 100%;
+  margin-top: 6px;
+  border-color: rgba(92, 245, 165, 0.45);
+  background: linear-gradient(135deg, rgba(20, 119, 105, 0.95), rgba(39, 98, 162, 0.95));
+}
+
+#lobby-message {
+  display: block;
+  margin-top: 7px;
+  color: #92a5c2;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.title-card {
+  top: 18px;
+  left: 18px;
+  padding: 14px 17px 15px;
+  border-radius: 16px;
+}
+
+.title-card p {
+  margin: 0 0 3px;
+  color: #62e6ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+}
+
+.title-card h1 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 32px);
+  letter-spacing: -0.05em;
+}
+
+.title-card span {
+  display: block;
+  margin-top: 5px;
+  color: #aab6cd;
+  font-size: 11px;
+}
+
+#character-list {
+  right: 18px;
+  bottom: 76px;
+  display: grid;
+  grid-template-columns: repeat(8, auto);
+  gap: 7px;
+}
+
+.character-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: var(--swatch);
+  box-shadow: inset 0 -8px 12px rgba(0, 0, 0, 0.18);
+  color: #081225;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.character-button[aria-pressed="true"] {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(98, 230, 255, 0.35),
+    inset 0 -8px 12px rgba(0, 0, 0, 0.16);
+  transform: translateY(-3px);
+}
+
+#character-detail {
+  left: 18px;
+  bottom: 76px;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 12px 15px;
+  border-radius: 14px;
+}
+
+#character-detail strong {
+  font-size: 15px;
+}
+
+#character-detail span {
+  margin-top: 3px;
+  color: #aab6cd;
+  font-size: 11px;
+}
+
+#selected-movement {
+  margin-top: 8px !important;
+  color: #67e7ff !important;
+  font-weight: 800;
+}
+
+#selected-disruption {
+  color: #ffb071 !important;
+  font-weight: 800;
+}
+
+.selection-actions {
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.selection-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(28, 47, 79, 0.92);
+  color: #dce6fa;
+  font: 850 12px/1 Pretendard, "Noto Sans KR", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.selection-actions button:hover {
+  border-color: rgba(98, 230, 255, 0.55);
+  color: #fff;
+}
+
+#start-game {
+  border-color: rgba(98, 230, 255, 0.68);
+  background: linear-gradient(135deg, #31b6d7, #506eea);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(49, 182, 215, 0.24);
+}
+
+#loading {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  color: #afbdd4;
+  font-size: 13px;
+}
+
+@media (max-width: 650px) {
+  .title-card {
+    top: 10px;
+    left: 10px;
+  }
+
+  .multiplayer-lobby {
+    top: 118px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    padding: 9px;
+  }
+
+  #character-detail {
+    left: 10px;
+    right: 10px;
+    bottom: 154px;
+    min-width: 0;
+    padding: 9px 12px;
+  }
+
+  #character-list {
+    left: 50%;
+    right: 10px;
+    bottom: 70px;
+    grid-template-columns: repeat(8, auto);
+    gap: 5px;
+    width: max-content;
+    translate: -50% 0;
+  }
+
+  .character-button {
+    width: min(36px, calc((100vw - 55px) / 8));
+    height: min(36px, calc((100vw - 55px) / 8));
+    border-radius: 9px;
+  }
+
+  .selection-actions {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+  }
+
+  .selection-actions button {
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}
+
+@media (max-height: 620px) {
+  .title-card span {
+    display: none;
+  }
+
+  #character-detail {
+    bottom: 118px;
+  }
+
+  #character-detail span {
+    display: none;
+  }
+
+  .multiplayer-lobby {
+    top: 78px;
+  }
+
+  #lobby-message {
+    display: none;
+  }
+}

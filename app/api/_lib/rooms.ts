@@ -53,6 +53,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const gemAccompliceId = internal.gemAccompliceId;
     const gemQuestions = internal.gemQuestions;
     const gemSolution = internal.gemSolution;
+    const mazeStartedAt = internal.maze?.startedAt;
 
     delete game.answer;
     delete game.liarId;
@@ -76,6 +77,9 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.gemAccompliceId;
     delete game.gemQuestions;
     delete game.gemSolution;
+    delete game.maze;
+
+    if (internal.id === "maze-courier") game.mazeStartedAt = mazeStartedAt;
 
     if (internal.id === "gem-heist") {
       game.gemQuestion = gemQuestions?.[internal.gemQuestionIndex ?? 0];
