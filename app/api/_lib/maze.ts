@@ -2,6 +2,7 @@
 // @ts-expect-error The shared game rules are authored as a runtime ESM module.
 import {
   CHARACTER_LOADOUTS,
+  DEPOT_ITEM_REFRESH_MS,
   FOOD_RECIPES,
   GAME_DURATION_MS,
   HALF,
@@ -38,6 +39,7 @@ export type MazeState = {
   players: Record<string, MazePlayer>; items: Record<string, MazeItem>; oils: Record<string, MazeOil>;
   nextItemSerial: number; nextOilSerial: number;
   depotReadyAt?: number[];
+  nextDepotRefreshAt?: number;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -85,6 +87,14 @@ function neededIngredient(state: MazeState, depotIndex: number) {
 function refillDepots(state: MazeState) {
   const now = Date.now();
   const depotReadyAt = state.depotReadyAt ?? (state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0));
+  if (!state.nextDepotRefreshAt) state.nextDepotRefreshAt = now + DEPOT_ITEM_REFRESH_MS;
+  if (now >= state.nextDepotRefreshAt) {
+    for (const item of Object.values(state.items)) {
+      if (!item.heldBy) delete state.items[item.id];
+    }
+    depotReadyAt.fill(0);
+    state.nextDepotRefreshAt = now + DEPOT_ITEM_REFRESH_MS;
+  }
   for (let depotIndex = 0; depotIndex < SUPPLY_DEPOTS.length; depotIndex += 1) {
     if (Object.values(state.items).some((item) => item.depotIndex === depotIndex && !item.heldBy)) continue;
     if ((depotReadyAt[depotIndex] ?? 0) > now) continue;
@@ -100,7 +110,8 @@ export function createMazeState(players: Player[], characterSelections: Record<s
   const themes: MazeState["theme"][] = ["ice", "lava", "space"];
   const state: MazeState = {
     mapSeed: randomSeed(), theme: themes[randomIndex(themes.length)], startedAt: startsAt, endsAt: startsAt + GAME_DURATION_MS,
-    players: {}, items: {}, oils: {}, nextItemSerial: 0, nextOilSerial: 0, depotReadyAt: Array(SUPPLY_DEPOTS.length).fill(0),
+    players: {}, items: {}, oils: {}, nextItemSerial: 0, nextOilSerial: 0,
+    depotReadyAt: Array(SUPPLY_DEPOTS.length).fill(0), nextDepotRefreshAt: startsAt + DEPOT_ITEM_REFRESH_MS,
   };
   players.slice(0, 8).forEach((player, index) => { state.players[player.id] = makePlayer(player, index, now, characterSelections); });
   refillDepots(state);
@@ -456,7 +467,9 @@ export function applyMazeMessage(
       item.stunUntil = 0; item.immunityUntil = 0; item.wallRunUntil = 0; item.fluidizeUntil = 0;
       item.cooldowns = {}; item.sprintStamina = 2; item.sprintRechargeAt = now;
     });
-    state.items = {}; state.oils = {}; state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0); refillDepots(state);
+    state.items = {}; state.oils = {}; state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0);
+    state.nextDepotRefreshAt = now + DEPOT_ITEM_REFRESH_MS;
+    refillDepots(state);
     events.push({ type: "world", mapSeed: state.mapSeed, theme: state.theme, startedAt: state.startedAt, players: Object.values(state.players).map((item) => publicPlayer(item, now)), game: mazeGameSnapshot(state) });
   }
   events.push({ type: "game", game: mazeGameSnapshot(state) });

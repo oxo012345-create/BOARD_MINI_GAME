@@ -206,6 +206,7 @@ const selectedCharacterIndex = THREE.MathUtils.clamp(
 const activeLoadout = CHARACTER_LOADOUTS[selectedCharacterIndex];
 
 const GAME_DURATION_SECONDS = 3 * 60;
+const DEPOT_ITEM_REFRESH_SECONDS = 15;
 const SUPPLY_DEPOTS = [
   { grid: [8, 0], spawn: [-1, -8.3] },
   { grid: [10, 0], spawn: [1, -8.3] },
@@ -3064,10 +3065,10 @@ function updateItems(time, delta) {
     item.age += delta;
     item.group.position.y = item.spawnY + Math.sin(time * 2.6 + item.phase) * 0.055;
     item.group.rotation.y += delta * 0.78;
-    if (!multiplayerEnabled && item.age > 12 && !currentRecipe.ingredients.includes(item.ingredientKey)) {
+    if (!multiplayerEnabled && item.age >= DEPOT_ITEM_REFRESH_SECONDS) {
       const depotIndex = item.depotIndex;
       removeIngredientItem(item);
-      depotRespawnTimers[depotIndex] = 0.25;
+      depotRespawnTimers[depotIndex] = 0;
     }
   });
   if (multiplayerEnabled) return;
@@ -3902,6 +3903,19 @@ function createOuterWallLayout() {
   return walls;
 }
 
+function addTrafficFunnelWalls(walls) {
+  const add = (x, z) => walls.add(`${x},${z}`);
+  const funnelRanges = [[3, 6], [12, 15]];
+  funnelRanges.forEach(([start, end]) => {
+    for (let distance = start; distance <= end; distance += 1) {
+      add(8, distance);
+      add(10, distance);
+      add(distance, 8);
+      add(distance, 10);
+    }
+  });
+}
+
 function createReservedMazeCells() {
   const reserved = new Set();
   const reserve = (x, z) => reserved.add(`${x},${z}`);
@@ -3990,6 +4004,7 @@ function generateRandomWallLayout(seed) {
   const reserved = createReservedMazeCells();
   const walls = createOuterWallLayout();
   const outerWallCount = walls.size;
+  addTrafficFunnelWalls(walls);
   const targetInternalWalls = 70 + Math.floor(random() * 22);
   let attempts = 0;
 
