@@ -54,7 +54,10 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
       if (!payload?.roomCode || !payload.maze || !Array.isArray(payload.players)) {
         return jsonResponse({ error: "INVALID_BOOTSTRAP" }, 400);
       }
-      if (!this.room || payload.maze.startedAt !== this.room.maze.startedAt) {
+      // A reconnect can carry the older D1 bootstrap after the live room has
+      // already restarted its map. Only a genuinely newer game generation may
+      // replace Durable Object state.
+      if (!this.room || payload.maze.startedAt > this.room.maze.startedAt) {
         this.room = {
           roomCode: payload.roomCode,
           hostId: payload.hostId,
