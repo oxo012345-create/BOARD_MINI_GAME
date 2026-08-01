@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=12" />
+  <link rel="stylesheet" href="./styles.css?v=13" />
 </head>
 <body>
   <main id="app">
@@ -63,7 +63,7 @@
     </section>
 
     <section class="sheet" id="sheet">
-      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-handle" id="sheet-handle" role="separator" aria-label="패널 높이 조절" aria-valuemin="46" aria-valuemax="620" aria-valuenow="320" tabindex="0"></div>
       <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="sheet-scroll" id="sheet-scroll">
         <div id="notice" class="notice">경매장에 연결하는 중…</div>
@@ -79,6 +79,6 @@
       <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=10"></script>
+  <script type="module" src="./game.js?v=11"></script>
 </body>
 </html>

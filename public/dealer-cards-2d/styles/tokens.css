@@ -21,6 +21,7 @@
   --hud-height: 72px;
   --dock-height: 80px;
   --strategy-sheet-height: clamp(208px, 32dvh, 282px);
+  --sheet-height: clamp(220px, 40dvh, 360px);
   --table-diameter: min(86vw, 42dvh, 432px);
   --table-top: clamp(132px, 17dvh, 158px);
   --shadow-soft: 0 8px 18px rgba(0, 0, 0, .28);

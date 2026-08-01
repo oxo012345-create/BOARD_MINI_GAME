@@ -6,7 +6,7 @@ const ui = {
   round: $("round"), phase: $("phase"), timer: $("timer"), cash: $("cash"), seats: $("seats"),
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"),
-  value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"),
+  value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheet: $("sheet"), sheetHandle: $("sheet-handle"), sheetScroll: $("sheet-scroll"),
   itemCount: $("item-count"), cardCount: $("card-count"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
@@ -19,6 +19,69 @@ let menuOpen = true;
 let busy = false;
 let lastRevision = -1;
 let serverOffset = 0;
+let sheetDrag = null;
+
+const SHEET_COLLAPSED = 46;
+const sheetViewport = () => Math.max(document.documentElement.clientHeight || 0, window.visualViewport?.height || 0, window.innerHeight || 0);
+const sheetLimits = () => {
+  const viewport = sheetViewport();
+  const max = Math.max(SHEET_COLLAPSED, Math.min(viewport * .74, viewport - 170));
+  return { min: SHEET_COLLAPSED, max };
+};
+const clampSheetHeight = (value) => {
+  const { min, max } = sheetLimits();
+  return Math.round(Math.min(max, Math.max(min, Number(value) || min)));
+};
+const setSheetHeight = (value) => {
+  const height = clampSheetHeight(value);
+  document.documentElement.style.setProperty("--sheet-height", `${height}px`);
+  ui.sheetHandle?.setAttribute("aria-valuenow", String(height));
+  ui.sheetHandle?.setAttribute("aria-valuemax", String(sheetLimits().max));
+  return height;
+};
+const readSheetHeight = () => Math.round(ui.sheet?.getBoundingClientRect().height || SHEET_COLLAPSED);
+const syncSheetHandle = () => {
+  if (!ui.sheetHandle) return;
+  ui.sheetHandle.setAttribute("aria-valuenow", String(readSheetHeight()));
+  ui.sheetHandle.setAttribute("aria-valuemax", String(sheetLimits().max));
+};
+
+function beginSheetDrag(event) {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  const openHeight = Math.max(readSheetHeight(), SHEET_COLLAPSED);
+  sheetDrag = { pointerId: event.pointerId, startY: event.clientY, startHeight: openHeight };
+  menuOpen = true;
+  document.body.dataset.menu = "open";
+  document.body.dataset.dragging = "sheet";
+  ui.sheetHandle?.setPointerCapture?.(event.pointerId);
+  renderTab();
+  event.preventDefault();
+}
+
+function moveSheetDrag(event) {
+  if (!sheetDrag || event.pointerId !== sheetDrag.pointerId) return;
+  setSheetHeight(sheetDrag.startHeight - (event.clientY - sheetDrag.startY));
+  document.body.dataset.menu = "open";
+  event.preventDefault();
+}
+
+function finishSheetDrag(event) {
+  if (!sheetDrag || (event && event.pointerId !== sheetDrag.pointerId)) return;
+  const height = readSheetHeight();
+  const shouldClose = height <= SHEET_COLLAPSED + 24;
+  sheetDrag = null;
+  document.body.removeAttribute("data-dragging");
+  menuOpen = !shouldClose;
+  if (shouldClose) setSheetHeight(SHEET_COLLAPSED);
+  renderTab();
+  ui.sheetHandle?.releasePointerCapture?.(event?.pointerId);
+}
+
+function nudgeSheet(delta) {
+  menuOpen = true;
+  setSheetHeight(readSheetHeight() + delta);
+  renderTab();
+}
 
 const money = (value) => `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
 const phaseNames = { select: "자산 심사", auction: "정부 공개 경매", resolution: "낙찰 승인", shop: "정책 거래소", finished: "최종 정부" };
@@ -161,10 +224,11 @@ function render() {
 function renderTab() {
   document.body.dataset.tab = tab;
   document.body.dataset.menu = menuOpen ? "open" : "closed";
-  if (tab === "items") return renderItems();
-  if (tab === "cards") return renderCards();
-  if (tab === "rules") return renderRules();
+  if (tab === "items") { renderItems(); syncSheetHandle(); return; }
+  if (tab === "cards") { renderCards(); syncSheetHandle(); return; }
+  if (tab === "rules") { renderRules(); syncSheetHandle(); return; }
   renderGame();
+  syncSheetHandle();
 }
 
 function renderGame() {
@@ -285,6 +349,17 @@ function setTab(next) {
 }
 
 document.querySelectorAll(".dock button").forEach((button) => { button.onclick = () => setTab(button.dataset.tab); });
+ui.sheetHandle?.addEventListener("pointerdown", beginSheetDrag);
+ui.sheetHandle?.addEventListener("pointermove", moveSheetDrag);
+ui.sheetHandle?.addEventListener("pointerup", finishSheetDrag);
+ui.sheetHandle?.addEventListener("pointercancel", finishSheetDrag);
+ui.sheetHandle?.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowUp") { event.preventDefault(); nudgeSheet(24); }
+  if (event.key === "ArrowDown") { event.preventDefault(); nudgeSheet(-24); }
+  if (event.key === "Home") { event.preventDefault(); nudgeSheet(SHEET_COLLAPSED - readSheetHeight()); }
+  if (event.key === "End") { event.preventDefault(); nudgeSheet(sheetLimits().max - readSheetHeight()); }
+});
+window.addEventListener("resize", syncSheetHandle, { passive: true });
 setInterval(() => {
   if (!dealer) return;
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
