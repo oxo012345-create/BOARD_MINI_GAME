@@ -873,6 +873,8 @@ let serverClockOffset = 0;
 let networkPollTimer = 0;
 let networkPostInFlight = false;
 const networkPostQueue = [];
+let lastAppliedNetworkSequence = -1;
+const networkSentStates = new Map();
 
 function resolveMultiplayerServerUrl() {
   const provided = launchParams.get("server")?.trim();
@@ -934,18 +936,45 @@ function applyRemoteState(character, state, immediate = false) {
 
 function applyAuthoritativeSelf(player, immediate = false) {
   if (!player?.state || player.id !== localNetworkId) return;
+  const serverSequence = Number(player.state.seq);
+  const hasServerSequence = Number.isFinite(serverSequence);
   const target = new THREE.Vector3(
     Number(player.state.x) || 0,
     Number(player.state.y) || PLAYER_SPAWN.y,
     Number(player.state.z) || 0,
   );
-  const correctionDistance = playerCharacter.group.position.distanceTo(target);
-  if (immediate || correctionDistance > 0.85) {
-    playerCharacter.group.position.copy(target);
-  } else {
-    playerCharacter.group.position.lerp(target, 0.34);
+
+  // A poll can finish after a newer state POST. Applying that older snapshot on
+  // every poll pulls the locally predicted player back toward an already
+  // acknowledged position. Reconcile each authoritative sequence only once.
+  if (immediate || !hasServerSequence || serverSequence > lastAppliedNetworkSequence) {
+    const sentState = hasServerSequence ? networkSentStates.get(serverSequence) : null;
+    if (immediate || !sentState) {
+      playerCharacter.group.position.copy(target);
+    } else {
+      // Preserve movement made after this packet was sent. Only apply the
+      // difference introduced by server collision/speed validation.
+      const correctionX = target.x - sentState.x;
+      const correctionY = target.y - sentState.y;
+      const correctionZ = target.z - sentState.z;
+      const correctionDistance = Math.hypot(correctionX, correctionY, correctionZ);
+      if (correctionDistance > 1.35) {
+        playerCharacter.group.position.copy(target);
+      } else if (correctionDistance > 0.025) {
+        playerCharacter.group.position.x += correctionX;
+        playerCharacter.group.position.y += correctionY;
+        playerCharacter.group.position.z += correctionZ;
+      }
+    }
+    playerCharacter.group.rotation.y = Number(player.state.rotation) || 0;
+    if (hasServerSequence) {
+      lastAppliedNetworkSequence = serverSequence;
+      networkSequence = Math.max(networkSequence, serverSequence);
+      for (const sequence of networkSentStates.keys()) {
+        if (sequence <= serverSequence) networkSentStates.delete(sequence);
+      }
+    }
   }
-  playerCharacter.group.rotation.y = Number(player.state.rotation) || 0;
   playerCharacter.stunRemaining = Math.max(0, Number(player.state.stunRemaining) || 0);
   playerCharacter.immunityRemaining = Math.max(0, Number(player.state.immunityRemaining) || 0);
   playerCharacter.wallRunRemaining = Math.max(0, Number(player.state.wallRunRemaining) || 0);
@@ -1234,8 +1263,16 @@ function handleGatewayPayload(payload) {
 async function postMultiplayer(payload) {
   if (!multiplayerConnected) return false;
   if (networkPostInFlight) {
-    if (payload?.type !== "state") networkPostQueue.push(payload);
-    return false;
+    // Keep the newest movement packet instead of dropping every state while a
+    // request is in flight. Consecutive states are coalesced so high ping never
+    // creates an unbounded backlog, while actions keep their original order.
+    const tailIndex = networkPostQueue.length - 1;
+    if (payload?.type === "state" && networkPostQueue[tailIndex]?.type === "state") {
+      networkPostQueue[tailIndex] = payload;
+    } else {
+      networkPostQueue.push(payload);
+    }
+    return true;
   }
   networkPostInFlight = true;
   try {
@@ -1340,7 +1377,7 @@ function updateMultiplayer(delta) {
   lastNetworkStateSignature = signature;
   lastNetworkStateSentAt = now;
   networkSequence += 1;
-  void postMultiplayer({
+  const payload = {
     type: "state",
     seq: networkSequence,
     x: position.x,
@@ -1351,7 +1388,17 @@ function updateMultiplayer(delta) {
     sprinting: playerCharacter.sprinting,
     wallRunning: playerCharacter.wallRunRemaining > 0,
     fluidized: playerCharacter.fluidizeRemaining > 0,
+  };
+  networkSentStates.set(networkSequence, {
+    x: payload.x,
+    y: payload.y,
+    z: payload.z,
   });
+  // Defensive cap for long offline/retry periods.
+  if (networkSentStates.size > 32) {
+    networkSentStates.delete(networkSentStates.keys().next().value);
+  }
+  void postMultiplayer(payload);
 }
 
 function resetPlayer() {

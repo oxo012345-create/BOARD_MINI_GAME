@@ -175,7 +175,11 @@ export function mazeWelcome(state: MazeState, viewerId: string, hostId: string) 
 function movePlayer(state: MazeState, player: MazePlayer, message: Record<string, unknown>, now: number) {
   const seq = Math.floor(finite(message.seq, -1));
   if (seq <= player.state.seq || player.stunUntil > now) return;
-  const dt = clamp((now - player.state.updatedAt) / 1000, 0.016, 0.45);
+  // State requests are serialized by the client. On a slower mobile link the
+  // interval between accepted packets can exceed 450ms, so the old cap treated
+  // legitimate accumulated movement as a speed hack and pulled the player
+  // backwards. Keep validation speed-based while allowing realistic RTTs.
+  const dt = clamp((now - player.state.updatedAt) / 1000, 0.016, 1.25);
   const moving = Boolean(message.moving);
   const loadout = CHARACTER_LOADOUTS[player.character];
   let sprinting = Boolean(message.sprinting) && loadout.movement === "sprint" && player.sprintStamina > 0;
@@ -242,7 +246,12 @@ function interact(state: MazeState, player: MazePlayer) {
   return { type: "event", kind: "pickup", actorId: player.id };
 }
 
-function useSkill(state: MazeState, player: MazePlayer, skill: string, now: number) {
+function markServerMovement(player: MazePlayer, now: number) {
+  player.state.seq += 1;
+  player.state.updatedAt = now;
+}
+
+function activateSkill(state: MazeState, player: MazePlayer, skill: string, now: number) {
   const loadout = CHARACTER_LOADOUTS[player.character];
   if (!["push", loadout.movement, loadout.disruption].includes(skill) || skill === "sprint") return null;
   if ((player.cooldowns[skill] ?? 0) > now || player.stunUntil > now) return null;
@@ -258,7 +267,11 @@ function useSkill(state: MazeState, player: MazePlayer, skill: string, now: numb
       const amount = skill === "power-push" ? 1.5 : 0.9;
       const nx = target.state.x + dx / length * amount;
       const nz = target.state.z + dz / length * amount;
-      if (canOccupy(state, target, nx, nz, now)) { target.state.x = nx; target.state.z = nz; }
+      if (canOccupy(state, target, nx, nz, now)) {
+        target.state.x = nx;
+        target.state.z = nz;
+        markServerMovement(target, now);
+      }
       if (skill === "power-push") { target.stunUntil = now + 3000; target.immunityUntil = now + 5000; }
       succeeded = true;
     }
@@ -270,6 +283,8 @@ function useSkill(state: MazeState, player: MazePlayer, skill: string, now: numb
     if (target) {
       [player.state.x, target.state.x] = [target.state.x, player.state.x];
       [player.state.z, target.state.z] = [target.state.z, player.state.z];
+      markServerMovement(player, now);
+      markServerMovement(target, now);
       succeeded = true;
     }
   } else if (skill === "oil") {
@@ -293,7 +308,13 @@ function useSkill(state: MazeState, player: MazePlayer, skill: string, now: numb
       const candidateDistance = distance(player.state, point);
       if (candidateDistance < nearestDistance) { nearest = point; nearestDistance = candidateDistance; }
     }
-    if (nearest) { player.state.x = nearest.x; player.state.z = nearest.z; player.wallRunUntil = now + 4000; succeeded = true; }
+    if (nearest) {
+      player.state.x = nearest.x;
+      player.state.z = nearest.z;
+      player.wallRunUntil = now + 4000;
+      markServerMovement(player, now);
+      succeeded = true;
+    }
   }
   if (!succeeded) return null;
   player.cooldowns[skill] = now + (SKILL_COOLDOWNS_MS[skill] ?? 5000);
@@ -321,7 +342,7 @@ export function applyMazeMessage(
     movePlayer(state, player, message, now);
   } else if (message.type === "action") {
     const action = String(message.action ?? "");
-    const event = action === "interact" ? interact(state, player) : action === "skill" ? useSkill(state, player, String(message.skill ?? ""), now) : null;
+    const event = action === "interact" ? interact(state, player) : action === "skill" ? activateSkill(state, player, String(message.skill ?? ""), now) : null;
     if (event) events.push(event);
   } else if (message.type === "control") {
     if (viewer.id !== hostId) return [{ type: "error", code: "HOST_ONLY", message: "방장만 맵을 바꿀 수 있어요." }];
