@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
   const title = "한판 — 같이 노는 술게임";
-  const description = "각자 휴대폰으로 접속해 같은 자리에서 말하고 웃는 모바일 술게임 — 3D 원탁 경매 수상한 딜러들 추가";
+  const description = "각자 휴대폰으로 접속해 같은 자리에서 말하고 웃는 모바일 술게임 — Blender 아이템 카드로 즐기는 수상한 딜러들";
 
   return {
     metadataBase,
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "ko_KR",
       title,
       description,
-      images: [{ url: "/og.png", width: 1672, height: 941, alt: "한판 수상한 딜러들 3D 원탁 경매 게임" }],
+      images: [{ url: "/og.png", width: 1672, height: 941, alt: "한판 수상한 딜러들 2D 카드 경매 게임" }],
     },
     twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
   };

@@ -115,7 +115,7 @@ const COOP_GAMES: GameMeta[] = [
   { id: "group-initial", title: "단체 초성 퀴즈", icon: "👥", description: "3초 안에 초성 단어를 말해요", category: "coop" },
 ];
 const BOARD_GAMES: GameMeta[] = [
-  { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 3D 원탁 비밀 경매와 카드 상점", category: "board" },
+  { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 2D 비밀 경매와 Blender 아이템 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
@@ -1078,8 +1078,7 @@ export default function Home() {
     <iframe
       key={`${room.code}-${currentGame.startedAt}`}
       src={`/dealer-table/index.html?embedded=1&room=${room.code}`}
-      title="수상한 딜러들 3D 원탁"
-      allow="autoplay; fullscreen"
+      title="수상한 딜러들 2D 카드 경매"
     />
     <div className="maze-courier-toolbar dealer-table-toolbar">
       {isHost && <button type="button" onClick={() => setConfirmType("finish")}>게임 종료</button>}
