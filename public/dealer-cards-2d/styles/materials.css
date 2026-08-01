@@ -1,16 +1,17 @@
 body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(circle at 50% 38%, rgba(116, 59, 37, .19), transparent 43%),
-    radial-gradient(ellipse at 50% 47%, transparent 49%, rgba(5, 2, 2, .38) 100%),
-    linear-gradient(rgba(22, 10, 8, .24), rgba(10, 5, 4, .38)),
+    radial-gradient(circle at 50% 39%, rgba(100, 54, 31, .13), transparent 44%),
+    radial-gradient(ellipse at 50% 46%, transparent 43%, rgba(3, 1, 1, .48) 100%),
+    linear-gradient(180deg, rgba(30, 12, 10, .29), rgba(8, 4, 3, .48)),
     url("../assets/textures/texture-background.webp");
   background-size: auto, auto, auto, 1024px 1024px;
+  background-blend-mode: normal, normal, multiply, normal;
 }
 
 .ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.ambient:before { content: ""; position: absolute; inset: 88px -35px 76px; opacity: .16; background: url("../assets/svg/pattern-background-map.svg") center / cover no-repeat; mix-blend-mode: screen; }
-.ambient:after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 54px rgba(0,0,0,.26); }
+.ambient:before { content: ""; position: absolute; inset: 88px -35px 76px; opacity: .11; background: url("../assets/svg/pattern-background-map.svg") center / cover no-repeat; mix-blend-mode: screen; }
+.ambient:after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 72px rgba(0,0,0,.42); }
 .ambient i { position: absolute; width: 180px; height: 180px; border-radius: 50%; filter: blur(90px); opacity: .045; }
 .ambient i:nth-child(1) { left: -80px; top: 170px; background: #9b5833; }
 .ambient i:nth-child(2) { right: -95px; top: 240px; background: #702c33; }
@@ -18,39 +19,40 @@ body {
 .ambient span { display: none; }
 
 .hud {
-  border: 1px solid #6d4828; border-radius: 19px 19px 9px 9px;
+  border: 0; border-radius: 19px 19px 9px 9px;
   background-image:
-    radial-gradient(ellipse at 50% -40%, rgba(131, 55, 43, .25), transparent 58%),
-    linear-gradient(rgba(21, 11, 9, .60), rgba(13, 7, 6, .76)),
+    linear-gradient(90deg, rgba(7,3,2,.24), transparent 18%, transparent 82%, rgba(7,3,2,.3)),
+    radial-gradient(ellipse at 50% -32%, rgba(129, 51, 40, .3), transparent 55%),
+    linear-gradient(180deg, rgba(29, 14, 11, .69), rgba(8, 4, 3, .88)),
     url("../assets/textures/texture-background.webp");
-  background-size: auto, auto, 1024px 1024px;
-  box-shadow: 0 0 0 2px #0b0705, 0 0 0 3px #392318, inset 0 2px rgba(221,182,112,.07), inset 0 -14px 26px rgba(0,0,0,.2), 0 9px 19px rgba(0,0,0,.38);
+  background-size: auto, auto, auto, 1024px 1024px;
+  box-shadow: inset 0 2px rgba(244,211,145,.055), inset 0 -15px 25px rgba(0,0,0,.34), 0 10px 19px rgba(0,0,0,.55);
 }
 
 .seat {
-  background-image: linear-gradient(rgba(36,21,16,.43), rgba(21,12,10,.60)), url("../assets/textures/texture-leather-fine.webp");
-  background-size: auto, 512px 512px;
+  background-image: radial-gradient(circle at 34% 14%,rgba(147,87,48,.2),transparent 42%),linear-gradient(180deg,rgba(38,23,17,.48),rgba(16,9,7,.72)),url("../assets/textures/texture-leather-fine.webp");
+  background-size: auto, auto, 512px 512px;
 }
-.seat.me { background-image: linear-gradient(rgba(239,218,170,.20), rgba(160,117,65,.33)), url("../assets/textures/texture-parchment-soft.webp"); }
+.seat.me { background-image: radial-gradient(circle at 38% 18%,rgba(255,245,207,.35),transparent 45%),linear-gradient(180deg,rgba(245,221,172,.12),rgba(137,89,42,.31)),url("../assets/textures/texture-parchment-soft.webp"); }
 .seat.seller { background-image: linear-gradient(rgba(101,35,47,.56), rgba(44,17,22,.71)), url("../assets/textures/texture-leather-fine.webp"); }
 
 .table-ring {
   border-radius: 50%;
   background-image:
-    radial-gradient(circle at 50% 45%, rgba(112,70,39,.16), transparent 41%),
-    radial-gradient(circle, transparent 0 63%, rgba(0,0,0,.09) 77%, rgba(3,1,1,.33) 100%),
-    linear-gradient(rgba(25,15,12,.39), rgba(13,8,7,.54)),
+    radial-gradient(circle at 50% 42%, rgba(105,65,35,.14), transparent 38%),
+    radial-gradient(circle, transparent 0 58%, rgba(0,0,0,.13) 76%, rgba(2,1,1,.52) 100%),
+    linear-gradient(180deg,rgba(20,12,9,.44),rgba(9,5,4,.62)),
     url("../assets/textures/texture-leather-fine.webp");
   background-size: auto, auto, auto, 512px 512px;
-  box-shadow: inset 0 0 52px rgba(0,0,0,.38), inset 0 0 0 1px rgba(197,151,80,.08), 0 14px 28px rgba(0,0,0,.38);
+  box-shadow: inset 0 0 66px rgba(0,0,0,.48), inset 0 2px 0 rgba(216,169,91,.055), inset 0 0 0 1px rgba(197,151,80,.07), 0 17px 31px rgba(0,0,0,.56);
 }
 
 .sheet, .lot-copy, .private-dossier, .item-card-copy, .card-card, .inventory-row {
-  background-image: linear-gradient(rgba(239,214,163,.11), rgba(128,82,37,.25)), url("../assets/textures/texture-parchment-soft.webp");
-  background-size: auto, 512px 512px;
+  background-image: radial-gradient(ellipse at 50% 7%,rgba(255,249,222,.31),transparent 45%),linear-gradient(90deg,rgba(112,69,29,.12),transparent 14%,transparent 86%,rgba(112,69,29,.13)),linear-gradient(180deg,rgba(242,215,161,.07),rgba(128,82,37,.24)),url("../assets/textures/texture-parchment-soft.webp");
+  background-size: auto,auto,auto,512px 512px;
 }
 
 .dock {
-  background-image: linear-gradient(rgba(26,14,11,.67), rgba(12,7,6,.84)), url("../assets/textures/texture-background.webp");
-  background-size: auto, 1024px 1024px;
+  background-image: radial-gradient(ellipse at 50% 0,rgba(111,55,36,.14),transparent 55%),linear-gradient(180deg,rgba(30,16,12,.76),rgba(8,4,3,.94)),url("../assets/textures/texture-background.webp");
+  background-size: auto,auto,1024px 1024px;
 }

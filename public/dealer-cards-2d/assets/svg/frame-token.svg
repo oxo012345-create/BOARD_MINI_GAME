@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs><radialGradient id="m" cx="35%" cy="25%" r="80%"><stop stop-color="#f0d795"/><stop offset=".18" stop-color="#9f6c35"/><stop offset=".58" stop-color="#3d2516"/><stop offset=".82" stop-color="#a87537"/><stop offset="1" stop-color="#170c07"/></radialGradient><filter id="s" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dy="5" stdDeviation="4" flood-color="#000" flood-opacity=".8"/></filter></defs>
+  <circle cx="50" cy="50" r="47" fill="#100806" stroke="#130906" stroke-width="5" filter="url(#s)"/>
+  <circle cx="50" cy="50" r="44" stroke="url(#m)" stroke-width="6"/>
+  <circle cx="50" cy="50" r="38" stroke="#2a170d" stroke-width="3"/>
+  <circle cx="50" cy="50" r="35" stroke="#d7ad64" stroke-width="1.5"/>
+  <circle cx="50" cy="50" r="31" stroke="#f1daa0" stroke-width=".8" opacity=".38"/>
+  <path d="M28 23a38 38 0 0 1 44 0" stroke="#fff0bd" stroke-width="1.2" opacity=".38"/>
+</svg>

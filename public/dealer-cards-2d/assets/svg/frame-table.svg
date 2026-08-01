@@ -1,10 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <circle cx="256" cy="256" r="247" stroke="var(--dark,#27170f)" stroke-width="13"/>
-  <circle cx="256" cy="256" r="239" stroke="var(--metal,#8f6636)" stroke-width="3"/>
-  <circle cx="256" cy="256" r="233" stroke="var(--highlight,#c09a5d)" stroke-opacity=".68"/>
-  <circle cx="256" cy="256" r="227" stroke="var(--dark,#321f15)" stroke-width="5"/>
-  <circle cx="256" cy="256" r="222" stroke="var(--metal,#8f6636)" stroke-width="2"/>
-  <g fill="var(--metal,#8f6636)" stroke="var(--dark,#321f15)" stroke-width="2">
-    <path d="M256 1l12 12-12 12-12-12 12-12zM256 487l12 12-12 12-12-12 12-12zM1 256l12-12 12 12-12 12-12-12zM487 256l12-12 12 12-12 12-12-12z"/>
+  <defs>
+    <linearGradient id="ring" x1="80" y1="42" x2="430" y2="466" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0cf81"/><stop offset=".16" stop-color="#95602a"/><stop offset=".5" stop-color="#4a2b16"/><stop offset=".74" stop-color="#c38a3e"/><stop offset="1" stop-color="#24130b"/>
+    </linearGradient>
+    <filter id="contact" x="-12%" y="-12%" width="124%" height="132%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#030100" flood-opacity=".82"/></filter>
+  </defs>
+  <circle cx="256" cy="256" r="248" stroke="#0b0503" stroke-width="6" opacity=".95" filter="url(#contact)"/>
+  <circle cx="256" cy="256" r="245" stroke="url(#ring)" stroke-width="2.5"/>
+  <circle cx="256" cy="256" r="242" stroke="#1d0f08" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="240" stroke="#bd8136" stroke-width="1"/>
+  <circle cx="256" cy="256" r="238" stroke="#eed294" stroke-width=".55" opacity=".34"/>
+  <circle cx="256" cy="256" r="235" stroke="#28150c" stroke-width="1.8"/>
+  <circle cx="256" cy="256" r="233" stroke="#8e5b29" stroke-width=".8" opacity=".76"/>
+  <g fill="url(#ring)" stroke="#24130b" stroke-width="2.5">
+    <path d="M256 0l11 11-11 11-11-11 11-11zM256 490l11 11-11 11-11-11 11-11zM0 256l11-11 11 11-11 11-11-11zM490 256l11-11 11 11-11 11-11-11z"/>
   </g>
+  <g stroke="#efd38d" stroke-width=".8" opacity=".62"><path d="M256 5l6 6-6 6-6-6 6-6zM256 495l6 6-6 6-6-6 6-6zM5 256l6-6 6 6-6 6-6-6zM495 256l6-6 6 6-6 6-6-6z"/></g>
+  <path d="M128 58a227 227 0 0 1 256 0" stroke="#f3d997" stroke-width="1.1" opacity=".18"/>
+  <path d="M105 430a227 227 0 0 0 302 0" stroke="#080301" stroke-width="3" opacity=".55"/>
 </svg>
