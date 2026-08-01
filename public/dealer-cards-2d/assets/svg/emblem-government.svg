@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <g stroke="var(--metal-dark,#50331d)" stroke-linejoin="round">
+    <path fill="var(--metal,#a87c42)" d="M64 3l9 14 16-7 1 17 17 1-7 16 14 9-14 10 7 16-17 1-1 17-16-7-9 14-10-14-16 7-1-17-17-1 7-16-14-10 14-9-7-16 17-1 1-17 16 7L64 3z"/>
+    <circle cx="64" cy="54" r="38" fill="var(--metal-mid,#76502d)" stroke-width="3"/>
+    <circle cx="64" cy="54" r="31" fill="var(--metal-light,#c4a064)" stroke="var(--metal-hi,#d6bc82)"/>
+    <circle cx="64" cy="54" r="24" fill="var(--core,#3a2118)" stroke-width="2"/>
+    <path fill="var(--metal-light,#c4a064)" stroke="none" d="M47 37h8v13h18V37h8v34h-8V57H55v14h-8V37z"/>
+    <path fill="var(--ribbon,#652632)" d="M29 84h70l-8 26-27-8-27 8-8-26z"/>
+    <path stroke="var(--metal-hi,#d6bc82)" d="M38 91h52M47 97h34" opacity=".65"/>
+  </g>
+</svg>

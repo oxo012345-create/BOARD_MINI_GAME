@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <path d="M4 60V20C4 11.2 11.2 4 20 4h40" stroke="var(--metal-dark,#50331d)" stroke-width="7"/>
+  <path d="M7 60V21C7 13.3 13.3 7 21 7h39" stroke="var(--metal,#a77b42)" stroke-width="3"/>
+  <path d="M11 60V25c0-7.7 6.3-14 14-14h35" stroke="var(--metal-hi,#d0b078)" stroke-opacity=".6"/>
+  <path fill="var(--metal,#a77b42)" d="M13 13h14v4H17v10h-4V13zM21 21l8-8 8 8-8 8-8-8z"/>
+</svg>

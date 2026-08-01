@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <path d="M16 1l15 15-15 15L1 16 16 1z" fill="var(--dark,#321f15)" stroke="var(--metal,#a77b42)" stroke-width="2"/>
+  <path d="M16 7l9 9-9 9-9-9 9-9z" fill="var(--metal,#a77b42)" stroke="var(--highlight,#d0b078)"/>
+  <circle cx="16" cy="16" r="3" fill="var(--dark,#321f15)"/>
+</svg>

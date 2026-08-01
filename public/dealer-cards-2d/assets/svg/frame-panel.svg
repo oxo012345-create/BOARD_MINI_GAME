@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" fill="none" preserveAspectRatio="none">
+  <path d="M36 3h928l33 33v548l-33 33H36L3 584V36L36 3z" stroke="var(--frame-dark,#50331d)" stroke-width="7"/>
+  <path d="M41 11h918l27 27v544l-27 27H41l-27-27V38l27-27z" stroke="var(--frame,#a77b42)" stroke-width="3"/>
+  <path d="M49 19h902l20 21v540l-20 21H49l-20-21V40l20-21z" stroke="var(--highlight,#d0b078)" stroke-opacity=".56"/>
+  <path d="M22 22h56v5H31v47h-5V31h-4v-9zM978 22h-56v5h47v47h5V31h4v-9zM22 598h56v-5H31v-47h-5v43h-4v9zM978 598h-56v-5h47v-47h5v43h4v9z" fill="var(--frame,#a77b42)"/>
+  <path d="M500 2l14 14-14 14-14-14L500 2zM500 590l14 14-14 14-14-14 14-14z" fill="var(--frame,#a77b42)" stroke="var(--frame-dark,#50331d)"/>
+</svg>

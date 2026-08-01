@@ -1,3 +1,5 @@
+import { createGameBoard } from "./game-board.js?v=1";
+
 const roomCode = new URLSearchParams(location.search).get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -7,6 +9,7 @@ const ui = {
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"),
   itemCount: $("item-count"), cardCount: $("card-count"),
 };
+const gameBoard = createGameBoard($("game-board-canvas"));
 
 let room = null;
 let dealer = null;
@@ -112,6 +115,7 @@ function render() {
   const mine = me();
   const inventory = dealer.inventories[mine] || [];
   document.body.dataset.phase = dealer.phase;
+  gameBoard.setPhase(dealer.phase);
   ui.round.textContent = `ROUND ${dealer.round}/${dealer.totalRounds}`;
   ui.phase.textContent = phaseNames[dealer.phase];
   ui.cash.textContent = money(dealer.balances[mine]);

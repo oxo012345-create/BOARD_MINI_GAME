@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 110" fill="none" preserveAspectRatio="none">
+  <path d="M18 2h204l16 16v74l-16 16H18L2 92V18L18 2z" stroke="var(--dark,#50331d)" stroke-width="5"/>
+  <path d="M22 8h196l12 12v70l-12 12H22L10 90V20L22 8z" stroke="var(--metal,#a77b42)" stroke-width="2"/>
+  <path d="M29 14h182l10 10v62l-10 10H29L19 86V24l10-10z" stroke="var(--highlight,#d0b078)" stroke-opacity=".55"/>
+  <path d="M120 98l9 9-9 9-9-9 9-9z" fill="var(--metal,#a77b42)" stroke="var(--dark,#50331d)"/>
+</svg>

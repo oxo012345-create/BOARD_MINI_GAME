@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=8" />
 </head>
 <body>
   <main id="app">
@@ -16,6 +16,7 @@
 
     <header class="hud">
       <span class="hud-ornament" aria-hidden="true"></span>
+      <span class="hud-rivets" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       <div class="brand-lockup">
         <span class="brand-mark">H</span>
         <div><small id="round">ROUND 1/5</small><strong id="phase">비공개 감정</strong></div>
@@ -28,6 +29,7 @@
 
     <section class="table-board" aria-hidden="true">
       <div class="table-ring">
+        <canvas id="game-board-canvas"></canvas>
         <span class="table-emblem">H</span>
         <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
       </div>
@@ -63,17 +65,19 @@
 
     <section class="sheet" id="sheet">
       <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div id="notice" class="notice">경매장에 연결하는 중…</div>
       <div id="content"></div>
     </section>
 
     <nav class="dock" aria-label="게임 메뉴">
+      <span class="dock-rail" aria-hidden="true"></span>
       <button data-tab="game" class="active"><span class="dock-icon">♠</span><em>경매장</em></button>
       <button data-tab="items"><span class="dock-icon">◆</span><em>소장품</em><b id="item-count">0/4</b></button>
       <button data-tab="cards"><span class="dock-icon">♣</span><em>전략패</em><b id="card-count">0/3</b></button>
       <button data-tab="rules"><span class="dock-icon">§</span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=7"></script>
+  <script type="module" src="./game.js?v=8"></script>
 </body>
 </html>
