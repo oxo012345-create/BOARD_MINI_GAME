@@ -47,7 +47,7 @@ const cards = [
 const me = () => room?.meId;
 const myCards = () => dealer?.cards?.[me()] || [];
 const playerName = (id) => room?.players.find((player) => player.id === id)?.name || "참가자";
-const itemSrc = (id) => `/dealer-items/${itemFiles[id] || itemFiles[0]}`;
+const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 async function act(action, extra = {}) {

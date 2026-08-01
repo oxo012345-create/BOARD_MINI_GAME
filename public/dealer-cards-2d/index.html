@@ -65,16 +65,18 @@
     <section class="sheet" id="sheet">
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-      <div id="notice" class="notice">경매장에 연결하는 중…</div>
-      <div id="content"></div>
+      <div class="sheet-scroll" id="sheet-scroll">
+        <div id="notice" class="notice">경매장에 연결하는 중…</div>
+        <div id="content"></div>
+      </div>
     </section>
 
     <nav class="dock" aria-label="게임 메뉴">
       <span class="dock-rail" aria-hidden="true"></span>
-      <button data-tab="game" class="active" aria-label="경매장"><span class="dock-icon" aria-hidden="true"></span><em>경매장</em></button>
-      <button data-tab="items" aria-label="소장품"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
-      <button data-tab="cards" aria-label="전략패"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
-      <button data-tab="rules" aria-label="정부"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
+      <button data-tab="game" class="active" aria-label="경매장" aria-expanded="true"><span class="dock-icon" aria-hidden="true"></span><em>경매장</em></button>
+      <button data-tab="items" aria-label="소장품" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
+      <button data-tab="cards" aria-label="전략패" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
+      <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
   <script type="module" src="./game.js?v=10"></script>

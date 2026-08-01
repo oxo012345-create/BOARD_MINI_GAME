@@ -15,6 +15,7 @@ window.addEventListener("pagehide", () => gameBoard.destroy(), { once: true });
 let room = null;
 let dealer = null;
 let tab = "game";
+let menuOpen = true;
 let busy = false;
 let lastRevision = -1;
 let serverOffset = 0;
@@ -64,7 +65,7 @@ const me = () => room?.meId;
 const myCards = () => dealer?.cards?.[me()] || [];
 const playerName = (id) => room?.players.find((player) => player.id === id)?.name || "참가자";
 const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
-const lotItemSrc = (id) => `/dealer-items/${itemFiles[id] || itemFiles[0]}`;
+const lotItemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
 const itemSubtitle = (item) => item?.name || "Private Collection";
 const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!"][id] || "♦";
@@ -159,6 +160,7 @@ function render() {
 
 function renderTab() {
   document.body.dataset.tab = tab;
+  document.body.dataset.menu = menuOpen ? "open" : "closed";
   if (tab === "items") return renderItems();
   if (tab === "cards") return renderCards();
   if (tab === "rules") return renderRules();
@@ -263,8 +265,22 @@ function renderRules() {
 }
 
 function setTab(next) {
-  tab = next;
-  document.querySelectorAll(".dock button").forEach((button) => button.classList.toggle("active", button.dataset.tab === tab));
+  const isSameTab = tab === next;
+  if (isSameTab && menuOpen) {
+    menuOpen = false;
+  } else {
+    tab = next;
+    menuOpen = true;
+  }
+  document.querySelectorAll(".dock button").forEach((button) => {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-expanded", active && menuOpen ? "true" : "false");
+  });
+  if (menuOpen) {
+    const scroll = $("sheet-scroll");
+    if (scroll) scroll.scrollTop = 0;
+  }
   renderTab();
 }
 
