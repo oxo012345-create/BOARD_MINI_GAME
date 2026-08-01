@@ -16,7 +16,7 @@ let lastRevision = -1;
 let serverOffset = 0;
 
 const money = (value) => `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
-const phaseNames = { select: "소장품 감정", auction: "프런티어 경매", resolution: "낙찰 장부", shop: "살롱 암시장", finished: "최종 장부" };
+const phaseNames = { select: "자산 심사", auction: "정부 공개 경매", resolution: "낙찰 승인", shop: "정책 거래소", finished: "최종 정부" };
 const playerColors = ["#2d665b", "#8c2834", "#b98232", "#385f79", "#6c4c75", "#9a5429", "#61733d", "#6b6256"];
 const itemFiles = [
   "00-golden-cross.webp", "01-golden-egg.webp", "02-coffee-mug.webp", "03-gold-medal.webp", "04-silver-medal.webp",
@@ -148,6 +148,7 @@ function render() {
 }
 
 function renderTab() {
+  document.body.dataset.tab = tab;
   if (tab === "items") return renderItems();
   if (tab === "cards") return renderCards();
   if (tab === "rules") return renderRules();
@@ -160,7 +161,7 @@ function renderGame() {
     const selected = dealer.selected[mine] !== undefined;
     const items = dealer.candidates[mine] || [];
     ui.content.innerHTML = `
-      <div class="section-title"><h2>비밀 소장품 장부</h2><span>감정가와 계약을 살핀 뒤 물건 하나를 출품하세요</span></div>
+      <div class="section-title"><h2>비공개 자산 심사</h2><span>감정가와 조항을 검토한 뒤 출품 자산을 선택하세요</span></div>
       <div class="candidate-grid">${items.map((item, index) => `
         <button class="item-card ${selected && dealer.selected[mine] === index ? "selected" : ""}" data-select="${index}" ${selected ? "disabled" : ""}>
           <img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" />
@@ -179,7 +180,7 @@ function renderGame() {
     const next = dealer.currentBid + 50;
     const afford = dealer.balances[mine] >= next;
     ui.content.innerHTML = `
-      <div class="section-title"><h2>${seller ? "소문을 만들어 값을 올리세요" : "진실과 허풍을 가려내세요"}</h2><span>마지막 3초의 호가는 5초 연장됩니다</span></div>
+      <div class="section-title"><h2>${seller ? "가치를 설득하고 거래를 주도하세요" : "정보를 판단하고 입찰하세요"}</h2><span>마지막 3초의 입찰은 5초 연장됩니다</span></div>
       ${speechLocked ? `<div class="notice">침묵 조항 발동 · 이번 경매가 끝날 때까지 말할 수 없습니다.</div>` : ""}
       ${seller ? `<div class="notice">감정가와 계약 조항은 판매자에게만 공개됩니다. 무엇을 공개할지는 당신의 선택입니다.</div>` : `
         <button class="primary-action" id="bid-button" ${blocked || full || !afford ? "disabled" : ""}>
@@ -204,7 +205,7 @@ function renderGame() {
     const discount = myCards().includes(3) ? .8 : myCards().includes(2) ? .9 : 1;
     const cost = Math.round((100 + reroll * 100) * discount / 10) * 10;
     ui.content.innerHTML = `
-      <div class="section-title"><h2>살롱 뒷문 상점</h2><span>교체 ${reroll}회 · 다음 상품 교체 ${money(cost)}</span></div>
+      <div class="section-title"><h2>정책 거래소</h2><span>교체 ${reroll}회 · 다음 목록 갱신 ${money(cost)}</span></div>
       <div class="shop-grid">${offers.map((id) => { const card = cards[id]; return `<button class="card-card" data-symbol="${cardSymbol(id)}" data-buy="${id}" ${myCards().length >= 3 || dealer.balances[mine] < card[1] ? "disabled" : ""}><span class="eyebrow">${card[0]}</span><strong>${cardKoreanNames[id]}</strong><small>${card[2]}</small><b>${money(card[1])}</b></button>`; }).join("")}</div>
       <div class="action-row"><button class="secondary-action" id="reroll" ${dealer.balances[mine] < cost ? "disabled" : ""}>상품 교체 · ${money(cost)}</button><button class="secondary-action" id="checkout" ${!(dealer.inventories[mine]?.length) ? "disabled" : ""}>컬렉션 정산</button></div>`;
     ui.content.querySelectorAll("[data-buy]").forEach((button) => { button.onclick = () => act("dealer-buy-card", { cardId: Number(button.dataset.buy) }); });
@@ -224,7 +225,7 @@ function renderGame() {
 function renderItems() {
   const list = dealer.inventories[me()] || [];
   ui.content.innerHTML = `
-    <div class="section-title"><h2>개척자의 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
+    <div class="section-title"><h2>정부 승인 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
     <div class="inventory-list">${list.length ? list.map((item) => `
       <div class="inventory-row"><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(item.value)}</b></div>`).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>`;
 }
@@ -234,7 +235,7 @@ function renderCards() {
   const list = myCards();
   const targetOptions = room.players.filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
   ui.content.innerHTML = `
-    <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 중 결정적인 순간에 사용하세요</span></div>
+    <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 후 결정적인 순간에 사용하세요</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>
     <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${dealer.phase !== "auction" ? "disabled" : ""}>사용</button>`}</div></div>`; }).join("") : "<div class='notice'>암시장에서 전략 카드를 구입할 수 있습니다.</div>"}</div>`;
   ui.content.querySelectorAll("[data-use]").forEach((button) => { button.onclick = () => act("dealer-use-card", { cardId: Number(button.dataset.use), targetId: $("target").value }); });
@@ -242,7 +243,7 @@ function renderCards() {
 
 function renderRules() {
   ui.content.innerHTML = `
-    <div class="section-title"><h2>보안관의 경매 장부</h2><span>현장에서 직접 흥정하고 설득하는 소셜 경매</span></div>
+    <div class="section-title"><h2>정부 경매 위원회</h2><span>현장에서 직접 토론하고 설득하는 전략 경매</span></div>
     <div class="log"><div>시작 자금 $2,000 · 컬렉션 4칸 · 전략 카드 3칸</div><div>비밀 소장품 3개 중 하나를 20초 안에 출품</div><div>경매 50초 · $100 시작 · $50 호가 · 막판 입찰 시 5초 연장</div><div>판매자는 실제 감정가와 계약 조항을 보고 직접 설득</div><div>라운드 상점 60초 · 리롤 비용 $100부터 단계적으로 증가</div><div>5라운드 종료 후 가장 많은 현금을 가진 딜러가 승리</div>${dealer.log.slice(0, 8).map((entry) => `<div>${escapeHtml(entry)}</div>`).join("")}</div>`;
 }
 

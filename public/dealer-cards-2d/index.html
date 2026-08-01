@@ -3,27 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#140b07" />
-  <title>수상한 딜러들 · 프런티어 경매장</title>
+  <meta name="theme-color" content="#120c09" />
+  <title>수상한 딜러들 · 정부 경매 위원회</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=6" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
 </head>
 <body>
   <main id="app">
     <div class="ambient" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
 
     <header class="hud">
+      <span class="hud-ornament" aria-hidden="true"></span>
       <div class="brand-lockup">
         <span class="brand-mark">H</span>
         <div><small id="round">ROUND 1/5</small><strong id="phase">비공개 감정</strong></div>
       </div>
       <div class="timer" aria-label="남은 시간"><small>CLOSING</small><strong id="timer">0:20</strong></div>
-      <div class="cash"><small>MY PURSE</small><strong id="cash">$2,000</strong></div>
+      <div class="cash"><small>MY PURSE</small><div class="cash-value"><i>₩</i><strong id="cash">$2,000</strong></div></div>
     </header>
 
     <section class="player-ribbon" id="seats" aria-label="참가자 현황"></section>
+
+    <section class="table-board" aria-hidden="true">
+      <div class="table-ring">
+        <span class="table-emblem">H</span>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+    </section>
 
     <section class="lot-stage" id="lot-stage" hidden>
       <article class="lot-card" id="lot-card">
@@ -63,9 +71,9 @@
       <button data-tab="game" class="active"><span class="dock-icon">♠</span><em>경매장</em></button>
       <button data-tab="items"><span class="dock-icon">◆</span><em>소장품</em><b id="item-count">0/4</b></button>
       <button data-tab="cards"><span class="dock-icon">♣</span><em>전략패</em><b id="card-count">0/3</b></button>
-      <button data-tab="rules"><span class="dock-icon">≡</span><em>장부</em></button>
+      <button data-tab="rules"><span class="dock-icon">§</span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=6"></script>
+  <script type="module" src="./game.js?v=7"></script>
 </body>
 </html>
