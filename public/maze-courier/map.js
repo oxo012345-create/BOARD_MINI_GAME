@@ -365,8 +365,11 @@ composer.addPass(bloomPass);
 composer.addPass(outputPass);
 const cameraTarget = new THREE.Vector3(0, 0.2, 0);
 const cameraDesiredPosition = new THREE.Vector3();
-const desktopCameraOffset = new THREE.Vector3(8, 9.8, 8);
-const mobileCameraOffset = new THREE.Vector3(0, 12.6, 11.4);
+const cameraFacingDirection = new THREE.Vector3();
+const desktopCameraDistance = 17;
+const desktopCameraHeight = 14.7;
+const mobileCameraDistance = 17.1;
+const mobileCameraHeight = 18.9;
 
 scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x20283b, 3.2));
 
@@ -441,9 +444,6 @@ const geometryCache = new Map();
 const movementKeys = new Set();
 const joystickInput = new THREE.Vector2();
 const playerVelocity = new THREE.Vector3();
-const cameraForward = new THREE.Vector3();
-const cameraRight = new THREE.Vector3();
-const desiredWorldDirection = new THREE.Vector3();
 const desiredLocalDirection = new THREE.Vector3();
 const cameraFollowWorld = new THREE.Vector3();
 const cameraFollowStep = new THREE.Vector3();
@@ -1625,27 +1625,29 @@ function updatePlayer(time, delta) {
   if (movementKeys.has("KeyS") || movementKeys.has("ArrowDown")) inputY -= 1;
 
   const inputLength = Math.hypot(inputX, inputY);
+  if (inputLength > 1) {
+    inputX /= inputLength;
+    inputY /= inputLength;
+  }
+  const canControl = gameActive && playerCharacter.stunRemaining <= 0;
+  const forwardAmount = Math.abs(inputY) > 0.08 ? inputY : 0;
+  const turnAmount = Math.abs(inputX) > 0.08 ? inputX : 0;
   playerCharacter.sprinting = false;
-  playerCharacter.moving = gameActive
-    && playerCharacter.stunRemaining <= 0
-    && inputLength > 0.08;
+  playerCharacter.moving = canControl && forwardAmount !== 0;
+  if (canControl && turnAmount !== 0) {
+    playerCharacter.group.rotation.y += turnAmount * delta * 2.85;
+  }
   if (playerCharacter.moving) {
-    inputX /= Math.max(1, inputLength);
-    inputY /= Math.max(1, inputLength);
-    camera.getWorldDirection(cameraForward);
-    cameraForward.y = 0;
-    cameraForward.normalize();
-    cameraRight.set(-cameraForward.z, 0, cameraForward.x);
-    desiredWorldDirection
-      .copy(cameraForward)
-      .multiplyScalar(inputY)
-      .addScaledVector(cameraRight, inputX)
-      .normalize();
     desiredLocalDirection
-      .copy(desiredWorldDirection)
-      .applyAxisAngle(yAxis, -playerRoot.rotation.y);
+      .set(
+        Math.sin(playerCharacter.group.rotation.y),
+        0,
+        Math.cos(playerCharacter.group.rotation.y),
+      )
+      .multiplyScalar(Math.sign(forwardAmount));
     const sprinting = sprintHeld
       && activeLoadout.movement === "sprint"
+      && forwardAmount > 0
       && skillState.sprint.stamina > 0
       && playerCharacter.wallRunRemaining <= 0;
     playerCharacter.sprinting = sprinting;
@@ -1655,7 +1657,7 @@ function updatePlayer(time, delta) {
       skillState.sprint.rechargeDelay = 1;
     }
     const speedMultiplier = sprinting ? 1.7 : playerCharacter.wallRunRemaining > 0 ? 1.18 : 1;
-    playerVelocity.copy(desiredLocalDirection).multiplyScalar(PLAYER_SPEED * speedMultiplier);
+    playerVelocity.copy(desiredLocalDirection).multiplyScalar(PLAYER_SPEED * speedMultiplier * Math.abs(forwardAmount));
 
     const nextX = playerCharacter.group.position.x + playerVelocity.x * delta;
     const nextZ = playerCharacter.group.position.z + playerVelocity.z * delta;
@@ -1665,13 +1667,6 @@ function updatePlayer(time, delta) {
     if (canPlayerOccupy(playerCharacter.group.position.x, nextZ)) {
       playerCharacter.group.position.z = nextZ;
     }
-
-    const targetRotation = Math.atan2(desiredLocalDirection.x, desiredLocalDirection.z);
-    const rotationDifference = Math.atan2(
-      Math.sin(targetRotation - playerCharacter.group.rotation.y),
-      Math.cos(targetRotation - playerCharacter.group.rotation.y),
-    );
-    playerCharacter.group.rotation.y += rotationDifference * Math.min(1, delta * 12);
   } else {
     playerVelocity.multiplyScalar(Math.max(0, 1 - delta * 12));
   }
@@ -1717,6 +1712,16 @@ function updatePlayer(time, delta) {
   updateFluidizeEffect(playerCharacter, time);
 }
 
+function placeCameraBehindCharacter(target, destination) {
+  const worldYaw = playerCharacter.group.rotation.y + playerRoot.rotation.y;
+  cameraFacingDirection.set(Math.sin(worldYaw), 0, Math.cos(worldYaw));
+  const distance = compactView ? mobileCameraDistance : desktopCameraDistance;
+  destination
+    .copy(target)
+    .addScaledVector(cameraFacingDirection, -distance);
+  destination.y += compactView ? mobileCameraHeight : desktopCameraHeight;
+}
+
 function updateCameraFollow(delta) {
   cameraFollowWorld
     .set(
@@ -1730,10 +1735,8 @@ function updateCameraFollow(delta) {
     .sub(cameraTarget)
     .multiplyScalar(1 - Math.exp(-delta * 6.5));
   cameraTarget.add(cameraFollowStep);
-  cameraDesiredPosition
-    .copy(cameraTarget)
-    .add(compactView ? mobileCameraOffset : desktopCameraOffset);
-  camera.position.lerp(cameraDesiredPosition, 1 - Math.exp(-delta * 8));
+  placeCameraBehindCharacter(cameraTarget, cameraDesiredPosition);
+  camera.position.lerp(cameraDesiredPosition, 1 - Math.exp(-delta * 10));
   camera.lookAt(cameraTarget);
 }
 
@@ -5303,9 +5306,7 @@ function resize() {
       )
       .applyAxisAngle(yAxis, playerRoot.rotation.y);
     cameraTarget.copy(cameraFollowWorld);
-    camera.position
-      .copy(cameraFollowWorld)
-      .add(compactView ? mobileCameraOffset : desktopCameraOffset);
+    placeCameraBehindCharacter(cameraTarget, camera.position);
     camera.lookAt(cameraTarget);
     scene.fog = new THREE.Fog(currentTheme.fog, compactView ? 70 : 40, compactView ? 145 : 76);
   }
