@@ -18,11 +18,11 @@
   --cream: #eee0bd;
   --muted: #a38d6d;
   --line: rgba(193, 154, 91, .34);
-  --hud-height: 86px;
-  --dock-height: 78px;
-  --strategy-sheet-height: clamp(228px, 27.5dvh, 268px);
-  --table-diameter: calc(min(86vw, 416px) - 26px);
-  --table-top: clamp(142px, 18.6dvh, 166px);
+  --hud-height: 72px;
+  --dock-height: 70px;
+  --strategy-sheet-height: 194px;
+  --table-diameter: min(82vw, 426px);
+  --table-top: clamp(140px, 18.35dvh, 169px);
   --shadow-soft: 0 8px 18px rgba(0, 0, 0, .28);
   --shadow-panel: 0 14px 32px rgba(0, 0, 0, .42);
   --z-table: 2;
