@@ -125,7 +125,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
-      itemIndex?: number; cardId?: number; targetId?: string;
+      itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean;
+      mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
     };
 
     if (payload.action === "join") {
@@ -159,7 +160,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       const previousGame = room.game as GameRound | undefined;
       const previousContentKey = previousGame?.id === payload.gameId ? roundContentKey(previousGame) : undefined;
       room.view = "briefing";
-      room.game = { id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing, liarMode: "normal", previousContentKey, startedAt: Date.now() };
+      room.game = {
+        id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing,
+        liarMode: "normal", previousContentKey, startedAt: Date.now(),
+        ...(payload.gameId === "maze-courier" ? { mazeCharacters: {}, mazeReadyPlayerIds: [] } : {}),
+      };
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "maze-select-character") {
+      const pending = room.game as GameRound | undefined;
+      if (room.view !== "briefing" || pending?.id !== "maze-courier") return Response.json({ error: "지금은 배달부를 선택할 수 없어요." }, { status: 409 });
+      const character = Math.max(0, Math.min(15, Math.floor(Number(payload.character))));
+      if (!Number.isFinite(character)) return Response.json({ error: "캐릭터를 다시 선택해 주세요." }, { status: 400 });
+      pending.mazeCharacters = { ...(pending.mazeCharacters ?? {}), [viewer.id]: character };
+      const ready = new Set(pending.mazeReadyPlayerIds ?? []);
+      if (payload.ready !== false) ready.add(viewer.id); else ready.delete(viewer.id);
+      pending.mazeReadyPlayerIds = [...ready];
       return persistAndRespond(room, viewer.id);
     }
 
@@ -190,7 +207,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         payload.difficulty === "easy" || payload.difficulty === "hard" ? payload.difficulty : "normal",
       );
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
-      if (gameId === "maze-courier") game.maze = createMazeState(room.players);
+      if (gameId === "maze-courier") {
+        const selected = pendingGame?.mazeCharacters ?? {};
+        const mazeCharacters = Object.fromEntries(room.players.map((player) => {
+          const chosen = Number(selected[player.id]);
+          return [player.id, Number.isInteger(chosen) && chosen >= 0 && chosen < 16 ? chosen : Math.floor(Math.random() * 16)];
+        }));
+        game.mazeCharacters = mazeCharacters;
+        game.mazeReadyPlayerIds = room.players.map((player) => player.id);
+        game.maze = createMazeState(room.players, mazeCharacters);
+      }
       if (gameId === "double-dealers") game.dealer = createDealerState(room.players);
       room.view = "game";
       room.roundNumber += 1;
@@ -207,6 +233,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         room.game = undefined;
         room.players.forEach((player) => { player.status = "active"; });
       }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "maze-finish") {
+      const active = room.game as GameRound | undefined;
+      if (!isHost || room.view !== "game" || active?.id !== "maze-courier") return Response.json({ error: "방장만 결과를 확정할 수 있어요." }, { status: 403 });
+      const submitted = new Map((Array.isArray(payload.mazeResults) ? payload.mazeResults : [])
+        .map((result) => [String(result.playerId), result]));
+      active.mazeResults = room.players.map((player) => {
+        const result = submitted.get(player.id);
+        return {
+          playerId: player.id,
+          score: Math.max(0, Math.min(999, Math.floor(Number(result?.score) || 0))),
+          recipeIndex: Math.max(0, Math.floor(Number(result?.recipeIndex) || 0)),
+        };
+      });
+      room.view = "result";
       return persistAndRespond(room, viewer.id);
     }
 

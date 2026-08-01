@@ -1340,6 +1340,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   font: inherit;
   font-weight: 800;
 }
+.maze-selection-toolbar { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
+.maze-selection-toolbar button:disabled { opacity: .5; }
+.maze-result-list { display: grid; gap: 7px; margin-top: 18px; text-align: left; }
+.maze-result-list h3 { margin: 0 0 5px; text-align: center; }
+.maze-result-list > div { display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); }
+.maze-result-list strong { color: var(--accent); }
 .dealer-table-shell { background: #160d0a; }
 .dealer-table-toolbar {
   top: auto;

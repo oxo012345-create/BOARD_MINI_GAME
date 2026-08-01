@@ -45,11 +45,36 @@ body {
 .title-card,
 #character-detail,
 #character-list,
+.party-status,
 .multiplayer-lobby,
 .selection-actions {
   position: absolute;
   z-index: 2;
 }
+
+#party-status {
+  position: absolute;
+  z-index: 3;
+  top: 18px;
+  right: 18px;
+  width: min(270px, 46vw);
+  max-height: 46vh;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 15px;
+  background: rgba(5,13,29,.72);
+  box-shadow: 0 14px 38px rgba(0,0,0,.25);
+  backdrop-filter: blur(14px);
+}
+#party-status[hidden] { display: none; }
+#party-status > div:first-child { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 10px; }
+#party-count { color: #62e6ff; }
+#party-list { display: grid; gap: 4px; }
+#party-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 7px 8px; border-radius: 9px; background: rgba(255,255,255,.05); font-size: 9px; }
+#party-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#party-list strong { color: #9bacbf; font-size: 8px; }
+#party-list .ready strong { color: #65f0ad; }
 
 .title-card,
 #character-detail,
@@ -277,6 +302,14 @@ body {
     left: 10px;
     width: auto;
     padding: 9px;
+  }
+
+  #party-status {
+    top: 10px;
+    right: 10px;
+    width: 49vw;
+    max-height: 38vh;
+    padding: 8px;
   }
 
   #character-detail {

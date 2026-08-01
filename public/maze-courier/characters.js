@@ -14,6 +14,9 @@ const createRoomButton = document.querySelector("#create-room");
 const joinRoomButton = document.querySelector("#join-room");
 const roomCodeInput = document.querySelector("#room-code");
 const lobbyMessage = document.querySelector("#lobby-message");
+const partyStatus = document.querySelector("#party-status");
+const partyCount = document.querySelector("#party-count");
+const partyList = document.querySelector("#party-list");
 const compactDevice = window.matchMedia("(max-width: 650px), (pointer: coarse)").matches;
 const pageParams = new URLSearchParams(window.location.search);
 const embeddedMode = pageParams.get("embedded") === "1";
@@ -403,6 +406,9 @@ CHARACTER_CONFIGS.forEach((config, index) => {
 });
 
 let selectedIndex = storedCharacterIndex;
+let selectionConfirmed = false;
+let selectionSyncing = false;
+let initialRoomSelectionApplied = false;
 
 function selectCharacter(index) {
   selectedIndex = index;
@@ -414,6 +420,71 @@ function selectCharacter(index) {
   [...list.children].forEach((button, buttonIndex) => {
     button.setAttribute("aria-pressed", buttonIndex === index ? "true" : "false");
   });
+  if (embeddedMode && selectionConfirmed && !selectionSyncing) {
+    selectionConfirmed = false;
+    startGameButton.textContent = "선택 완료";
+    void submitEmbeddedSelection(false);
+  }
+}
+
+async function submitEmbeddedSelection(ready = true) {
+  if (!embeddedRoom || selectionSyncing) return;
+  selectionSyncing = true;
+  startGameButton.disabled = true;
+  try {
+    const response = await fetch(`/api/rooms/${embeddedRoom}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "maze-select-character", character: selectedIndex, ready }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "선택을 저장하지 못했습니다.");
+    selectionConfirmed = ready;
+    startGameButton.textContent = ready ? "선택 완료 ✓" : "선택 완료";
+    renderRoomSelection(body.room);
+  } catch (error) {
+    lobbyMessage.textContent = error instanceof Error ? error.message : "선택을 다시 시도해 주세요.";
+  } finally {
+    selectionSyncing = false;
+    startGameButton.disabled = false;
+  }
+}
+
+function renderRoomSelection(room) {
+  if (!room?.players || room.game?.id !== "maze-courier") return;
+  partyStatus.hidden = false;
+  const ready = new Set(room.game.mazeReadyPlayerIds || []);
+  const selections = room.game.mazeCharacters || {};
+  partyCount.textContent = `${room.players.filter((player) => ready.has(player.id)).length} / ${room.players.length} 완료`;
+  partyList.replaceChildren(...room.players.map((player) => {
+    const row = document.createElement("div");
+    const characterIndex = Number(selections[player.id]);
+    const character = Number.isInteger(characterIndex) ? CHARACTER_CONFIGS[characterIndex] : null;
+    row.className = ready.has(player.id) ? "ready" : "waiting";
+    const name = document.createElement("span");
+    const choice = document.createElement("strong");
+    name.textContent = `${player.avatar || "👤"} ${player.name}`;
+    choice.textContent = `${character ? character.name : "무작위 대기"}${ready.has(player.id) ? " · 완료" : ""}`;
+    row.append(name, choice);
+    return row;
+  }));
+  const myCharacter = Number(selections[room.meId]);
+  if (!initialRoomSelectionApplied && Number.isInteger(myCharacter) && CHARACTER_CONFIGS[myCharacter]) {
+    initialRoomSelectionApplied = true;
+    selectCharacter(myCharacter);
+  }
+  selectionConfirmed = ready.has(room.meId);
+  startGameButton.textContent = selectionConfirmed ? "선택 완료 ✓" : "선택 완료";
+}
+
+async function refreshRoomSelection() {
+  if (!embeddedMode || !embeddedRoom || document.hidden) return;
+  try {
+    const response = await fetch(`/api/rooms/${embeddedRoom}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const body = await response.json();
+    renderRoomSelection(body.room);
+  } catch { /* 상위 한판 화면의 재연결이 복구합니다. */ }
 }
 
 randomCharacterButton.addEventListener("click", () => {
@@ -481,11 +552,13 @@ joinRoomButton.addEventListener("click", () => {
 });
 
 if (embeddedMode) {
-  startGameButton.textContent = "이 배달부로 참가";
+  startGameButton.textContent = "선택 완료";
   lobbyMessage.textContent = `${embeddedRoom}번 한판 방에 연결됩니다.`;
+  void refreshRoomSelection();
+  window.setInterval(() => { void refreshRoomSelection(); }, 800);
 }
 startGameButton.addEventListener("click", () => embeddedMode
-  ? openGame({ online: true, room: embeddedRoom })
+  ? void submitEmbeddedSelection(true)
   : openGame());
 
 const floor = new THREE.Mesh(

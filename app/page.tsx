@@ -84,6 +84,8 @@ type GameRound = {
   gemDifficulty?: "easy" | "normal" | "hard";
   gemQuestion?: GemCard; gemQuestionIndex?: number; gemVoteStatus?: string[]; gemMyVote?: string; gemResult?: GemResult; gemCaught?: boolean;
   mazeStartedAt?: number;
+  mazeCharacters?: Record<string, number>; mazeReadyPlayerIds?: string[];
+  mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -556,6 +558,7 @@ export default function Home() {
   const roomRefreshRef = useRef<() => void>(() => undefined);
   const realtimeAbortRef = useRef<AbortController | null>(null);
   const roleTouchRevealRef = useRef(false);
+  const mazeFinishSubmittingRef = useRef(false);
   const me = room?.players.find((player) => player.id === room.meId);
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
@@ -818,6 +821,18 @@ export default function Home() {
       roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1);
     }
   }, [room, applyRoomSnapshot, markConnectionFailure, markConnectionSuccess, nextRoomRequestSequence]);
+  useEffect(() => {
+    const receiveMazeResult = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== "maze-game-finished") return;
+      if (!isHost || room?.view !== "game" || currentGame?.id !== "maze-courier" || mazeFinishSubmittingRef.current) return;
+      mazeFinishSubmittingRef.current = true;
+      void applyAction({ action: "maze-finish", mazeResults: event.data.results })
+        .catch((error) => showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."))
+        .finally(() => { mazeFinishSubmittingRef.current = false; });
+    };
+    window.addEventListener("message", receiveMazeResult);
+    return () => window.removeEventListener("message", receiveMazeResult);
+  }, [applyAction, currentGame?.id, isHost, room?.view, showNotice]);
   const enterRoom = async () => {
     if (!name.trim()) return showNotice("이름을 입력해 주세요.");
     if (intent === "join" && joinCode.length !== 4) return showNotice("4자리 방 코드를 입력해 주세요.");
@@ -912,7 +927,7 @@ export default function Home() {
   const myTimerResult = currentGame?.timerResults?.find((item) => item.playerId === room?.meId);
   const gameMeta = useMemo(() => ALL_GAMES.find((item) => item.id === currentGame?.id), [currentGame?.id]);
   const inlineManagedGame = Boolean(currentGame && ["initial", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id));
-  const activeSurprise = room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
+  const activeSurprise = room?.view !== "game" && room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
 
   const topBar = (title: string) => <TopBar code={room?.code ?? ""} title={title} showLobby={isHost && room?.view !== "lobby"} actionsDisabled={hostActionLocked} onLobby={() => setConfirmType("lobby")} onLeave={() => setConfirmType("leave")} />;
   const confirmSpec = confirmType === "leave"
@@ -981,6 +996,24 @@ export default function Home() {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
+    if (currentGame.id === "maze-courier") {
+      const readyCount = room.players.filter((player) => currentGame.mazeReadyPlayerIds?.includes(player.id)).length;
+      return <main className="maze-courier-shell maze-selection-shell">
+        <iframe
+          key={`${room.code}-${currentGame.startedAt}-selection`}
+          src={`/maze-courier/characters.html?select=1&embedded=1&online=1&room=${room.code}`}
+          title="미로의 배달부 캐릭터 선택"
+          allow="autoplay; fullscreen"
+        />
+        <div className="maze-courier-toolbar maze-selection-toolbar">
+          <span><b>{readyCount}/{room.players.length}</b> 선택 완료</span>
+          {isHost
+            ? <><button type="button" disabled={hostActionLocked || !mazePlayerCountValid} onClick={() => void startGame()}>{readyCount === room.players.length ? "게임 시작" : "미선택 무작위로 시작"}</button><button type="button" onClick={() => setConfirmType("lobby")}>대기실</button></>
+            : <span>방장이 시작하기를 기다리는 중</span>}
+        </div>
+        {commonOverlays}
+      </main>;
+    }
     return <main className={`app-shell briefing-shell ${currentGame.id === "gem-heist" ? "gem-briefing-shell" : ""}`}>
       {topBar("게임 설명")}
       <section className="briefing-card">
@@ -1050,6 +1083,7 @@ export default function Home() {
           {history.length > 0 && ["initial", "trivia", "people"].includes(currentGame.id) && <div className="history-results"><h3>나왔던 정답</h3>{history.map((item, index) => <div key={`${item.prompt}-${index}`}><span>{index + 1}번 · {item.prompt}</span><strong>{item.answer ?? "우리끼리 판정"}</strong></div>)}</div>}
           {currentGame.id === "taste" && <div className="history-results taste-results"><h3>각자 고른 취향</h3>{room.players.map((player) => <div key={player.id}><span>{player.name}</span><strong>{currentGame.selections?.[player.id] ?? "미선택"}</strong></div>)}</div>}
           {currentGame.id === "ten-seconds" && <TimerResults room={room} results={currentGame.timerResults ?? []} />}
+          {currentGame.id === "maze-courier" && <div className="maze-result-list"><h3>배달 점수</h3>{[...(currentGame.mazeResults ?? [])].sort((a, b) => b.score - a.score).map((result, index) => <div key={result.playerId}><span>{index + 1}위 · {playerName(room, result.playerId)}</span><strong>{result.score}점</strong></div>)}</div>}
           {currentGame.telestrationResults && <><div className={`team-result ${(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "passed" : "failed"}`}><strong>{(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "통과!" : "아쉽게 실패"}</strong><span>정답 {currentGame.telestrationCorrectCount ?? 0}명 · 2명 이상이면 통과</span></div><TelestrationResults room={room} chains={currentGame.telestrationResults} isHost={isHost} automaticIds={currentGame.telestrationAutoCorrectChainIds ?? []} acceptedIds={currentGame.telestrationAcceptedChainIds ?? []} busy={hostActionLocked} onAccept={(chainId) => void acceptTelestrationAnswer(chainId)} /></>}
           {currentGame.teamOutcome && <div className={`team-result ${currentGame.teamOutcome}`}><strong>{currentGame.teamOutcome === "passed" ? "전원 성공 · 통과!" : "이번 도전 실패"}</strong>{currentGame.failedPlayerId && <span>{playerName(room, currentGame.failedPlayerId)}에서 도전 종료</span>}</div>}
           {currentGame.imageSource && <p><a href={currentGame.imageSource} target="_blank" rel="noreferrer">사진 출처 보기</a></p>}
@@ -1064,13 +1098,13 @@ export default function Home() {
   if (currentGame.id === "maze-courier") return <main className="maze-courier-shell">
     <iframe
       key={`${room.code}-${currentGame.mazeStartedAt ?? currentGame.startedAt}`}
-      src={`/maze-courier/characters.html?select=1&embedded=1&online=1&room=${room.code}`}
+      src={`/maze-courier/index.html?play=1&embedded=1&online=1&room=${room.code}&character=${currentGame.mazeCharacters?.[room.meId ?? ""] ?? 0}`}
       title="미로의 배달부"
       allow="autoplay; fullscreen"
     />
     <div className="maze-courier-toolbar">
       <span><b>{room.code}</b> · {room.players.length}/8명</span>
-      {isHost && <button type="button" onClick={() => setConfirmType("finish")}>게임 종료</button>}
+      {isHost && <button type="button" onClick={() => setConfirmType("lobby")}>대기실</button>}
     </div>
     {commonOverlays}
   </main>;

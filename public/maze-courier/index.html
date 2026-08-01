@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>미로의 배달부 — 3D 블록 맵</title>
-    <link rel="stylesheet" href="./styles.css?v=20260731-online-mobile-31" />
+    <link rel="stylesheet" href="./styles.css?v=20260801-game-flow-35" />
     <script>
       if (
         new URL(window.location.href).searchParams.get("play") !== "1"
@@ -25,17 +25,12 @@
   <body>
     <main class="map-shell">
       <canvas id="map-canvas" aria-label="미로의 배달부 3D 블록 맵"></canvas>
-      <section class="hud" aria-label="맵 정보">
-        <p class="eyebrow">MAP PROTOTYPE 01</p>
-        <h1 id="map-title">빙하 연구기지</h1>
-        <p id="map-subtitle">밝은 얼음 블록으로 만든 안전한 탐색 맵</p>
-      </section>
       <section class="legend" aria-label="맵 범례">
         <span><i class="cyan"></i>중앙 제작대</span>
         <span><i class="yellow"></i>재료 출입구 × 8</span>
       </section>
       <section class="game-status" aria-label="게임 상태">
-        <strong id="game-timer">05:00</strong>
+        <strong id="game-timer">03:00</strong>
         <span>점수 <b id="game-score">0</b></span>
         <button id="audio-toggle" type="button" aria-pressed="false" aria-label="사운드 끄기" title="사운드 켜기/끄기">🔊</button>
       </section>
@@ -53,19 +48,12 @@
         <div id="recipe-ingredients"></div>
         <span id="held-item">손에 든 재료 없음</span>
       </section>
-      <section class="map-switcher" aria-label="맵 선택">
-        <button type="button" data-map="ice" aria-pressed="true">얼음</button>
-        <button type="button" data-map="lava" aria-pressed="false">용암</button>
-        <button type="button" data-map="space" aria-pressed="false">우주</button>
-      </section>
-      <a class="scene-link" href="./characters.html?select=1">캐릭터 변경</a>
       <section class="play-hud" aria-label="캐릭터 조작 안내">
         <strong id="active-character-name">민트 배달부</strong>
         <span>WASD 이동 · 내 주문 재료만 집기 가능</span>
         <span id="active-character-skills">달리기 · 강력 밀치기</span>
-        <span class="maze-seed" id="maze-seed">MAP ----</span>
+        <span class="maze-seed" id="maze-seed" hidden>MAP ----</span>
         <button id="reset-player" type="button">입구로 돌아가기</button>
-        <button id="regenerate-maze" type="button">새 랜덤 미로</button>
       </section>
       <div class="touch-joystick" id="touch-joystick" aria-label="이동 조이스틱">
         <div class="joystick-knob" id="joystick-knob"></div>
@@ -82,9 +70,10 @@
         <button type="button" data-action="oil"><kbd>4</kbd><span>기름칠</span><i></i></button>
       </section>
       <div class="game-message" id="game-message" role="status"></div>
+      <div class="game-countdown" id="game-countdown" aria-live="assertive" hidden></div>
       <div id="loading">3D 맵 불러오는 중…</div>
       <audio id="bgm-audio" preload="none" loop aria-hidden="true"></audio>
     </main>
-    <script type="module" src="./map.js?v=20260801-external-realtime-34"></script>
+    <script type="module" src="./map.js?v=20260801-game-flow-35"></script>
   </body>
 </html>

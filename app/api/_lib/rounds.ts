@@ -106,6 +106,9 @@ export type GameRound = {
   gemVotes?: Record<string, string>;
   gemCaught?: boolean;
   gemSolution?: GemSolution;
+  mazeCharacters?: Record<string, number>;
+  mazeReadyPlayerIds?: string[];
+  mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
   maze?: import("./maze").MazeState;
   dealer?: import("./dealer").DealerState;
 };

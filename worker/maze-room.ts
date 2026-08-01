@@ -37,6 +37,7 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
   private readonly ready: Promise<void>;
   private lastD1SyncAt = 0;
   private d1Sync: Promise<void> = Promise.resolve();
+  private lastItemSignature = "";
 
   constructor(ctx: DurableObjectState, env: MazeRoomEnv) {
     super(ctx, env);
@@ -123,6 +124,11 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
       const snapshot = mazeGameSnapshot(this.room.maze);
       const current = snapshot.players.find((entry) => entry.id === player.id);
       if (current) this.broadcast({ type: "state", id: player.id, state: current.state });
+      const itemSignature = snapshot.items.map((item) => `${item.id}:${item.heldBy ?? ""}`).join("|");
+      if (itemSignature !== this.lastItemSignature) {
+        this.lastItemSignature = itemSignature;
+        this.broadcast({ type: "game", game: snapshot });
+      }
     } else {
       for (const outgoing of messages) this.broadcast(outgoing);
     }

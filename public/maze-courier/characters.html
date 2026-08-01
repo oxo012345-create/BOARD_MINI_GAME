@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>미로의 배달부 — 캐릭터 선택</title>
-    <link rel="stylesheet" href="./characters.css?v=20260731-online-mobile-31" />
+    <link rel="stylesheet" href="./characters.css?v=20260801-ready-room-35" />
     <script type="importmap">
       {
         "imports": {
@@ -43,6 +43,10 @@
         <small id="lobby-message" aria-live="polite">방장은 랜덤 맵과 테마를 함께 변경할 수 있습니다.</small>
       </section>
       <section id="character-list" aria-label="캐릭터 선택"></section>
+      <section id="party-status" aria-label="참가자 캐릭터 선택 현황" hidden>
+        <div><strong>선택 현황</strong><span id="party-count">0 / 0 완료</span></div>
+        <div id="party-list"></div>
+      </section>
       <aside id="character-detail" aria-live="polite">
         <strong id="selected-name">민트 배달부</strong>
         <span id="selected-role">균형형 · 기본 운반</span>
@@ -55,6 +59,6 @@
       </section>
       <div id="loading">캐릭터 불러오는 중…</div>
     </main>
-    <script type="module" src="./characters.js?v=20260731-online-mobile-31"></script>
+    <script type="module" src="./characters.js?v=20260801-ready-room-35"></script>
   </body>
 </html>

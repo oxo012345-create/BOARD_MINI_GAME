@@ -37,6 +37,7 @@ export type MazeState = {
   mapSeed: number; theme: "ice" | "lava" | "space"; startedAt: number; endsAt: number;
   players: Record<string, MazePlayer>; items: Record<string, MazeItem>; oils: Record<string, MazeOil>;
   nextItemSerial: number; nextOilSerial: number;
+  depotReadyAt?: number[];
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -50,12 +51,12 @@ function randomSeed() {
   return values[0];
 }
 
-function makePlayer(player: Player, index: number, now: number): MazePlayer {
+function makePlayer(player: Player, index: number, now: number, characterSelections: Record<string, number>): MazePlayer {
   const spawn = SPAWNS[index % SPAWNS.length];
   return {
     id: player.id,
     name: player.name,
-    character: index % CHARACTER_LOADOUTS.length,
+    character: clamp(Math.floor(finite(characterSelections[player.id], index)), 0, CHARACTER_LOADOUTS.length - 1),
     state: { ...spawn, moving: false, sprinting: false, wallRunning: false, fluidized: false, seq: 0, updatedAt: now },
     score: 0,
     recipeIndex: randomIndex(FOOD_RECIPES.length),
@@ -82,20 +83,26 @@ function neededIngredient(state: MazeState, depotIndex: number) {
 }
 
 function refillDepots(state: MazeState) {
+  const now = Date.now();
+  const depotReadyAt = state.depotReadyAt ?? (state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0));
   for (let depotIndex = 0; depotIndex < SUPPLY_DEPOTS.length; depotIndex += 1) {
     if (Object.values(state.items).some((item) => item.depotIndex === depotIndex && !item.heldBy)) continue;
+    if ((depotReadyAt[depotIndex] ?? 0) > now) continue;
     const id = `item-${++state.nextItemSerial}`;
     state.items[id] = { id, ingredientKey: neededIngredient(state, depotIndex), depotIndex, heldBy: null };
+    depotReadyAt[depotIndex] = 0;
   }
 }
 
-export function createMazeState(players: Player[]): MazeState {
+export function createMazeState(players: Player[], characterSelections: Record<string, number> = {}): MazeState {
   const now = Date.now();
+  const startsAt = now + 5_000;
+  const themes: MazeState["theme"][] = ["ice", "lava", "space"];
   const state: MazeState = {
-    mapSeed: randomSeed(), theme: "ice", startedAt: now, endsAt: now + GAME_DURATION_MS,
-    players: {}, items: {}, oils: {}, nextItemSerial: 0, nextOilSerial: 0,
+    mapSeed: randomSeed(), theme: themes[randomIndex(themes.length)], startedAt: startsAt, endsAt: startsAt + GAME_DURATION_MS,
+    players: {}, items: {}, oils: {}, nextItemSerial: 0, nextOilSerial: 0, depotReadyAt: Array(SUPPLY_DEPOTS.length).fill(0),
   };
-  players.slice(0, 8).forEach((player, index) => { state.players[player.id] = makePlayer(player, index, now); });
+  players.slice(0, 8).forEach((player, index) => { state.players[player.id] = makePlayer(player, index, now, characterSelections); });
   refillDepots(state);
   return state;
 }
@@ -304,6 +311,8 @@ function interact(state: MazeState, player: MazePlayer) {
   if (distance(player.state, spawn) > 1.25) return null;
   item.heldBy = player.id;
   player.heldItemId = item.id;
+  const depotReadyAt = state.depotReadyAt ?? (state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0));
+  depotReadyAt[item.depotIndex] = Date.now() + 5_000;
   return { type: "event", kind: "pickup", actorId: player.id };
 }
 
@@ -424,8 +433,9 @@ export function applyMazeMessage(
     player.character = clamp(Math.floor(finite(message.character, player.character)), 0, CHARACTER_LOADOUTS.length - 1);
     player.name = viewer.name;
   } else if (message.type === "state") {
-    movePlayer(state, player, message, now);
+    if (now >= state.startedAt) movePlayer(state, player, message, now);
   } else if (message.type === "action") {
+    if (now < state.startedAt) return [];
     if (!acceptAction(player, message, now)) return [];
     const action = String(message.action ?? "");
     const event = action === "interact" ? interact(state, player) : action === "skill" ? activateSkill(state, player, String(message.skill ?? ""), now) : null;
@@ -446,7 +456,7 @@ export function applyMazeMessage(
       item.stunUntil = 0; item.immunityUntil = 0; item.wallRunUntil = 0; item.fluidizeUntil = 0;
       item.cooldowns = {}; item.sprintStamina = 2; item.sprintRechargeAt = now;
     });
-    state.items = {}; state.oils = {}; refillDepots(state);
+    state.items = {}; state.oils = {}; state.depotReadyAt = Array(SUPPLY_DEPOTS.length).fill(0); refillDepots(state);
     events.push({ type: "world", mapSeed: state.mapSeed, theme: state.theme, startedAt: state.startedAt, players: Object.values(state.players).map((item) => publicPlayer(item, now)), game: mazeGameSnapshot(state) });
   }
   events.push({ type: "game", game: mazeGameSnapshot(state) });

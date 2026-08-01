@@ -14,7 +14,6 @@ const mapButtons = [...document.querySelectorAll("[data-map]")];
 const touchJoystick = document.querySelector("#touch-joystick");
 const joystickKnob = document.querySelector("#joystick-knob");
 const resetPlayerButton = document.querySelector("#reset-player");
-const regenerateMazeButton = document.querySelector("#regenerate-maze");
 const mazeSeedLabel = document.querySelector("#maze-seed");
 const gameTimerLabel = document.querySelector("#game-timer");
 const gameScoreLabel = document.querySelector("#game-score");
@@ -23,6 +22,7 @@ const recipePointsLabel = document.querySelector("#recipe-points");
 const recipeIngredients = document.querySelector("#recipe-ingredients");
 const heldItemLabel = document.querySelector("#held-item");
 const gameMessage = document.querySelector("#game-message");
+const gameCountdown = document.querySelector("#game-countdown");
 const actionButtons = [...document.querySelectorAll("[data-action]")];
 const activeCharacterNameLabel = document.querySelector("#active-character-name");
 const activeCharacterSkillsLabel = document.querySelector("#active-character-skills");
@@ -202,8 +202,9 @@ const SKILL_LABELS = {
   swap: "자리바꾸기",
   oil: "기름칠",
 };
+const requestedCharacterIndex = Number.parseInt(launchParams.get("character") ?? "", 10);
 const selectedCharacterIndex = THREE.MathUtils.clamp(
-  Number.parseInt(localStorage.getItem("mazeCourierCharacter") ?? "0", 10) || 0,
+  Number.isInteger(requestedCharacterIndex) ? requestedCharacterIndex : Number.parseInt(localStorage.getItem("mazeCourierCharacter") ?? "0", 10) || 0,
   0,
   CHARACTER_LOADOUTS.length - 1,
 );
@@ -406,6 +407,11 @@ let activeWallCells = new Set();
 let generatedWallLayout = null;
 let currentMazeSeed = 0;
 let gameTimeRemaining = GAME_DURATION_SECONDS;
+let gameStartsAt = Date.now() + 5_000;
+let gameEndsAt = gameStartsAt + GAME_DURATION_SECONDS * 1000;
+let gameResultPosted = false;
+let lastGameResultPostAt = 0;
+let latestAuthoritativeResults = [];
 let gameScore = 0;
 let gameActive = true;
 let currentRecipe = null;
@@ -1083,9 +1089,17 @@ function applyAuthoritativeGame(game, immediate = false) {
   if (!immediate && snapshotTime && snapshotTime < lastAppliedGameServerTime) return;
   lastAppliedGameServerTime = Math.max(lastAppliedGameServerTime, snapshotTime);
   serverClockOffset = Number(game.serverTime || Date.now()) - Date.now();
-  gameTimeRemaining = Math.max(0, (Number(game.endsAt) - (Date.now() + serverClockOffset)) / 1000);
-  gameActive = gameTimeRemaining > 0;
+  gameStartsAt = Number(game.startedAt) || Date.now();
+  gameEndsAt = Number(game.endsAt) || gameStartsAt + GAME_DURATION_SECONDS * 1000;
+  const authoritativeNow = Date.now() + serverClockOffset;
+  gameTimeRemaining = Math.max(0, (gameEndsAt - Math.max(gameStartsAt, authoritativeNow)) / 1000);
+  gameActive = authoritativeNow >= gameStartsAt && authoritativeNow < gameEndsAt;
   const players = Array.isArray(game.players) ? game.players : [];
+  latestAuthoritativeResults = players.map((player) => ({
+    playerId: player.id,
+    score: Math.max(0, Number(player.game?.score) || 0),
+    recipeIndex: Math.max(0, Number(player.game?.recipeIndex) || 0),
+  }));
   const self = players.find((player) => player.id === localNetworkId);
   applyAuthoritativeSelf(self, immediate);
   players.forEach((player) => {
@@ -2351,7 +2365,7 @@ function interactWithItem() {
     if (child.userData.ingredientLabel) child.visible = false;
   });
   nearest.held = true;
-  depotRespawnTimers[nearest.depotIndex] = 2.8;
+  depotRespawnTimers[nearest.depotIndex] = 5;
   heldItem = nearest;
   playSfx("item-pickup", 0.9);
   showGameMessage(`${INGREDIENTS[nearest.ingredientKey].name}을(를) 집었습니다.`);
@@ -3082,14 +3096,40 @@ function updateGame(delta) {
     messageTimer -= delta;
     if (messageTimer <= 0) gameMessage.classList.remove("visible");
   }
-  if (!gameActive) return;
-  gameTimeRemaining = Math.max(0, gameTimeRemaining - delta);
+  if (multiplayerEnabled && !multiplayerConnected) {
+    gameActive = false;
+    gameCountdown.hidden = false;
+    gameCountdown.textContent = "연결 중";
+    return;
+  }
+  const now = multiplayerEnabled ? Date.now() + serverClockOffset : Date.now();
+  if (now < gameStartsAt) {
+    gameActive = false;
+    gameTimeRemaining = GAME_DURATION_SECONDS;
+    gameTimerLabel.textContent = formatGameTime(gameTimeRemaining);
+    gameCountdown.hidden = false;
+    gameCountdown.textContent = String(Math.max(1, Math.ceil((gameStartsAt - now) / 1000)));
+    return;
+  }
+  if (!gameCountdown.hidden && gameCountdown.textContent !== "START!") {
+    gameCountdown.textContent = "START!";
+    window.setTimeout(() => { gameCountdown.hidden = true; }, 650);
+  }
+  gameActive = now < gameEndsAt;
+  gameTimeRemaining = Math.max(0, (gameEndsAt - now) / 1000);
   gameTimerLabel.textContent = formatGameTime(gameTimeRemaining);
   if (gameTimeRemaining <= 0) {
     gameActive = false;
     movementKeys.clear();
     sprintHeld = false;
-    showGameMessage(`게임 종료! 최종 점수 ${gameScore}점`, 999);
+    if (!gameResultPosted) {
+      gameResultPosted = true;
+      showGameMessage(`게임 종료! 최종 점수 ${gameScore}점`, 999);
+    }
+    if (window.parent !== window && Date.now() - lastGameResultPostAt > 1_500) {
+      lastGameResultPostAt = Date.now();
+      window.parent.postMessage({ type: "maze-game-finished", results: latestAuthoritativeResults }, window.location.origin);
+    }
   }
 }
 
@@ -3104,8 +3144,13 @@ function resetGameState() {
   depotRespawnTimers.fill(0);
   heldItem = null;
   gameTimeRemaining = GAME_DURATION_SECONDS;
+  gameStartsAt = Date.now() + 5_000;
+  gameEndsAt = gameStartsAt + GAME_DURATION_SECONDS * 1000;
+  gameResultPosted = false;
+  lastGameResultPostAt = 0;
+  latestAuthoritativeResults = [];
   gameScore = 0;
-  gameActive = true;
+  gameActive = false;
   messageTimer = 0;
   sprintHeld = false;
   Object.values(skillState).forEach((state) => {
@@ -5015,8 +5060,8 @@ function buildMap(themeKey) {
   if (currentTheme.layout === "lava") addLavaDecor(currentTheme);
   if (currentTheme.layout === "space") addSpaceDecor(currentTheme);
 
-  mapTitle.textContent = currentTheme.title;
-  mapSubtitle.textContent = currentTheme.subtitle;
+  if (mapTitle) mapTitle.textContent = currentTheme.title;
+  if (mapSubtitle) mapSubtitle.textContent = currentTheme.subtitle;
   mapButtons.forEach((button) => {
     button.setAttribute("aria-pressed", button.dataset.map === themeKey ? "true" : "false");
   });
@@ -5120,17 +5165,6 @@ document.addEventListener("visibilitychange", () => {
 });
 
 resetPlayerButton.addEventListener("click", resetPlayer);
-regenerateMazeButton.addEventListener("click", () => {
-  if (multiplayerEnabled) {
-    if (!multiplayerConnected) {
-      showGameMessage("온라인 서버에 연결된 뒤 변경할 수 있습니다.");
-      return;
-    }
-    sendMultiplayerControl("map", makeMazeSeed());
-    return;
-  }
-  startNewGame(true);
-});
 
 copyRoomCodeButton.addEventListener("click", async () => {
   if (!activeRoomCode) return;
@@ -5150,7 +5184,7 @@ actionButtons.forEach((button) => {
   if (action === "sprint") {
     let sprintPointerId = null;
     button.addEventListener("pointerdown", (event) => {
-      if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
       sprintPointerId = event.pointerId;
       sprintHeld = true;
       button.setPointerCapture(event.pointerId);
@@ -5168,7 +5202,11 @@ actionButtons.forEach((button) => {
     button.addEventListener("lostpointercapture", stopSprint);
     return;
   }
-  button.addEventListener("click", () => useSkill(action));
+  button.addEventListener("pointerdown", (event) => {
+    if (button.disabled || (event.pointerType === "mouse" && event.button !== 0)) return;
+    useSkill(action);
+    event.preventDefault();
+  });
 });
 
 let joystickPointerId = null;
@@ -5295,13 +5333,13 @@ function render() {
     objectiveRing.rotation.z = time * 0.35;
     objectiveRing.rotation.y = time * 0.22;
   }
+  updateGame(delta);
   updatePlayer(time, delta);
   updateMultiplayer(delta);
   updateBots(time, delta);
   updateItems(time, delta);
   updateSkills(delta);
   updateGameplayEffects(delta);
-  updateGame(delta);
   updateCameraFollow(delta);
   activeEffects.forEach((effect) => effect(time, delta));
   controls.update();
