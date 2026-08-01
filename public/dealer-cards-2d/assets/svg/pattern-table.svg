@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" color="#a77b42">
+  <defs>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M22 18l4 4-4 4-4-4 4-4z" fill="currentColor" opacity=".42"/>
+    </pattern>
+  </defs>
+  <circle cx="256" cy="256" r="224" fill="url(#grid)"/>
+  <g stroke="currentColor" stroke-linecap="round">
+    <circle cx="256" cy="256" r="42" opacity=".45"/>
+    <circle cx="256" cy="256" r="29" opacity=".3"/>
+    <path d="M256 197l10 49 49 10-49 10-10 49-10-49-49-10 49-10 10-49z" opacity=".7"/>
+    <path d="M230 230l52 52M282 230l-52 52" opacity=".28"/>
+  </g>
+</svg>

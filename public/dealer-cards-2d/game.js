@@ -1,4 +1,4 @@
-import { createGameBoard } from "./game-board.js?v=1";
+import { createGameBoard } from "./game-board.js?v=2";
 
 const roomCode = new URLSearchParams(location.search).get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
@@ -10,6 +10,7 @@ const ui = {
   itemCount: $("item-count"), cardCount: $("card-count"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
+window.addEventListener("pagehide", () => gameBoard.destroy(), { once: true });
 
 let room = null;
 let dealer = null;

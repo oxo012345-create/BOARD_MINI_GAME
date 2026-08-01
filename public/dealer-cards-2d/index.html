@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=8" />
+  <link rel="stylesheet" href="./styles.css?v=9" />
 </head>
 <body>
   <main id="app">
@@ -30,8 +30,7 @@
     <section class="table-board" aria-hidden="true">
       <div class="table-ring">
         <canvas id="game-board-canvas"></canvas>
-        <span class="table-emblem">H</span>
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <span class="table-pattern" aria-hidden="true"></span>
       </div>
     </section>
 
@@ -78,6 +77,6 @@
       <button data-tab="rules"><span class="dock-icon">§</span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=8"></script>
+  <script type="module" src="./game.js?v=9"></script>
 </body>
 </html>

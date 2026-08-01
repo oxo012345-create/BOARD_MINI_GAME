@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
-  <g stroke="var(--metal-dark,#50331d)" stroke-linejoin="round">
-    <path fill="var(--metal,#a87c42)" d="M64 3l9 14 16-7 1 17 17 1-7 16 14 9-14 10 7 16-17 1-1 17-16-7-9 14-10-14-16 7-1-17-17-1 7-16-14-10 14-9-7-16 17-1 1-17 16 7L64 3z"/>
-    <circle cx="64" cy="54" r="38" fill="var(--metal-mid,#76502d)" stroke-width="3"/>
-    <circle cx="64" cy="54" r="31" fill="var(--metal-light,#c4a064)" stroke="var(--metal-hi,#d6bc82)"/>
-    <circle cx="64" cy="54" r="24" fill="var(--core,#3a2118)" stroke-width="2"/>
-    <path fill="var(--metal-light,#c4a064)" stroke="none" d="M47 37h8v13h18V37h8v34h-8V57H55v14h-8V37z"/>
-    <path fill="var(--ribbon,#652632)" d="M29 84h70l-8 26-27-8-27 8-8-26z"/>
-    <path stroke="var(--metal-hi,#d6bc82)" d="M38 91h52M47 97h34" opacity=".65"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <g stroke-linejoin="round">
+    <path fill="var(--metal-dark,#56351e)" stroke="var(--shadow,#24130d)" stroke-width="2" d="M60 2l8 15 14-9 2 17 17-3-4 17 17 4-10 14 14 10-15 8 8 15-17 2 2 17-17-5-5 16-14-11-12 12-8-15-15 8-2-17-17 3 4-17-17-4 10-14L2 57l15-8-8-15 17-2-2-17 17 5 5-16 14 11L60 2z"/>
+    <path fill="var(--metal,#a97b3d)" stroke="var(--highlight,#d2b06b)" stroke-width="2" d="M60 9l8 13 13-6 1 15 15 1-6 13 13 8-13 8 6 13-15 1-1 15-13-6-8 13-8-13-13 6-1-15-15-1 6-13-13-8 13-8-6-13 15-1 1-15 13 6 8-13z"/>
+    <circle cx="60" cy="54" r="37" fill="var(--metal-mid,#76502d)" stroke="var(--shadow,#321d13)" stroke-width="3"/>
+    <circle cx="60" cy="54" r="31" fill="var(--metal-light,#c4a064)" stroke="var(--highlight,#dec589)" stroke-width="2"/>
+    <circle cx="60" cy="54" r="24" fill="var(--core,#3a2118)" stroke="var(--metal-dark,#56351e)" stroke-width="2"/>
+    <path fill="var(--metal-light,#d0b474)" d="M44 37h8v13h16V37h8v34h-8V57H52v14h-8V37z"/>
+    <path fill="var(--ribbon,#642632)" stroke="var(--shadow,#2b1515)" stroke-width="2" d="M28 83h64l-7 24-25-8-25 8-7-24z"/>
+    <path stroke="var(--highlight,#d6bc82)" d="M37 90h46M45 96h30" opacity=".58"/>
   </g>
 </svg>
