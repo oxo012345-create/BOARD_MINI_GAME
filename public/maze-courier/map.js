@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -364,14 +363,10 @@ const outputPass = new OutputPass();
 composer.addPass(renderPass);
 composer.addPass(bloomPass);
 composer.addPass(outputPass);
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.07;
-controls.enablePan = false;
-controls.zoomSpeed = 1.25;
-controls.target.set(0, 0.2, 0);
-controls.minPolarAngle = Math.PI * 0.18;
-controls.maxPolarAngle = Math.PI * 0.48;
+const cameraTarget = new THREE.Vector3(0, 0.2, 0);
+const cameraDesiredPosition = new THREE.Vector3();
+const desktopCameraOffset = new THREE.Vector3(8, 9.8, 8);
+const mobileCameraOffset = new THREE.Vector3(0, 12.6, 11.4);
 
 scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x20283b, 3.2));
 
@@ -1732,10 +1727,14 @@ function updateCameraFollow(delta) {
     .applyAxisAngle(yAxis, playerRoot.rotation.y);
   cameraFollowStep
     .copy(cameraFollowWorld)
-    .sub(controls.target)
+    .sub(cameraTarget)
     .multiplyScalar(1 - Math.exp(-delta * 6.5));
-  controls.target.add(cameraFollowStep);
-  camera.position.add(cameraFollowStep);
+  cameraTarget.add(cameraFollowStep);
+  cameraDesiredPosition
+    .copy(cameraTarget)
+    .add(compactView ? mobileCameraOffset : desktopCameraOffset);
+  camera.position.lerp(cameraDesiredPosition, 1 - Math.exp(-delta * 8));
+  camera.lookAt(cameraTarget);
 }
 
 function showGameMessage(text, duration = 2.2) {
@@ -5282,18 +5281,14 @@ function resize() {
   if (compactView !== nextCompactView) {
     compactView = nextCompactView;
     if (compactView) {
-      camera.fov = 43;
-      controls.minDistance = 7;
-      controls.maxDistance = 26;
+      camera.fov = 40;
       mapRoot.rotation.y = 0;
       decorRoot.rotation.y = 0;
       playerRoot.rotation.y = 0;
       itemRoot.rotation.y = 0;
       gameplayEffectRoot.rotation.y = 0;
     } else {
-      camera.fov = 40;
-      controls.minDistance = 6;
-      controls.maxDistance = 24;
+      camera.fov = 38;
       mapRoot.rotation.y = Math.PI / 4;
       decorRoot.rotation.y = Math.PI / 4;
       playerRoot.rotation.y = Math.PI / 4;
@@ -5307,13 +5302,11 @@ function resize() {
         playerCharacter.group.position.z,
       )
       .applyAxisAngle(yAxis, playerRoot.rotation.y);
-    controls.target.copy(cameraFollowWorld);
+    cameraTarget.copy(cameraFollowWorld);
     camera.position
       .copy(cameraFollowWorld)
-      .add(compactView
-        ? new THREE.Vector3(0, 15.5, 14)
-        : new THREE.Vector3(9.5, 11.5, 9.5));
-    controls.update();
+      .add(compactView ? mobileCameraOffset : desktopCameraOffset);
+    camera.lookAt(cameraTarget);
     scene.fog = new THREE.Fog(currentTheme.fog, compactView ? 70 : 40, compactView ? 145 : 76);
   }
   camera.updateProjectionMatrix();
@@ -5342,7 +5335,6 @@ function render() {
   updateGameplayEffects(delta);
   updateCameraFollow(delta);
   activeEffects.forEach((effect) => effect(time, delta));
-  controls.update();
   composer.render();
   requestAnimationFrame(render);
 }
