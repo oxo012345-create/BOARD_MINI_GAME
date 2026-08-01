@@ -3,21 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#070b12" />
-  <title>수상한 딜러들 · 프라이빗 경매</title>
-  <link rel="stylesheet" href="./styles.css?v=5" />
+  <meta name="theme-color" content="#140b07" />
+  <title>수상한 딜러들 · 프런티어 경매장</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css?v=6" />
 </head>
 <body>
   <main id="app">
-    <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="ambient" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
 
     <header class="hud">
       <div class="brand-lockup">
         <span class="brand-mark">H</span>
-        <div><small id="round">ROUND 1/5</small><strong id="phase">판매품 선택</strong></div>
+        <div><small id="round">ROUND 1/5</small><strong id="phase">비공개 감정</strong></div>
       </div>
-      <div class="timer" aria-label="남은 시간"><small>남은 시간</small><strong id="timer">0:20</strong></div>
-      <div class="cash"><small>보유 자금</small><strong id="cash">$2,000</strong></div>
+      <div class="timer" aria-label="남은 시간"><small>CLOSING</small><strong id="timer">0:20</strong></div>
+      <div class="cash"><small>MY PURSE</small><strong id="cash">$2,000</strong></div>
     </header>
 
     <section class="player-ribbon" id="seats" aria-label="참가자 현황"></section>
@@ -25,15 +28,15 @@
     <section class="lot-stage" id="lot-stage" hidden>
       <article class="lot-card" id="lot-card">
         <div class="lot-card-topline">
-          <div class="lot-ribbon"><span>SELLER</span><b id="seller">판매자</b></div>
-          <span class="live-chip"><i></i> 실시간</span>
+          <div class="lot-ribbon"><span>AUCTIONEER</span><b id="seller">판매자</b></div>
+          <span class="live-chip"><i></i> OPEN</span>
         </div>
         <div class="item-render-wrap">
           <img id="item-image" src="" alt="" />
           <div class="image-vignette"></div>
         </div>
         <div class="lot-copy">
-          <div class="lot-meta"><span id="item-era">시대</span><span id="lot-number">PRIVATE LOT</span></div>
+          <div class="lot-meta"><span id="item-era">시대</span><span id="lot-number">출품 01</span></div>
           <h1 id="item-name">황금 보석 알</h1>
           <p id="item-original">Golden Egg</p>
           <div class="bid-panel">
@@ -44,7 +47,7 @@
       </article>
 
       <aside class="private-dossier" id="private-dossier" hidden>
-        <header><span>비공개 감정서</span><b>나만 보기</b></header>
+        <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
         <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
         <div id="clauses"></div>
       </aside>
@@ -57,12 +60,12 @@
     </section>
 
     <nav class="dock" aria-label="게임 메뉴">
-      <button data-tab="game" class="active"><span class="dock-icon">01</span><em>경매</em></button>
-      <button data-tab="items"><span class="dock-icon">02</span><em>컬렉션</em><b id="item-count">0/4</b></button>
-      <button data-tab="cards"><span class="dock-icon">03</span><em>전략</em><b id="card-count">0/3</b></button>
-      <button data-tab="rules"><span class="dock-icon">04</span><em>기록</em></button>
+      <button data-tab="game" class="active"><span class="dock-icon">♠</span><em>경매장</em></button>
+      <button data-tab="items"><span class="dock-icon">◆</span><em>소장품</em><b id="item-count">0/4</b></button>
+      <button data-tab="cards"><span class="dock-icon">♣</span><em>전략패</em><b id="card-count">0/3</b></button>
+      <button data-tab="rules"><span class="dock-icon">≡</span><em>장부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=5"></script>
+  <script type="module" src="./game.js?v=6"></script>
 </body>
 </html>

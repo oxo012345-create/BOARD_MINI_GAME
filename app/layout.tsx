@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
   const title = "한판 — 같이 노는 술게임";
-  const description = "각자 휴대폰으로 접속해 같은 자리에서 말하고 웃는 모바일 술게임 — 사실적인 소장품과 심리전으로 즐기는 프라이빗 경매, 수상한 딜러들";
+  const description = "각자 휴대폰으로 접속해 같은 자리에서 흥정하고 속이는 미서부 개척시대 소셜 경매 게임 — 수상한 딜러들";
 
   return {
     metadataBase,
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "ko_KR",
       title,
       description,
-      images: [{ url: "/og.png", width: 1792, height: 1005, alt: "한판 수상한 딜러들 프리미엄 소셜 경매 게임" }],
+      images: [{ url: "/og.png", width: 1672, height: 941, alt: "미서부 살롱 경매 게임 수상한 딜러들" }],
     },
     twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
   };
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        <meta name="theme-color" content="#0d0f12" />
+        <meta name="theme-color" content="#140b07" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body>{children}</body>

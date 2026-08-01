@@ -16,8 +16,8 @@ let lastRevision = -1;
 let serverOffset = 0;
 
 const money = (value) => `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
-const phaseNames = { select: "비공개 감정", auction: "라이브 옥션", resolution: "낙찰 결과", shop: "암시장 상점", finished: "딜러 랭킹" };
-const playerColors = ["#38cdb1", "#ff5a7f", "#f1c53c", "#4a8fff", "#9861e9", "#f47b2b", "#75d748", "#9aa9bd"];
+const phaseNames = { select: "소장품 감정", auction: "프런티어 경매", resolution: "낙찰 장부", shop: "살롱 암시장", finished: "최종 장부" };
+const playerColors = ["#2d665b", "#8c2834", "#b98232", "#385f79", "#6c4c75", "#9a5429", "#61733d", "#6b6256"];
 const itemFiles = [
   "00-golden-cross.webp", "01-golden-egg.webp", "02-coffee-mug.webp", "03-gold-medal.webp", "04-silver-medal.webp",
   "05-m1-helmet.webp", "06-antique-vase.webp", "07-retro-monitor.webp", "08-guitar.webp", "09-rocket-launcher.webp",
@@ -62,7 +62,7 @@ const playerName = (id) => room?.players.find((player) => player.id === id)?.nam
 const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
 const itemSubtitle = (item) => item?.name || "Private Collection";
-const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "◆", "◆", "◆", "◆", "◆", "?", "♠", "%", "%", "%", "♜", "◈", "$", "!"][id] || "◆";
+const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!"][id] || "♦";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 async function act(action, extra = {}) {
@@ -131,7 +131,7 @@ function render() {
     ui.itemName.textContent = itemName(dealer.currentItem);
     ui.itemOriginal.textContent = itemSubtitle(dealer.currentItem);
     ui.itemEra.textContent = dealer.currentItem.era;
-    ui.lotNumber.textContent = `LOT ${String(dealer.auctionCount + 1).padStart(2, "0")}`;
+    ui.lotNumber.textContent = `출품 ${String(dealer.auctionCount + 1).padStart(2, "0")}`;
     ui.lotCard.dataset.item = dealer.currentItem.id;
     ui.bid.textContent = money(dealer.highestBidderId ? dealer.currentBid : 100);
     ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
@@ -160,7 +160,7 @@ function renderGame() {
     const selected = dealer.selected[mine] !== undefined;
     const items = dealer.candidates[mine] || [];
     ui.content.innerHTML = `
-      <div class="section-title"><h2>오늘의 소장품</h2><span>감정서를 읽고 출품할 물건 하나를 선택하세요</span></div>
+      <div class="section-title"><h2>비밀 소장품 장부</h2><span>감정가와 계약을 살핀 뒤 물건 하나를 출품하세요</span></div>
       <div class="candidate-grid">${items.map((item, index) => `
         <button class="item-card ${selected && dealer.selected[mine] === index ? "selected" : ""}" data-select="${index}" ${selected ? "disabled" : ""}>
           <img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" />
@@ -179,11 +179,11 @@ function renderGame() {
     const next = dealer.currentBid + 50;
     const afford = dealer.balances[mine] >= next;
     ui.content.innerHTML = `
-      <div class="section-title"><h2>${seller ? "당신의 말이 가격이 됩니다" : "가치를 읽고 호가하세요"}</h2><span>마지막 3초의 호가는 5초 연장됩니다</span></div>
+      <div class="section-title"><h2>${seller ? "소문을 만들어 값을 올리세요" : "진실과 허풍을 가려내세요"}</h2><span>마지막 3초의 호가는 5초 연장됩니다</span></div>
       ${speechLocked ? `<div class="notice">침묵 조항 발동 · 이번 경매가 끝날 때까지 말할 수 없습니다.</div>` : ""}
       ${seller ? `<div class="notice">감정가와 계약 조항은 판매자에게만 공개됩니다. 무엇을 공개할지는 당신의 선택입니다.</div>` : `
         <button class="primary-action" id="bid-button" ${blocked || full || !afford ? "disabled" : ""}>
-          ${blocked ? "해머 잠금 · 입찰 제한" : full ? "컬렉션 보관함이 가득 찼습니다" : !afford ? "입찰 가능한 잔액이 부족합니다" : `호가 올리기 · ${money(next)}`}
+          ${blocked ? "해머 잠금 · 입찰 제한" : full ? "소장품 보관함이 가득 찼습니다" : !afford ? "호가할 자금이 부족합니다" : `호가표 들기 · ${money(next)}`}
         </button>`}
       <button class="secondary-action" data-goto-cards>보유 전략 카드 보기</button>`;
     const bidButton = $("bid-button");
@@ -204,7 +204,7 @@ function renderGame() {
     const discount = myCards().includes(3) ? .8 : myCards().includes(2) ? .9 : 1;
     const cost = Math.round((100 + reroll * 100) * discount / 10) * 10;
     ui.content.innerHTML = `
-      <div class="section-title"><h2>딜러의 암시장</h2><span>교체 ${reroll}회 · 다음 리롤 ${money(cost)}</span></div>
+      <div class="section-title"><h2>살롱 뒷문 상점</h2><span>교체 ${reroll}회 · 다음 상품 교체 ${money(cost)}</span></div>
       <div class="shop-grid">${offers.map((id) => { const card = cards[id]; return `<button class="card-card" data-symbol="${cardSymbol(id)}" data-buy="${id}" ${myCards().length >= 3 || dealer.balances[mine] < card[1] ? "disabled" : ""}><span class="eyebrow">${card[0]}</span><strong>${cardKoreanNames[id]}</strong><small>${card[2]}</small><b>${money(card[1])}</b></button>`; }).join("")}</div>
       <div class="action-row"><button class="secondary-action" id="reroll" ${dealer.balances[mine] < cost ? "disabled" : ""}>상품 교체 · ${money(cost)}</button><button class="secondary-action" id="checkout" ${!(dealer.inventories[mine]?.length) ? "disabled" : ""}>컬렉션 정산</button></div>`;
     ui.content.querySelectorAll("[data-buy]").forEach((button) => { button.onclick = () => act("dealer-buy-card", { cardId: Number(button.dataset.buy) }); });
@@ -224,7 +224,7 @@ function renderGame() {
 function renderItems() {
   const list = dealer.inventories[me()] || [];
   ui.content.innerHTML = `
-    <div class="section-title"><h2>프라이빗 컬렉션</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
+    <div class="section-title"><h2>개척자의 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
     <div class="inventory-list">${list.length ? list.map((item) => `
       <div class="inventory-row"><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(item.value)}</b></div>`).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>`;
 }
@@ -234,7 +234,7 @@ function renderCards() {
   const list = myCards();
   const targetOptions = room.players.filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
   ui.content.innerHTML = `
-    <div class="section-title"><h2>전략 카드</h2><span>${list.length}/3 · 경매 중 타이밍에 맞춰 사용하세요</span></div>
+    <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 중 결정적인 순간에 사용하세요</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>
     <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${dealer.phase !== "auction" ? "disabled" : ""}>사용</button>`}</div></div>`; }).join("") : "<div class='notice'>암시장에서 전략 카드를 구입할 수 있습니다.</div>"}</div>`;
   ui.content.querySelectorAll("[data-use]").forEach((button) => { button.onclick = () => act("dealer-use-card", { cardId: Number(button.dataset.use), targetId: $("target").value }); });
@@ -242,7 +242,7 @@ function renderCards() {
 
 function renderRules() {
   ui.content.innerHTML = `
-    <div class="section-title"><h2>경매 기록과 규칙</h2><span>현장에서 직접 대화하는 소셜 경매</span></div>
+    <div class="section-title"><h2>보안관의 경매 장부</h2><span>현장에서 직접 흥정하고 설득하는 소셜 경매</span></div>
     <div class="log"><div>시작 자금 $2,000 · 컬렉션 4칸 · 전략 카드 3칸</div><div>비밀 소장품 3개 중 하나를 20초 안에 출품</div><div>경매 50초 · $100 시작 · $50 호가 · 막판 입찰 시 5초 연장</div><div>판매자는 실제 감정가와 계약 조항을 보고 직접 설득</div><div>라운드 상점 60초 · 리롤 비용 $100부터 단계적으로 증가</div><div>5라운드 종료 후 가장 많은 현금을 가진 딜러가 승리</div>${dealer.log.slice(0, 8).map((entry) => `<div>${escapeHtml(entry)}</div>`).join("")}</div>`;
 }
 
