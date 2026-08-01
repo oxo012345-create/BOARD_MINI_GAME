@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { assignedTelestrationChain, type GameRound } from "./rounds";
 import { clientSurprise, type SurpriseState } from "./surprise";
+import { dealerClientState } from "./dealer";
 
 export type Player = {
   id: string;
@@ -54,6 +55,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const gemQuestions = internal.gemQuestions;
     const gemSolution = internal.gemSolution;
     const mazeStartedAt = internal.maze?.startedAt;
+    const dealer = internal.dealer;
 
     delete game.answer;
     delete game.liarId;
@@ -78,8 +80,12 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.gemQuestions;
     delete game.gemSolution;
     delete game.maze;
+    delete game.dealer;
 
     if (internal.id === "maze-courier") game.mazeStartedAt = mazeStartedAt;
+    if (internal.id === "double-dealers" && dealer) {
+      game.dealer = dealerClientState(dealer, viewerId);
+    }
 
     if (internal.id === "gem-heist") {
       game.gemQuestion = gemQuestions?.[internal.gemQuestionIndex ?? 0];

@@ -115,6 +115,7 @@ const COOP_GAMES: GameMeta[] = [
   { id: "group-initial", title: "단체 초성 퀴즈", icon: "👥", description: "3초 안에 초성 단어를 말해요", category: "coop" },
 ];
 const BOARD_GAMES: GameMeta[] = [
+  { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 3D 원탁 비밀 경매와 카드 상점", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
@@ -979,6 +980,7 @@ export default function Home() {
   if (room.view === "briefing" && currentGame) {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     const mazePlayerCountValid = room.players.length <= 8;
+    const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
     return <main className={`app-shell briefing-shell ${currentGame.id === "gem-heist" ? "gem-briefing-shell" : ""}`}>
       {topBar("게임 설명")}
       <section className="briefing-card">
@@ -1019,8 +1021,16 @@ export default function Home() {
           </div>
           <div className={`gem-player-rule ${mazePlayerCountValid ? "ready" : "warning"}`}><span>{mazePlayerCountValid ? "✓" : "!"}</span><div><strong>서버 판정 · 최대 8인</strong><small>현재 {room.players.length}명 · {mazePlayerCountValid ? "모든 이동·충돌·아이템을 서버가 검증해요" : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
         </>}
+        {currentGame.id === "double-dealers" && <>
+          <div className="maze-briefing-steps">
+            <span><b>1</b><strong>비밀 감정</strong><small>3개 중 판매품 선택</small></span>
+            <span><b>2</b><strong>현장 협상</strong><small>말로 속이고 $50씩 입찰</small></span>
+            <span><b>3</b><strong>상점 정산</strong><small>세트 판매·카드 구매</small></span>
+          </div>
+          <div className={`gem-player-rule ${dealerPlayerCountValid ? "ready" : "warning"}`}><span>{dealerPlayerCountValid ? "✓" : "!"}</span><div><strong>휴대폰 전용 · 3~8명</strong><small>현재 {room.players.length}명 · {dealerPlayerCountValid ? "음성채팅 없이 같은 자리에서 대화해요" : room.players.length < 3 ? `${3 - room.players.length}명 더 필요해요` : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
+        </>}
       </section>
-      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
+      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid) || (currentGame.id === "double-dealers" && !dealerPlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : currentGame.id === "double-dealers" ? "경매장 입장" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;
   }
@@ -1060,6 +1070,18 @@ export default function Home() {
     />
     <div className="maze-courier-toolbar">
       <span><b>{room.code}</b> · {room.players.length}/8명</span>
+      {isHost && <button type="button" onClick={() => setConfirmType("finish")}>게임 종료</button>}
+    </div>
+    {commonOverlays}
+  </main>;
+  if (currentGame.id === "double-dealers") return <main className="maze-courier-shell dealer-table-shell">
+    <iframe
+      key={`${room.code}-${currentGame.startedAt}`}
+      src={`/dealer-table/index.html?embedded=1&room=${room.code}`}
+      title="수상한 딜러들 3D 원탁"
+      allow="autoplay; fullscreen"
+    />
+    <div className="maze-courier-toolbar dealer-table-toolbar">
       {isHost && <button type="button" onClick={() => setConfirmType("finish")}>게임 종료</button>}
     </div>
     {commonOverlays}

@@ -3,6 +3,7 @@ import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceT
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
+import { createDealerState, dealerAction, tickDealer } from "../../_lib/dealer";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -68,6 +69,11 @@ function handleGemInvestigationTimeout(room: RoomState) {
   return true;
 }
 
+function handleDealerTimeout(room: RoomState) {
+  const game = room.game as GameRound | undefined;
+  return game?.id === "double-dealers" && game.dealer ? tickDealer(game.dealer, room.players) : false;
+}
+
 async function persistAndRespond(room: RoomState, viewerId: string) {
   const expectedRevision = room.revision ?? 0;
   tickSurprise(room);
@@ -95,7 +101,8 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const surpriseChanged = tickSurprise(room);
     const telestrationChanged = handleTelestrationTimeout(room);
     const gemChanged = handleGemInvestigationTimeout(room);
-    const changed = playersChanged || surpriseChanged || telestrationChanged || gemChanged;
+    const dealerChanged = handleDealerTimeout(room);
+    const changed = playersChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
@@ -118,6 +125,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
+      itemIndex?: number; cardId?: number; targetId?: string;
     };
 
     if (payload.action === "join") {
@@ -165,6 +173,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "maze-courier" && room.players.length > 8) {
         return Response.json({ error: "미로의 배달부는 최대 8명까지 함께할 수 있어요." }, { status: 409 });
       }
+      if (gameId === "double-dealers" && (room.players.length < 3 || room.players.length > 8)) {
+        return Response.json({ error: "수상한 딜러들은 3~8명이 함께할 수 있어요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const pendingGame = room.game as GameRound | undefined;
       const previousContentKey = pendingGame?.id === gameId
@@ -180,6 +191,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       );
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
       if (gameId === "maze-courier") game.maze = createMazeState(room.players);
+      if (gameId === "double-dealers") game.dealer = createDealerState(room.players);
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -219,6 +231,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (String(payload.action).startsWith("dealer-")) {
+      if (game.id !== "double-dealers" || !game.dealer) return Response.json({ error: "딜러 게임이 진행 중이 아니에요." }, { status: 409 });
+      try {
+        dealerAction(game.dealer, room.players, viewer.id, String(payload.action), payload as Record<string, unknown>);
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "요청을 처리하지 못했어요." }, { status: 409 });
+      }
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (payload.action === "gem-start-investigation") {
       if (!isHost || game.id !== "gem-heist") return Response.json({ error: "방장만 수사를 시작할 수 있어요." }, { status: 403 });

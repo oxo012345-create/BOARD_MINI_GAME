@@ -1340,3 +1340,14 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   font: inherit;
   font-weight: 800;
 }
+.dealer-table-shell { background: #160d0a; }
+.dealer-table-toolbar {
+  top: auto;
+  right: 10px;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  left: auto;
+  padding: 4px;
+  border-color: rgba(242,184,75,.22);
+  background: rgba(25,12,8,.76);
+  translate: none;
+}

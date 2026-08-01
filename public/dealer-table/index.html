@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#160d0a" />
+  <title>수상한 딜러들</title>
+  <link rel="stylesheet" href="./styles.css?v=1" />
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <main id="app">
+    <canvas id="scene" aria-label="3D 원탁 경매장"></canvas>
+    <header class="hud">
+      <div><small id="round">ROUND 1/5</small><strong id="phase">판매품 선택</strong></div>
+      <div class="timer" id="timer">0:20</div>
+      <div class="cash"><small>MY CASH</small><strong id="cash">$2,000</strong></div>
+    </header>
+    <div class="seat-strip" id="seats"></div>
+    <section class="auction-card" id="auction-card" hidden>
+      <span id="seller">판매자</span><strong id="item-name">Golden Egg</strong><small id="item-era">중세</small>
+      <div class="bid-line"><span>현재 입찰가</span><b id="bid">$100</b></div>
+      <p id="highest">첫 입찰을 기다리는 중</p>
+    </section>
+    <section class="private-dossier" id="private-dossier" hidden>
+      <span>나만 보는 감정서</span><strong id="true-value">$0</strong><div id="clauses"></div>
+    </section>
+    <section class="sheet" id="sheet">
+      <div class="grabber"></div>
+      <div id="notice" class="notice">경매장에 연결하는 중…</div>
+      <div id="content"></div>
+    </section>
+    <nav class="dock">
+      <button data-tab="game" class="active"><span>♠</span>경매</button>
+      <button data-tab="items"><span>◇</span>아이템 <b id="item-count">0/4</b></button>
+      <button data-tab="cards"><span>▣</span>카드 <b id="card-count">0/3</b></button>
+      <button data-tab="rules"><span>§</span>규칙</button>
+    </nav>
+  </main>
+  <script type="module" src="./game.js?v=1"></script>
+</body>
+</html>
