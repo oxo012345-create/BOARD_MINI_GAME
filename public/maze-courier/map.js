@@ -960,13 +960,18 @@ function applyAuthoritativeSelf(player, immediate = false) {
       const correctionDistance = Math.hypot(correctionX, correctionY, correctionZ);
       if (correctionDistance > 1.35) {
         playerCharacter.group.position.copy(target);
-      } else if (correctionDistance > 0.025) {
+      } else if (correctionDistance > 0.075) {
         playerCharacter.group.position.x += correctionX;
         playerCharacter.group.position.y += correctionY;
         playerCharacter.group.position.z += correctionZ;
       }
     }
-    playerCharacter.group.rotation.y = Number(player.state.rotation) || 0;
+    // Acknowledgements describe the direction from when the packet was sent.
+    // Reapplying it after local prediction makes the character twitch toward an
+    // old diagonal direction on every network response.
+    if (immediate || !sentState) {
+      playerCharacter.group.rotation.y = Number(player.state.rotation) || 0;
+    }
     if (hasServerSequence) {
       lastAppliedNetworkSequence = serverSequence;
       networkSequence = Math.max(networkSequence, serverSequence);
@@ -4981,11 +4986,17 @@ window.addEventListener("keyup", (event) => {
   }
 });
 
-window.addEventListener("blur", () => {
+function clearMovementInput() {
   movementKeys.clear();
   sprintHeld = false;
+  joystickPointerId = null;
   joystickInput.set(0, 0);
   joystickKnob.style.translate = "0 0";
+}
+
+window.addEventListener("blur", clearMovementInput);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") clearMovementInput();
 });
 
 resetPlayerButton.addEventListener("click", resetPlayer);
@@ -5044,7 +5055,19 @@ const updateJoystick = (event) => {
     offsetX = offsetX / distance * maxDistance;
     offsetY = offsetY / distance * maxDistance;
   }
-  joystickInput.set(offsetX / maxDistance, -offsetY / maxDistance);
+  const normalizedX = offsetX / maxDistance;
+  const normalizedY = -offsetY / maxDistance;
+  const normalizedDistance = Math.min(1, Math.hypot(normalizedX, normalizedY));
+  const deadzone = 0.16;
+  if (normalizedDistance <= deadzone) {
+    joystickInput.set(0, 0);
+  } else {
+    const strength = (normalizedDistance - deadzone) / (1 - deadzone);
+    joystickInput.set(
+      normalizedX / normalizedDistance * strength,
+      normalizedY / normalizedDistance * strength,
+    );
+  }
   joystickKnob.style.translate = `${offsetX}px ${offsetY}px`;
 };
 
@@ -5063,6 +5086,9 @@ touchJoystick.addEventListener("pointermove", (event) => {
 
 const releaseJoystick = (event) => {
   if (event.pointerId !== joystickPointerId) return;
+  if (touchJoystick.hasPointerCapture(event.pointerId)) {
+    touchJoystick.releasePointerCapture(event.pointerId);
+  }
   joystickPointerId = null;
   joystickInput.set(0, 0);
   joystickKnob.style.translate = "0 0";
@@ -5070,6 +5096,9 @@ const releaseJoystick = (event) => {
 
 touchJoystick.addEventListener("pointerup", releaseJoystick);
 touchJoystick.addEventListener("pointercancel", releaseJoystick);
+touchJoystick.addEventListener("lostpointercapture", releaseJoystick);
+window.addEventListener("pointerup", releaseJoystick);
+window.addEventListener("pointercancel", releaseJoystick);
 
 function resize() {
   const width = canvas.clientWidth;

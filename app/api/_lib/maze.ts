@@ -175,11 +175,17 @@ export function mazeWelcome(state: MazeState, viewerId: string, hostId: string) 
 function movePlayer(state: MazeState, player: MazePlayer, message: Record<string, unknown>, now: number) {
   const seq = Math.floor(finite(message.seq, -1));
   if (seq <= player.state.seq || player.stunUntil > now) return;
+  const sequenceGap = seq - player.state.seq;
   // State requests are serialized by the client. On a slower mobile link the
   // interval between accepted packets can exceed 450ms, so the old cap treated
   // legitimate accumulated movement as a speed hack and pulled the player
   // backwards. Keep validation speed-based while allowing realistic RTTs.
-  const dt = clamp((now - player.state.updatedAt) / 1000, 0.016, 1.25);
+  // Coalesced packets can also arrive immediately after the preceding request;
+  // their sequence gap represents movement time that the server clock alone
+  // cannot see.
+  const serverDt = (now - player.state.updatedAt) / 1000;
+  const sequenceDt = sequenceGap / 8;
+  const dt = clamp(Math.max(serverDt, sequenceDt), 0.016, 1.25);
   const moving = Boolean(message.moving);
   const loadout = CHARACTER_LOADOUTS[player.character];
   let sprinting = Boolean(message.sprinting) && loadout.movement === "sprint" && player.sprintStamina > 0;
