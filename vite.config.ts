@@ -31,6 +31,20 @@ const localBindingConfig = {
         },
       ]
     : [],
+  durable_objects: {
+    bindings: [
+      {
+        name: "MAZE_ROOMS",
+        class_name: "MazeRoom",
+      },
+    ],
+  },
+  migrations: [
+    {
+      tag: "maze-room-v1",
+      new_sqlite_classes: ["MazeRoom"],
+    },
+  ],
 };
 
 export default defineConfig(async () => {

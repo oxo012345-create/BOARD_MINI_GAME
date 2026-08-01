@@ -184,7 +184,7 @@ function movePlayer(state: MazeState, player: MazePlayer, message: Record<string
   // their sequence gap represents movement time that the server clock alone
   // cannot see.
   const serverDt = (now - player.state.updatedAt) / 1000;
-  const sequenceDt = sequenceGap / 8;
+  const sequenceDt = sequenceGap / 12;
   const dt = clamp(Math.max(serverDt, sequenceDt), 0.016, 1.25);
   const moving = Boolean(message.moving);
   const loadout = CHARACTER_LOADOUTS[player.character];

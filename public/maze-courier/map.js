@@ -870,9 +870,6 @@ let multiplayerConnected = false;
 let multiplayerClosing = false;
 let multiplayerFatalError = false;
 let serverClockOffset = 0;
-let networkPollTimer = 0;
-let networkPostInFlight = false;
-const networkPostQueue = [];
 let lastAppliedNetworkSequence = -1;
 const networkSentStates = new Map();
 
@@ -890,10 +887,9 @@ function resolveMultiplayerServerUrl() {
       localStorage.removeItem("mazeCourierServerUrl");
     }
   }
-  if (window.location.protocol === "https:") {
-    return `wss://${window.location.host}/ws`;
-  }
-  return `ws://${window.location.hostname || "127.0.0.1"}:8788/ws`;
+  const url = new URL(`/api/rooms/${requestedRoomCode}/maze/socket`, window.location.href);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.href;
 }
 
 function setOnlineStatus(status, message, playerCount = remotePlayers.size + 1) {
@@ -1265,78 +1261,67 @@ function handleGatewayPayload(payload) {
   (Array.isArray(payload?.messages) ? payload.messages : []).forEach(handleMultiplayerMessage);
 }
 
-async function postMultiplayer(payload) {
-  if (!multiplayerConnected) return false;
-  if (networkPostInFlight) {
-    // Keep the newest movement packet instead of dropping every state while a
-    // request is in flight. Consecutive states are coalesced so high ping never
-    // creates an unbounded backlog, while actions keep their original order.
-    const tailIndex = networkPostQueue.length - 1;
-    if (payload?.type === "state" && networkPostQueue[tailIndex]?.type === "state") {
-      networkPostQueue[tailIndex] = payload;
-    } else {
-      networkPostQueue.push(payload);
-    }
-    return true;
-  }
-  networkPostInFlight = true;
+function postMultiplayer(payload) {
+  if (!multiplayerConnected || multiplayerSocket?.readyState !== WebSocket.OPEN) return false;
   try {
-    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    handleGatewayPayload(await response.json());
+    multiplayerSocket.send(JSON.stringify(payload));
     return true;
   } catch {
-    setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 동기화 중`, remotePlayers.size + 1);
+    multiplayerSocket?.close(1011, "send failed");
     return false;
-  } finally {
-    networkPostInFlight = false;
-    const nextPayload = networkPostQueue.shift();
-    if (nextPayload) window.setTimeout(() => { void postMultiplayer(nextPayload); }, 0);
   }
 }
 
-async function pollMultiplayer() {
-  if (!multiplayerConnected || multiplayerClosing) return;
-  try {
-    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze?snapshot=1`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    handleGatewayPayload(await response.json());
-    setOnlineStatus("connected", `${activeRoomCode}${roomHostId === localNetworkId ? " · 방장" : ""}`, remotePlayers.size + 1);
-  } catch {
-    setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 재연결 중`, remotePlayers.size + 1);
-  } finally {
-    networkPollTimer = window.setTimeout(pollMultiplayer, 250);
-  }
+function scheduleMultiplayerReconnect() {
+  if (multiplayerClosing || multiplayerFatalError) return;
+  networkReconnectAttempts += 1;
+  const delay = Math.min(8_000, 700 * 2 ** Math.min(networkReconnectAttempts - 1, 4));
+  setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 재연결 중`, 1);
+  clearTimeout(networkReconnectTimer);
+  networkReconnectTimer = window.setTimeout(connectMultiplayer, delay);
 }
 
-async function connectMultiplayer() {
+function connectMultiplayer() {
   if (!multiplayerEnabled || !requestedRoomCode) return;
   clearTimeout(networkReconnectTimer);
-  clearTimeout(networkPollTimer);
+  if (multiplayerSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(multiplayerSocket.readyState)) return;
   setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 연결 중`);
-  multiplayerSocket = { readyState: WebSocket.OPEN, close: () => { multiplayerConnected = false; } };
   try {
-    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze?welcome=1`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    handleGatewayPayload(await response.json());
-    await postMultiplayer({
-      type: "join",
-      room: requestedRoomCode,
-      name: activeLoadout.name,
-      character: selectedCharacterIndex,
+    const socket = new WebSocket(resolveMultiplayerServerUrl());
+    multiplayerSocket = socket;
+    socket.addEventListener("open", () => {
+      if (socket !== multiplayerSocket) return;
+      socket.send(JSON.stringify({
+        type: "join",
+        room: requestedRoomCode,
+        name: activeLoadout.name,
+        character: selectedCharacterIndex,
+      }));
     });
-    networkPollTimer = window.setTimeout(pollMultiplayer, 250);
+    socket.addEventListener("message", (event) => {
+      if (socket !== multiplayerSocket) return;
+      try {
+        const payload = JSON.parse(String(event.data));
+        if (Array.isArray(payload?.messages)) handleGatewayPayload(payload);
+        else handleMultiplayerMessage(payload);
+      } catch {
+        showGameMessage("실시간 서버 응답을 읽지 못했습니다.");
+      }
+    });
+    socket.addEventListener("close", (event) => {
+      if (socket !== multiplayerSocket) return;
+      multiplayerConnected = false;
+      multiplayerSocket = null;
+      if (event.code === 4003) multiplayerFatalError = true;
+      scheduleMultiplayerReconnect();
+    });
+    socket.addEventListener("error", () => {
+      if (socket === multiplayerSocket) socket.close();
+    });
   } catch {
     multiplayerConnected = false;
-    networkReconnectAttempts += 1;
-    const delay = Math.min(8000, 700 * 2 ** Math.min(networkReconnectAttempts, 4));
-    setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 재연결 중`, 1);
-    networkReconnectTimer = window.setTimeout(connectMultiplayer, delay);
+    multiplayerSocket = null;
+    scheduleMultiplayerReconnect();
   }
 }
 
@@ -1349,7 +1334,7 @@ function sendMultiplayerControl(kind, value) {
   const payload = { type: "control", kind };
   if (kind === "map") payload.seed = value >>> 0;
   if (kind === "theme") payload.theme = value;
-  void postMultiplayer(payload);
+  postMultiplayer(payload);
   return true;
 }
 
@@ -1357,14 +1342,14 @@ function sendAuthoritativeAction(action, skill = null) {
   if (!multiplayerConnected || multiplayerSocket?.readyState !== WebSocket.OPEN) return false;
   const payload = { type: "action", action };
   if (skill) payload.skill = skill;
-  void postMultiplayer(payload);
+  postMultiplayer(payload);
   return true;
 }
 
 function updateMultiplayer(delta) {
   if (!multiplayerConnected || multiplayerSocket?.readyState !== WebSocket.OPEN) return;
   networkSendAccumulator += delta;
-  if (networkSendAccumulator < 1 / 8) return;
+  if (networkSendAccumulator < 1 / 12) return;
   networkSendAccumulator = 0;
   const position = playerCharacter.group.position;
   const signature = [
@@ -1403,7 +1388,7 @@ function updateMultiplayer(delta) {
   if (networkSentStates.size > 32) {
     networkSentStates.delete(networkSentStates.keys().next().value);
   }
-  void postMultiplayer(payload);
+  postMultiplayer(payload);
 }
 
 function resetPlayer() {
@@ -5184,7 +5169,6 @@ window.addEventListener("resize", resize);
 window.addEventListener("beforeunload", () => {
   multiplayerClosing = true;
   clearTimeout(networkReconnectTimer);
-  clearTimeout(networkPollTimer);
   multiplayerSocket?.close(1000, "page leaving");
 });
 configureActiveLoadoutUI();
