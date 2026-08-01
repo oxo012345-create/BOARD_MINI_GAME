@@ -1,16 +1,16 @@
 body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(circle at 50% 43%, rgba(93, 54, 33, .16), transparent 42%),
-    radial-gradient(ellipse at 50% 48%, transparent 44%, rgba(4, 2, 2, .58) 100%),
-    linear-gradient(rgba(9, 6, 5, .52), rgba(9, 6, 5, .68)),
+    radial-gradient(circle at 50% 38%, rgba(116, 59, 37, .19), transparent 43%),
+    radial-gradient(ellipse at 50% 47%, transparent 49%, rgba(5, 2, 2, .38) 100%),
+    linear-gradient(rgba(22, 10, 8, .24), rgba(10, 5, 4, .38)),
     url("../assets/textures/texture-background.webp");
   background-size: auto, auto, auto, 1024px 1024px;
 }
 
 .ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.ambient:before { content: ""; position: absolute; inset: 94px -50px 80px; opacity: .075; background: url("../assets/svg/pattern-table.svg") center / min(125vw, 690px) no-repeat; filter: sepia(1); }
-.ambient:after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 70px rgba(0,0,0,.34); }
+.ambient:before { content: ""; position: absolute; inset: 88px -35px 76px; opacity: .16; background: url("../assets/svg/pattern-background-map.svg") center / cover no-repeat; mix-blend-mode: screen; }
+.ambient:after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 54px rgba(0,0,0,.26); }
 .ambient i { position: absolute; width: 180px; height: 180px; border-radius: 50%; filter: blur(90px); opacity: .045; }
 .ambient i:nth-child(1) { left: -80px; top: 170px; background: #9b5833; }
 .ambient i:nth-child(2) { right: -95px; top: 240px; background: #702c33; }
@@ -20,37 +20,37 @@ body {
 .hud {
   border: 1px solid #6d4828; border-radius: 19px 19px 9px 9px;
   background-image:
-    radial-gradient(ellipse at 50% -40%, rgba(112, 50, 40, .17), transparent 55%),
-    linear-gradient(rgba(23, 13, 10, .84), rgba(19, 11, 9, .91)),
+    radial-gradient(ellipse at 50% -40%, rgba(131, 55, 43, .25), transparent 58%),
+    linear-gradient(rgba(21, 11, 9, .60), rgba(13, 7, 6, .76)),
     url("../assets/textures/texture-background.webp");
   background-size: auto, auto, 1024px 1024px;
   box-shadow: 0 0 0 2px #0b0705, 0 0 0 3px #392318, inset 0 2px rgba(221,182,112,.07), inset 0 -14px 26px rgba(0,0,0,.2), 0 9px 19px rgba(0,0,0,.38);
 }
 
 .seat {
-  background-image: linear-gradient(rgba(38,23,17,.76), rgba(27,16,13,.84)), url("../assets/textures/texture-leather-fine.webp");
+  background-image: linear-gradient(rgba(36,21,16,.43), rgba(21,12,10,.60)), url("../assets/textures/texture-leather-fine.webp");
   background-size: auto, 512px 512px;
 }
-.seat.me { background-image: linear-gradient(rgba(232,216,177,.82), rgba(190,158,104,.88)), url("../assets/textures/texture-parchment-soft.webp"); }
-.seat.seller { background-image: linear-gradient(rgba(101,35,47,.8), rgba(44,17,22,.9)), url("../assets/textures/texture-leather-fine.webp"); }
+.seat.me { background-image: linear-gradient(rgba(239,218,170,.20), rgba(160,117,65,.33)), url("../assets/textures/texture-parchment-soft.webp"); }
+.seat.seller { background-image: linear-gradient(rgba(101,35,47,.56), rgba(44,17,22,.71)), url("../assets/textures/texture-leather-fine.webp"); }
 
 .table-ring {
   border-radius: 50%;
   background-image:
-    radial-gradient(circle at 50% 43%, rgba(111,72,41,.18), transparent 38%),
-    radial-gradient(circle, transparent 0 64%, rgba(0,0,0,.14) 78%, rgba(4,2,2,.42) 100%),
-    linear-gradient(rgba(27,17,13,.74), rgba(22,14,11,.82)),
+    radial-gradient(circle at 50% 45%, rgba(112,70,39,.16), transparent 41%),
+    radial-gradient(circle, transparent 0 63%, rgba(0,0,0,.09) 77%, rgba(3,1,1,.33) 100%),
+    linear-gradient(rgba(25,15,12,.39), rgba(13,8,7,.54)),
     url("../assets/textures/texture-leather-fine.webp");
   background-size: auto, auto, auto, 512px 512px;
-  box-shadow: inset 0 0 70px rgba(0,0,0,.45), 0 14px 28px rgba(0,0,0,.38);
+  box-shadow: inset 0 0 52px rgba(0,0,0,.38), inset 0 0 0 1px rgba(197,151,80,.08), 0 14px 28px rgba(0,0,0,.38);
 }
 
 .sheet, .lot-copy, .private-dossier, .item-card-copy, .card-card, .inventory-row {
-  background-image: linear-gradient(rgba(235,221,185,.84), rgba(204,179,129,.88)), url("../assets/textures/texture-parchment-soft.webp");
+  background-image: linear-gradient(rgba(239,214,163,.11), rgba(128,82,37,.25)), url("../assets/textures/texture-parchment-soft.webp");
   background-size: auto, 512px 512px;
 }
 
 .dock {
-  background-image: linear-gradient(rgba(31,18,14,.9), rgba(16,10,8,.97)), url("../assets/textures/texture-background.webp");
+  background-image: linear-gradient(rgba(26,14,11,.67), rgba(12,7,6,.84)), url("../assets/textures/texture-background.webp");
   background-size: auto, 1024px 1024px;
 }

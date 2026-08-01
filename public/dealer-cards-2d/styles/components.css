@@ -26,7 +26,7 @@
 .seat.seller b { color:#ead6ae; }
 
 .table-ring:before { content:""; position:absolute; z-index:4; inset:-13px; background:url("../assets/svg/frame-table.svg") center / contain no-repeat; }
-.table-pattern { position:absolute; z-index:2; inset:20px; border-radius:50%; background:url("../assets/svg/pattern-table.svg") center / 100% 100% no-repeat; opacity:.12; }
+.table-pattern { position:absolute; z-index:2; inset:20px; border-radius:50%; background:url("../assets/svg/pattern-table.svg") center / 100% 100% no-repeat; opacity:.18; filter:drop-shadow(0 1px rgba(0,0,0,.28)); }
 #game-board-canvas { position:absolute; z-index:1; inset:15px; width:calc(100% - 30px); height:calc(100% - 30px); border-radius:50%; pointer-events:none; opacity:.24; mix-blend-mode:screen; }
 .table-emblem { display:none; }
 

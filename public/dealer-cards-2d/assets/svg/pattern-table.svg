@@ -1,14 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" color="#a77b42">
   <defs>
     <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
-      <path d="M22 18l4 4-4 4-4-4 4-4z" fill="currentColor" opacity=".42"/>
+      <path d="M22 18l4 4-4 4-4-4 4-4z" fill="currentColor" opacity=".55"/>
+      <path d="M22 0v13M22 31v13M0 22h13M31 22h13" stroke="currentColor" stroke-width=".45" opacity=".18"/>
     </pattern>
   </defs>
   <circle cx="256" cy="256" r="224" fill="url(#grid)"/>
   <g stroke="currentColor" stroke-linecap="round">
-    <circle cx="256" cy="256" r="42" opacity=".45"/>
-    <circle cx="256" cy="256" r="29" opacity=".3"/>
-    <path d="M256 197l10 49 49 10-49 10-10 49-10-49-49-10 49-10 10-49z" opacity=".7"/>
-    <path d="M230 230l52 52M282 230l-52 52" opacity=".28"/>
+    <circle cx="256" cy="256" r="45" opacity=".38"/>
+    <circle cx="256" cy="256" r="31" opacity=".27"/>
+    <circle cx="256" cy="256" r="18" opacity=".18"/>
+    <path d="M256 188l9 58 58 10-58 9-9 58-10-58-58-9 58-10 10-58z" opacity=".74"/>
+    <path d="M222 222l68 68M290 222l-68 68" opacity=".3"/>
+    <path d="M256 205v102M205 256h102" opacity=".22"/>
+    <path d="M175 216c34-32 57-49 81-67 25 18 48 35 81 67M175 296c34 32 57 49 81 67 25-18 48-35 81-67" stroke-dasharray="2 5" opacity=".14"/>
   </g>
 </svg>

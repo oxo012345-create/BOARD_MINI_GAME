@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <g stroke-linejoin="round">
-    <path fill="var(--metal-dark,#56351e)" stroke="var(--shadow,#24130d)" stroke-width="2" d="M60 2l8 15 14-9 2 17 17-3-4 17 17 4-10 14 14 10-15 8 8 15-17 2 2 17-17-5-5 16-14-11-12 12-8-15-15 8-2-17-17 3 4-17-17-4 10-14L2 57l15-8-8-15 17-2-2-17 17 5 5-16 14 11L60 2z"/>
-    <path fill="var(--metal,#a97b3d)" stroke="var(--highlight,#d2b06b)" stroke-width="2" d="M60 9l8 13 13-6 1 15 15 1-6 13 13 8-13 8 6 13-15 1-1 15-13-6-8 13-8-13-13 6-1-15-15-1 6-13-13-8 13-8-6-13 15-1 1-15 13 6 8-13z"/>
-    <circle cx="60" cy="54" r="37" fill="var(--metal-mid,#76502d)" stroke="var(--shadow,#321d13)" stroke-width="3"/>
-    <circle cx="60" cy="54" r="31" fill="var(--metal-light,#c4a064)" stroke="var(--highlight,#dec589)" stroke-width="2"/>
-    <circle cx="60" cy="54" r="24" fill="var(--core,#3a2118)" stroke="var(--metal-dark,#56351e)" stroke-width="2"/>
-    <path fill="var(--metal-light,#d0b474)" d="M44 37h8v13h16V37h8v34h-8V57H52v14h-8V37z"/>
-    <path fill="var(--ribbon,#642632)" stroke="var(--shadow,#2b1515)" stroke-width="2" d="M28 83h64l-7 24-25-8-25 8-7-24z"/>
-    <path stroke="var(--highlight,#d6bc82)" d="M37 90h46M45 96h30" opacity=".58"/>
+    <path fill="var(--metal-dark,#4c2c16)" stroke="var(--shadow,#160c07)" stroke-width="2.5" d="M60 2l8 17 14-11 2 19 18-5-5 18 18 4-12 15 15 11-17 8 10 16-19 1 1 19-17-7-7 17-13-14-14 13-7-17-17 7 2-19-19-2 10-16-17-9 15-11L3 43l18-4-5-18 18 5 2-19 15 11L60 2z"/>
+    <path fill="var(--metal,#a97732)" stroke="var(--highlight,#e2c077)" stroke-width="1.8" d="M60 8l7 17 13-10 2 18 17-5-5 17 17 4-12 13 14 10-16 8 9 15-18 1 1 18-16-7-6 17-12-14-13 13-6-17-16 7 2-18-18-2 9-15-16-8 14-10L9 47l17-4-4-17 17 5 2-18 13 11 6-16z"/>
+    <path fill="var(--metal-mid,#69431f)" stroke="var(--shadow,#27150c)" stroke-width="2" d="M60 18l11 13 17-2-2 17 13 11-13 11 2 17-17-2-11 13-11-13-17 2 2-17-13-11 13-11-2-17 17 2 11-13z"/>
+    <circle cx="60" cy="57" r="31" fill="var(--metal-light,#c9a25d)" stroke="var(--highlight,#f0d79c)" stroke-width="2"/>
+    <circle cx="60" cy="57" r="25" fill="var(--core,#ead9aa)" stroke="var(--metal-dark,#5a351c)" stroke-width="3"/>
+    <circle cx="60" cy="57" r="20.5" stroke="var(--metal,#a97732)" opacity=".65"/>
+    <path fill="var(--shadow,#3a2012)" d="M43 40h8v13h18V40h8v35h-8V60H51v15h-8V40z"/>
+    <path stroke="var(--highlight,#f4dfaa)" d="M15 44l15 4M90 47l15-4M31 89l10-12M89 88L79 77" opacity=".52"/>
   </g>
 </svg>
