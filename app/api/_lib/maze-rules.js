@@ -6,6 +6,7 @@ export const TILE_SIZE = 0.92;
 export const PLAYER_WALL_RADIUS = 0.29;
 export const PLAYER_COLLISION_RADIUS = 0.29;
 export const PLAYER_SPEED = 3.15;
+export const DEPOT_ITEM_REFRESH_MS = 15_000;
 
 export const SPAWNS = [
   { x: -1, y: 0.04, z: 7.85, rotation: Math.PI },
@@ -114,6 +115,19 @@ function createOuterWallLayout() {
   return walls;
 }
 
+function addTrafficFunnelWalls(walls) {
+  const add = (x, z) => walls.add(`${x},${z}`);
+  const funnelRanges = [[3, 6], [12, 15]];
+  for (const [start, end] of funnelRanges) {
+    for (let distance = start; distance <= end; distance += 1) {
+      add(8, distance);
+      add(10, distance);
+      add(distance, 8);
+      add(distance, 10);
+    }
+  }
+}
+
 function createReservedMazeCells() {
   const reserved = new Set();
   const reserve = (x, z) => reserved.add(`${x},${z}`);
@@ -187,6 +201,7 @@ export function generateRandomWallLayout(seed) {
   const reserved = createReservedMazeCells();
   const walls = createOuterWallLayout();
   const outerWallCount = walls.size;
+  addTrafficFunnelWalls(walls);
   const targetInternalWalls = 70 + Math.floor(random() * 22);
   let attempts = 0;
   while (walls.size - outerWallCount < targetInternalWalls && attempts < 5000) {
