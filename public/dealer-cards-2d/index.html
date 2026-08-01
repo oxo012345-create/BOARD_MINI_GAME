@@ -35,6 +35,7 @@
     </section>
 
     <section class="lot-stage" id="lot-stage" hidden>
+      <div class="lot-stack">
       <article class="lot-card" id="lot-card">
       <div class="lot-card-topline" aria-label="경매 상태">
           <div class="lot-ribbon"><span>AUCTIONEER</span><b id="seller">판매자</b></div>
@@ -53,17 +54,19 @@
             <b id="bid">$100</b>
           </div>
         </div>
+        <aside class="private-dossier" id="private-dossier" hidden>
+          <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
+          <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
+          <div id="clauses"></div>
+        </aside>
       </article>
-
-      <aside class="private-dossier" id="private-dossier" hidden>
-        <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
-        <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
-        <div id="clauses"></div>
-      </aside>
+      </div>
     </section>
 
+    <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
     <section class="sheet" id="sheet">
-      <div class="sheet-handle" id="sheet-handle" role="separator" aria-label="패널 높이 조절" aria-valuemin="46" aria-valuemax="620" aria-valuenow="320" tabindex="0"></div>
+      <div class="sheet-handle" id="sheet-handle" role="separator" aria-label="패널 높이 조절" aria-valuemin="220" aria-valuemax="620" aria-valuenow="320" tabindex="0"></div>
+      <button class="sheet-close" id="sheet-close" type="button" aria-label="패널 닫기">×</button>
       <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="sheet-scroll" id="sheet-scroll">
         <div id="notice" class="notice">경매장에 연결하는 중…</div>

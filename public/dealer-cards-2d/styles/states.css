@@ -22,6 +22,5 @@ body[data-phase="finished"]:not([data-tab="cards"]):not([data-tab="items"]):not(
 body[data-phase="resolution"] .lot-card { filter:drop-shadow(0 7px 10px rgba(0,0,0,.42)) drop-shadow(0 0 18px rgba(176,125,62,.16)); }
 .lot-copy { background-color:transparent; background-image:linear-gradient(180deg,rgba(17,9,6,0),rgba(17,9,6,.68)); background-blend-mode:normal; }
 .private-dossier { background-color:rgba(221,194,143,.95); background-image:linear-gradient(180deg,rgba(247,229,187,.72),rgba(183,142,81,.2)),url("../assets/textures/texture-parchment-soft.webp"); background-size:auto,512px 512px; background-blend-mode:normal,multiply; }
-body[data-menu="closed"] .sheet, body[data-menu="closed"][data-tab="cards"] .sheet { height:46px; min-height:46px; }
 
 @media (prefers-reduced-motion:reduce) { *,*:before,*:after { animation-duration:.001ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; } }
