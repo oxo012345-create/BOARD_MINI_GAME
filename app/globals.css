@@ -1348,6 +1348,22 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   left: auto;
 }
 .maze-selection-toolbar button:disabled { opacity: .5; }
+.maze-selection-toolbar .maze-host-start {
+  width: min(42vw, 160px);
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(143, 255, 190, .72);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #20b968, #42dd8d);
+  box-shadow: 0 8px 24px rgba(32, 185, 104, .3);
+  color: #04180e;
+  font-size: 11px;
+}
+.maze-selection-toolbar .maze-host-start:disabled {
+  background: rgba(41, 105, 72, .72);
+  color: rgba(232, 255, 241, .72);
+  box-shadow: none;
+}
 .maze-result-list { display: grid; gap: 7px; margin-top: 18px; text-align: left; }
 .maze-result-list h3 { margin: 0 0 5px; text-align: center; }
 .maze-result-list > div { display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); }

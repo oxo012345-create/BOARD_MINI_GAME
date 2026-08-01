@@ -1008,7 +1008,7 @@ export default function Home() {
         <div className="maze-courier-toolbar maze-selection-toolbar">
           <span><b>{readyCount}/{room.players.length}</b> 선택 완료</span>
           {isHost
-            ? <><button type="button" disabled={hostActionLocked || !mazePlayerCountValid} onClick={() => void startGame()}>{readyCount === room.players.length ? "게임 시작" : "미선택 무작위로 시작"}</button><button type="button" onClick={() => setConfirmType("lobby")}>대기실</button></>
+            ? <><button className="maze-host-start" type="button" disabled={hostActionLocked || !mazePlayerCountValid} onClick={() => void startGame()}>{readyCount === room.players.length ? "게임 시작" : "미선택 무작위로 시작"}</button><button type="button" onClick={() => setConfirmType("lobby")}>대기실</button></>
             : <span>방장이 시작하기를 기다리는 중</span>}
         </div>
         {commonOverlays}
