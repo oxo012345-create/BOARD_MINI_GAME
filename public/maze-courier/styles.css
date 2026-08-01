@@ -54,7 +54,7 @@ body {
   position: absolute;
   z-index: 2;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(5, 13, 29, 0.72);
+  background: rgba(5, 13, 29, 0.54);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(14px);
 }
@@ -197,15 +197,29 @@ h1 {
   cursor: pointer;
 }
 
-.game-status {
+.top-left-hud {
+  position: absolute;
+  z-index: 5;
   top: 18px;
-  left: 50%;
+  left: 20px;
+  display: grid;
+  gap: 8px;
+  width: 240px;
+  pointer-events: none;
+}
+
+.top-left-hud .game-status {
+  position: static;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 13px;
+  width: 100%;
   padding: 8px 13px;
   border-radius: 12px;
-  translate: -50% 0;
+  background: rgba(5, 13, 29, 0.46);
+  translate: none;
+  pointer-events: auto;
 }
 
 .game-status strong {
@@ -247,12 +261,11 @@ h1 {
 }
 
 .order-panel {
-  top: 18px;
-  left: 20px;
-  width: 240px;
+  position: static;
+  width: 100%;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(5, 13, 29, 0.54);
+  background: rgba(5, 13, 29, 0.46);
   box-shadow: 0 10px 28px rgba(0,0,0,.18);
   backdrop-filter: blur(8px);
   pointer-events: none;
@@ -370,7 +383,7 @@ h1 {
   z-index: 7;
   padding: 10px 15px;
   border-radius: 12px;
-  background: rgba(5, 13, 29, 0.84);
+  background: rgba(5, 13, 29, 0.58);
   color: #fff1a8;
   font-size: 14px;
   font-weight: 800;
@@ -386,11 +399,16 @@ h1 {
   z-index: 20;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle, rgba(15,34,62,.18), rgba(3,8,17,.55));
+  background: radial-gradient(circle, rgba(15,34,62,.08), rgba(3,8,17,.24));
   color: #fff;
   font: 950 clamp(76px, 18vw, 180px)/1 Pretendard, system-ui, sans-serif;
   text-shadow: 0 0 28px rgba(97,231,255,.72), 0 12px 40px rgba(0,0,0,.6);
   pointer-events: none;
+}
+.game-countdown.ending {
+  background: radial-gradient(circle, rgba(120, 0, 0, .08), rgba(35, 0, 0, .26));
+  color: #ff4b4b;
+  text-shadow: 0 0 30px rgba(255, 45, 45, .85), 0 12px 40px rgba(0,0,0,.56);
 }
 .game-countdown[hidden] { display: none; }
 
@@ -546,8 +564,10 @@ h1 {
     display: none;
   }
 
-  .game-status {
-    top: 82px;
+  .top-left-hud {
+    top: max(10px, env(safe-area-inset-top));
+    left: 12px;
+    width: min(210px, calc(100vw - 165px));
   }
 
   .game-status strong {
@@ -555,10 +575,6 @@ h1 {
   }
 
   .order-panel {
-    top: max(10px, env(safe-area-inset-top));
-    bottom: auto;
-    left: 12px;
-    width: min(210px, calc(100vw - 165px));
     padding: 9px 10px;
   }
 

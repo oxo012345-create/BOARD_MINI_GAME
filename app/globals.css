@@ -1316,17 +1316,18 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   position: fixed;
   z-index: 80;
   top: max(10px, env(safe-area-inset-top));
-  left: 50%;
+  right: max(10px, env(safe-area-inset-right));
+  left: auto;
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 6px 7px 6px 11px;
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 999px;
-  background: rgba(5,13,29,.78);
+  background: rgba(5,13,29,.56);
   color: #aebbd0;
   font-size: 10px;
-  translate: -50% 0;
+  translate: none;
   backdrop-filter: blur(14px);
 }
 .maze-courier-toolbar b { color: #61e7ff; }
@@ -1340,7 +1341,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   font: inherit;
   font-weight: 800;
 }
-.maze-selection-toolbar { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
+.maze-selection-toolbar {
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+}
 .maze-selection-toolbar button:disabled { opacity: .5; }
 .maze-result-list { display: grid; gap: 7px; margin-top: 18px; text-align: left; }
 .maze-result-list h3 { margin: 0 0 5px; text-align: center; }

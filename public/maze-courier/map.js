@@ -27,10 +27,6 @@ const activeCharacterNameLabel = document.querySelector("#active-character-name"
 const activeCharacterSkillsLabel = document.querySelector("#active-character-skills");
 const audioToggleButton = document.querySelector("#audio-toggle");
 const bgmAudio = document.querySelector("#bgm-audio");
-const onlineStatus = document.querySelector("#online-status");
-const onlineRoomLabel = document.querySelector("#online-room");
-const onlineCountLabel = document.querySelector("#online-count");
-const copyRoomCodeButton = document.querySelector("#copy-room-code");
 const characterChangeLink = document.querySelector(".scene-link");
 const launchParams = new URLSearchParams(window.location.search);
 const multiplayerEnabled = launchParams.get("online") === "1";
@@ -408,6 +404,8 @@ let gameTimeRemaining = GAME_DURATION_SECONDS;
 let gameStartsAt = Date.now() + 5_000;
 let gameEndsAt = gameStartsAt + GAME_DURATION_SECONDS * 1000;
 let gameResultPosted = false;
+let gameStartCueShown = false;
+let gameEndedAt = 0;
 let lastGameResultPostAt = 0;
 let latestAuthoritativeResults = [];
 let gameScore = 0;
@@ -905,14 +903,7 @@ function resolveMultiplayerServerUrl(realtimeEndpoint = "") {
   return url.href;
 }
 
-function setOnlineStatus(status, message, playerCount = remotePlayers.size + 1) {
-  if (!multiplayerEnabled) return;
-  onlineStatus.hidden = false;
-  onlineStatus.classList.toggle("connected", status === "connected");
-  onlineStatus.classList.toggle("reconnecting", status === "connecting");
-  onlineRoomLabel.textContent = message;
-  onlineCountLabel.textContent = `${playerCount} / 8명`;
-}
+function setOnlineStatus() {}
 
 function clearOtherCharacters() {
   botCharacters.forEach((character) => {
@@ -3100,6 +3091,7 @@ function updateGame(delta) {
   }
   if (multiplayerEnabled && !multiplayerConnected) {
     gameActive = false;
+    gameCountdown.classList.remove("ending");
     gameCountdown.hidden = false;
     gameCountdown.textContent = "연결 중";
     return;
@@ -3109,26 +3101,41 @@ function updateGame(delta) {
     gameActive = false;
     gameTimeRemaining = GAME_DURATION_SECONDS;
     gameTimerLabel.textContent = formatGameTime(gameTimeRemaining);
+    gameCountdown.classList.remove("ending");
     gameCountdown.hidden = false;
     gameCountdown.textContent = String(Math.max(1, Math.ceil((gameStartsAt - now) / 1000)));
     return;
   }
-  if (!gameCountdown.hidden && gameCountdown.textContent !== "START!") {
+  if (!gameStartCueShown) {
+    gameStartCueShown = true;
+    gameCountdown.classList.remove("ending");
+    gameCountdown.hidden = false;
     gameCountdown.textContent = "START!";
-    window.setTimeout(() => { gameCountdown.hidden = true; }, 650);
+    window.setTimeout(() => {
+      if (!gameCountdown.classList.contains("ending")) gameCountdown.hidden = true;
+    }, 650);
   }
   gameActive = now < gameEndsAt;
   gameTimeRemaining = Math.max(0, (gameEndsAt - now) / 1000);
   gameTimerLabel.textContent = formatGameTime(gameTimeRemaining);
+  if (gameTimeRemaining > 0 && gameTimeRemaining <= 10) {
+    gameCountdown.classList.add("ending");
+    gameCountdown.hidden = false;
+    gameCountdown.textContent = String(Math.max(1, Math.ceil(gameTimeRemaining)));
+  }
   if (gameTimeRemaining <= 0) {
     gameActive = false;
     movementKeys.clear();
     sprintHeld = false;
+    gameCountdown.classList.add("ending");
+    gameCountdown.hidden = false;
+    gameCountdown.textContent = "종료!";
     if (!gameResultPosted) {
       gameResultPosted = true;
+      gameEndedAt = Date.now();
       showGameMessage(`게임 종료! 최종 점수 ${gameScore}점`, 999);
     }
-    if (window.parent !== window && Date.now() - lastGameResultPostAt > 1_500) {
+    if (Date.now() - gameEndedAt >= 3_000 && window.parent !== window && Date.now() - lastGameResultPostAt > 1_500) {
       lastGameResultPostAt = Date.now();
       window.parent.postMessage({ type: "maze-game-finished", results: latestAuthoritativeResults }, window.location.origin);
     }
@@ -3149,7 +3156,10 @@ function resetGameState() {
   gameStartsAt = Date.now() + 5_000;
   gameEndsAt = gameStartsAt + GAME_DURATION_SECONDS * 1000;
   gameResultPosted = false;
+  gameStartCueShown = false;
+  gameEndedAt = 0;
   lastGameResultPostAt = 0;
+  gameCountdown.classList.remove("ending");
   latestAuthoritativeResults = [];
   gameScore = 0;
   gameActive = false;
@@ -5168,16 +5178,6 @@ document.addEventListener("visibilitychange", () => {
 
 resetPlayerButton.addEventListener("click", resetPlayer);
 
-copyRoomCodeButton.addEventListener("click", async () => {
-  if (!activeRoomCode) return;
-  try {
-    await navigator.clipboard.writeText(activeRoomCode);
-    showGameMessage(`방 코드 ${activeRoomCode} 복사 완료`);
-  } catch {
-    showGameMessage(`방 코드: ${activeRoomCode}`);
-  }
-});
-
 actionButtons.forEach((button) => {
   button.draggable = false;
   button.addEventListener("dragstart", (event) => event.preventDefault());
@@ -5349,7 +5349,6 @@ window.addEventListener("beforeunload", () => {
 });
 configureActiveLoadoutUI();
 startNewGame(true);
-onlineStatus.hidden = !multiplayerEnabled;
 if (multiplayerEnabled) connectMultiplayer();
 loading.remove();
 render();

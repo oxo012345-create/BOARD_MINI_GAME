@@ -755,6 +755,9 @@ export function removePlayerFromRound(game: GameRound | undefined, playerId: str
   game.telestrationOrder = game.telestrationOrder?.filter((id) => id !== playerId);
   game.telestrationSubmitted = game.telestrationSubmitted?.filter((id) => id !== playerId);
   game.successfulPlayerIds = game.successfulPlayerIds?.filter((id) => id !== playerId);
+  if (game.mazeCharacters) delete game.mazeCharacters[playerId];
+  game.mazeReadyPlayerIds = game.mazeReadyPlayerIds?.filter((id) => id !== playerId);
+  game.mazeResults = game.mazeResults?.filter((result) => result.playerId !== playerId);
   if (game.gemVotes) {
     delete game.gemVotes[playerId];
     for (const [voterId, suspectId] of Object.entries(game.gemVotes)) {

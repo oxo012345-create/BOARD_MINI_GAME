@@ -363,6 +363,10 @@ export function createCourierCharacter(config) {
 }
 
 const characters = [];
+const characterRaycaster = new THREE.Raycaster();
+const characterPointer = new THREE.Vector2();
+let characterPointerStart = null;
+let unavailableCharacterIndexes = new Set();
 const positions = [
   [-4.5, 4.8], [-1.5, 4.8], [1.5, 4.8], [4.5, 4.8],
   [-4.5, 1.6], [-1.5, 1.6], [1.5, 1.6], [4.5, 1.6],
@@ -391,6 +395,16 @@ CHARACTER_CONFIGS.forEach((config, index) => {
   const character = createCourierCharacter(config);
   character.position.set(positions[index][0], 0.18, positions[index][1]);
   character.scale.setScalar(0.69);
+  character.traverse((child) => {
+    child.userData.characterIndex = index;
+    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+    materials.forEach((childMaterial) => {
+      childMaterial.userData.baseOpacity = childMaterial.opacity;
+      childMaterial.userData.baseTransparent = childMaterial.transparent;
+    });
+  });
+  pedestal.userData.characterIndex = index;
+  ring.userData.characterIndex = index;
   stage.add(character);
   characters.push({ character, pedestal, ring });
 
@@ -411,6 +425,10 @@ let selectionSyncing = false;
 let initialRoomSelectionApplied = false;
 
 function selectCharacter(index) {
+  if (unavailableCharacterIndexes.has(index)) {
+    partyCount.textContent = "다른 플레이어가 선택한 캐릭터";
+    return false;
+  }
   selectedIndex = index;
   selectedName.textContent = CHARACTER_CONFIGS[index].name;
   selectedRole.textContent = CHARACTER_CONFIGS[index].role;
@@ -425,6 +443,33 @@ function selectCharacter(index) {
     startGameButton.textContent = "선택 완료";
     void submitEmbeddedSelection(false);
   }
+  return true;
+}
+
+function applyCharacterAvailability(indexes) {
+  unavailableCharacterIndexes = new Set(indexes);
+  characters.forEach(({ character, pedestal, ring }, index) => {
+    const taken = unavailableCharacterIndexes.has(index);
+    character.traverse((child) => {
+      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+      materials.forEach((childMaterial) => {
+        const baseOpacity = Number(childMaterial.userData.baseOpacity ?? 1);
+        childMaterial.opacity = taken ? Math.min(baseOpacity, 0.3) : baseOpacity;
+        childMaterial.transparent = taken || Boolean(childMaterial.userData.baseTransparent);
+        childMaterial.needsUpdate = true;
+      });
+    });
+    pedestal.material.opacity = taken ? 0.28 : 1;
+    pedestal.material.transparent = taken;
+    ring.material.color.setHex(taken ? 0x586174 : CHARACTER_CONFIGS[index].color);
+    ring.material.emissive.setHex(taken ? 0xff476f : CHARACTER_CONFIGS[index].color);
+  });
+  [...list.children].forEach((button, index) => {
+    const taken = unavailableCharacterIndexes.has(index);
+    button.disabled = taken;
+    button.dataset.taken = taken ? "true" : "false";
+    button.setAttribute("aria-label", taken ? `${CHARACTER_CONFIGS[index].name} · 다른 플레이어가 선택함` : CHARACTER_CONFIGS[index].name);
+  });
 }
 
 async function submitEmbeddedSelection(ready = true) {
@@ -455,6 +500,11 @@ function renderRoomSelection(room) {
   partyStatus.hidden = false;
   const ready = new Set(room.game.mazeReadyPlayerIds || []);
   const selections = room.game.mazeCharacters || {};
+  const claimedByOthers = Object.entries(selections)
+    .filter(([playerId]) => playerId !== room.meId)
+    .map(([, characterIndex]) => Number(characterIndex))
+    .filter((characterIndex) => Number.isInteger(characterIndex));
+  applyCharacterAvailability(claimedByOthers);
   partyCount.textContent = `${room.players.filter((player) => ready.has(player.id)).length} / ${room.players.length} 완료`;
   partyList.replaceChildren(...room.players.map((player) => {
     const row = document.createElement("div");
@@ -472,6 +522,9 @@ function renderRoomSelection(room) {
   if (!initialRoomSelectionApplied && Number.isInteger(myCharacter) && CHARACTER_CONFIGS[myCharacter]) {
     initialRoomSelectionApplied = true;
     selectCharacter(myCharacter);
+  } else if (unavailableCharacterIndexes.has(selectedIndex)) {
+    const firstAvailable = CHARACTER_CONFIGS.findIndex((_, index) => !unavailableCharacterIndexes.has(index));
+    if (firstAvailable >= 0) selectCharacter(firstAvailable);
   }
   selectionConfirmed = ready.has(room.meId);
   startGameButton.textContent = selectionConfirmed ? "선택 완료 ✓" : "선택 완료";
@@ -488,13 +541,36 @@ async function refreshRoomSelection() {
 }
 
 randomCharacterButton.addEventListener("click", () => {
-  let nextIndex = Math.floor(Math.random() * CHARACTER_CONFIGS.length);
-  if (CHARACTER_CONFIGS.length > 1 && nextIndex === selectedIndex) {
-    nextIndex = (nextIndex + 1 + Math.floor(Math.random() * (CHARACTER_CONFIGS.length - 1)))
-      % CHARACTER_CONFIGS.length;
-  }
+  const available = CHARACTER_CONFIGS
+    .map((_, index) => index)
+    .filter((index) => !unavailableCharacterIndexes.has(index) && index !== selectedIndex);
+  const candidates = available.length > 0 ? available : [selectedIndex];
+  const nextIndex = candidates[Math.floor(Math.random() * candidates.length)];
   selectCharacter(nextIndex);
 });
+
+canvas.addEventListener("pointerdown", (event) => {
+  characterPointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now() };
+});
+
+canvas.addEventListener("pointerup", (event) => {
+  if (!characterPointerStart || characterPointerStart.id !== event.pointerId) return;
+  const moved = Math.hypot(event.clientX - characterPointerStart.x, event.clientY - characterPointerStart.y);
+  const elapsed = performance.now() - characterPointerStart.at;
+  characterPointerStart = null;
+  if (moved > 10 || elapsed > 650) return;
+  const bounds = canvas.getBoundingClientRect();
+  characterPointer.set(
+    (event.clientX - bounds.left) / bounds.width * 2 - 1,
+    -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+  );
+  characterRaycaster.setFromCamera(characterPointer, camera);
+  const hit = characterRaycaster.intersectObjects(stage.children, true)
+    .find((intersection) => Number.isInteger(intersection.object.userData.characterIndex));
+  if (hit) selectCharacter(hit.object.userData.characterIndex);
+});
+
+canvas.addEventListener("pointercancel", () => { characterPointerStart = null; });
 
 function openGame({ online = false, room = "" } = {}) {
   localStorage.setItem("mazeCourierCharacter", String(selectedIndex));
@@ -608,12 +684,13 @@ function render() {
   resize();
   const time = clock.getElapsedTime();
   characters.forEach(({ character, ring }, index) => {
-    const selected = index === selectedIndex;
-    character.position.y = 0.18 + Math.sin(time * 2.1 + index * 0.7) * 0.045 + (selected ? 0.13 : 0);
+    const taken = unavailableCharacterIndexes.has(index);
+    const selected = index === selectedIndex && !taken;
+    character.position.y = 0.18 + Math.sin(time * 2.1 + index * 0.7) * 0.045 + (selected ? 0.58 : 0);
     character.rotation.y = Math.sin(time * 0.55 + index) * 0.08;
-    character.scale.setScalar(selected ? 0.76 : 0.69);
+    character.scale.setScalar(selected ? 1.38 : taken ? 0.61 : 0.69);
     ring.rotation.z = time * (selected ? 0.7 : 0.18);
-    ring.material.emissiveIntensity = selected ? 2.2 : 0.7;
+    ring.material.emissiveIntensity = selected ? 2.2 : taken ? 0.25 : 0.7;
   });
   controls.update();
   renderer.render(scene, camera);

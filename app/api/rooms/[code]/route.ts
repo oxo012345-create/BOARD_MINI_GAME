@@ -173,6 +173,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (room.view !== "briefing" || pending?.id !== "maze-courier") return Response.json({ error: "지금은 배달부를 선택할 수 없어요." }, { status: 409 });
       const character = Math.max(0, Math.min(15, Math.floor(Number(payload.character))));
       if (!Number.isFinite(character)) return Response.json({ error: "캐릭터를 다시 선택해 주세요." }, { status: 400 });
+      const claimedBy = Object.entries(pending.mazeCharacters ?? {})
+        .find(([playerId, selected]) => playerId !== viewer.id && Number(selected) === character)?.[0];
+      if (claimedBy) {
+        const playerName = room.players.find((player) => player.id === claimedBy)?.name ?? "다른 플레이어";
+        return Response.json({ error: `${playerName}님이 이미 선택한 캐릭터예요.` }, { status: 409 });
+      }
       pending.mazeCharacters = { ...(pending.mazeCharacters ?? {}), [viewer.id]: character };
       const ready = new Set(pending.mazeReadyPlayerIds ?? []);
       if (payload.ready !== false) ready.add(viewer.id); else ready.delete(viewer.id);
@@ -209,9 +215,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!game) return Response.json({ error: "게임을 시작하지 못했어요." }, { status: 400 });
       if (gameId === "maze-courier") {
         const selected = pendingGame?.mazeCharacters ?? {};
+        const usedCharacters = new Set<number>();
         const mazeCharacters = Object.fromEntries(room.players.map((player) => {
           const chosen = Number(selected[player.id]);
-          return [player.id, Number.isInteger(chosen) && chosen >= 0 && chosen < 16 ? chosen : Math.floor(Math.random() * 16)];
+          if (Number.isInteger(chosen) && chosen >= 0 && chosen < 16 && !usedCharacters.has(chosen)) {
+            usedCharacters.add(chosen);
+            return [player.id, chosen];
+          }
+          const available = Array.from({ length: 16 }, (_, index) => index).filter((index) => !usedCharacters.has(index));
+          const randomized = available[Math.floor(Math.random() * available.length)]!;
+          usedCharacters.add(randomized);
+          return [player.id, randomized];
         }));
         game.mazeCharacters = mazeCharacters;
         game.mazeReadyPlayerIds = room.players.map((player) => player.id);

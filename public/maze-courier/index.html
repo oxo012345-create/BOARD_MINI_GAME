@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>미로의 배달부 — 3D 블록 맵</title>
-    <link rel="stylesheet" href="./styles.css?v=20260801-chase-camera-37" />
+    <link rel="stylesheet" href="./styles.css?v=20260801-ui-finish-38" />
     <script>
       if (
         new URL(window.location.href).searchParams.get("play") !== "1"
@@ -29,25 +29,19 @@
         <span><i class="cyan"></i>중앙 제작대</span>
         <span><i class="yellow"></i>재료 출입구 × 8</span>
       </section>
-      <section class="game-status" aria-label="게임 상태">
-        <strong id="game-timer">03:00</strong>
-        <span>점수 <b id="game-score">0</b></span>
-        <button id="audio-toggle" type="button" aria-pressed="false" aria-label="사운드 끄기" title="사운드 켜기/끄기">🔊</button>
-      </section>
-      <section class="online-status" id="online-status" aria-label="온라인 접속 상태" hidden>
-        <span class="connection-dot" id="connection-dot"></span>
-        <div>
-          <strong id="online-room">온라인 연결 중</strong>
-          <span id="online-count">1 / 8명</span>
-        </div>
-        <button id="copy-room-code" type="button" aria-label="방 코드 복사">복사</button>
-      </section>
-      <section class="order-panel" aria-label="현재 음식 주문">
-        <p>현재 주문 · <b id="recipe-points">2점</b></p>
-        <h2 id="recipe-name">치즈 토스트</h2>
-        <div id="recipe-ingredients"></div>
-        <span id="held-item">손에 든 재료 없음</span>
-      </section>
+      <div class="top-left-hud">
+        <section class="order-panel" aria-label="현재 음식 주문">
+          <p>현재 주문 · <b id="recipe-points">2점</b></p>
+          <h2 id="recipe-name">치즈 토스트</h2>
+          <div id="recipe-ingredients"></div>
+          <span id="held-item">손에 든 재료 없음</span>
+        </section>
+        <section class="game-status" aria-label="게임 상태">
+          <strong id="game-timer">03:00</strong>
+          <span>점수 <b id="game-score">0</b></span>
+          <button id="audio-toggle" type="button" aria-pressed="false" aria-label="사운드 끄기" title="사운드 켜기/끄기">🔊</button>
+        </section>
+      </div>
       <section class="play-hud" aria-label="캐릭터 조작 안내">
         <strong id="active-character-name">민트 배달부</strong>
         <span>WASD 이동 · 내 주문 재료만 집기 가능</span>
@@ -74,6 +68,6 @@
       <div id="loading">3D 맵 불러오는 중…</div>
       <audio id="bgm-audio" preload="none" loop aria-hidden="true"></audio>
     </main>
-    <script type="module" src="./map.js?v=20260801-chase-camera-37"></script>
+    <script type="module" src="./map.js?v=20260801-ui-finish-38"></script>
   </body>
 </html>
