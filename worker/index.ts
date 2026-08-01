@@ -45,6 +45,9 @@ async function handleMazeSocket(request: Request, env: Env, code: string) {
   if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
     return Response.json({ error: "WEBSOCKET_REQUIRED" }, { status: 426 });
   }
+  if (!env.MAZE_ROOMS) {
+    return Response.json({ error: "REALTIME_BINDING_UNAVAILABLE" }, { status: 501 });
+  }
   const row = await env.DB.prepare("SELECT state FROM rooms WHERE code = ?").bind(code).first<RoomRow>();
   if (!row) return Response.json({ error: "ROOM_NOT_FOUND" }, { status: 404 });
 

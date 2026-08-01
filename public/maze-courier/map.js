@@ -870,6 +870,10 @@ let multiplayerConnected = false;
 let multiplayerClosing = false;
 let multiplayerFatalError = false;
 let serverClockOffset = 0;
+let multiplayerTransport = "websocket";
+let networkPollTimer = 0;
+let networkPostInFlight = false;
+const networkPostQueue = [];
 let lastAppliedNetworkSequence = -1;
 const networkSentStates = new Map();
 
@@ -1263,12 +1267,77 @@ function handleGatewayPayload(payload) {
 
 function postMultiplayer(payload) {
   if (!multiplayerConnected || multiplayerSocket?.readyState !== WebSocket.OPEN) return false;
+  if (multiplayerTransport === "http") {
+    void postMultiplayerHttp(payload);
+    return true;
+  }
   try {
     multiplayerSocket.send(JSON.stringify(payload));
     return true;
   } catch {
     multiplayerSocket?.close(1011, "send failed");
     return false;
+  }
+}
+
+async function postMultiplayerHttp(payload) {
+  if (!multiplayerConnected) return false;
+  if (networkPostInFlight) {
+    const tailIndex = networkPostQueue.length - 1;
+    if (payload?.type === "state" && networkPostQueue[tailIndex]?.type === "state") networkPostQueue[tailIndex] = payload;
+    else networkPostQueue.push(payload);
+    return true;
+  }
+  networkPostInFlight = true;
+  try {
+    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    handleGatewayPayload(await response.json());
+    return true;
+  } catch {
+    setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 동기화 중`, remotePlayers.size + 1);
+    return false;
+  } finally {
+    networkPostInFlight = false;
+    const nextPayload = networkPostQueue.shift();
+    if (nextPayload) window.setTimeout(() => { void postMultiplayerHttp(nextPayload); }, 0);
+  }
+}
+
+async function pollMultiplayerHttp() {
+  if (!multiplayerConnected || multiplayerClosing || multiplayerTransport !== "http") return;
+  try {
+    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze?snapshot=1`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    handleGatewayPayload(await response.json());
+    setOnlineStatus("connected", `${activeRoomCode}${roomHostId === localNetworkId ? " · 방장" : ""}`, remotePlayers.size + 1);
+  } catch {
+    setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 재연결 중`, remotePlayers.size + 1);
+  } finally {
+    networkPollTimer = window.setTimeout(pollMultiplayerHttp, 250);
+  }
+}
+
+async function connectHttpFallback() {
+  if (multiplayerClosing) return;
+  multiplayerTransport = "http";
+  multiplayerSocket = { readyState: WebSocket.OPEN, close: () => { multiplayerConnected = false; } };
+  setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 호환 연결 중`);
+  try {
+    const response = await fetch(`/api/rooms/${requestedRoomCode}/maze?welcome=1`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    handleGatewayPayload(await response.json());
+    await postMultiplayerHttp({ type: "join", room: requestedRoomCode, name: activeLoadout.name, character: selectedCharacterIndex });
+    networkPollTimer = window.setTimeout(pollMultiplayerHttp, 250);
+  } catch {
+    multiplayerConnected = false;
+    multiplayerSocket = null;
+    scheduleMultiplayerReconnect();
   }
 }
 
@@ -1286,6 +1355,7 @@ function connectMultiplayer() {
   clearTimeout(networkReconnectTimer);
   if (multiplayerSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(multiplayerSocket.readyState)) return;
   setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 연결 중`);
+  multiplayerTransport = "websocket";
   try {
     const socket = new WebSocket(resolveMultiplayerServerUrl());
     multiplayerSocket = socket;
@@ -1313,7 +1383,7 @@ function connectMultiplayer() {
       multiplayerConnected = false;
       multiplayerSocket = null;
       if (event.code === 4003) multiplayerFatalError = true;
-      scheduleMultiplayerReconnect();
+      if (!multiplayerFatalError) void connectHttpFallback();
     });
     socket.addEventListener("error", () => {
       if (socket === multiplayerSocket) socket.close();
@@ -5169,6 +5239,7 @@ window.addEventListener("resize", resize);
 window.addEventListener("beforeunload", () => {
   multiplayerClosing = true;
   clearTimeout(networkReconnectTimer);
+  clearTimeout(networkPollTimer);
   multiplayerSocket?.close(1000, "page leaving");
 });
 configureActiveLoadoutUI();
