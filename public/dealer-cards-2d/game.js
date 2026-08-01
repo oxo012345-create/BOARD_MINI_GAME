@@ -64,6 +64,7 @@ const me = () => room?.meId;
 const myCards = () => dealer?.cards?.[me()] || [];
 const playerName = (id) => room?.players.find((player) => player.id === id)?.name || "참가자";
 const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
+const lotItemSrc = (id) => `/dealer-items/${itemFiles[id] || itemFiles[0]}`;
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
 const itemSubtitle = (item) => item?.name || "Private Collection";
 const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!"][id] || "♦";
@@ -72,6 +73,7 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character
 async function act(action, extra = {}) {
   if (busy) return;
   busy = true;
+  document.body.dataset.busy = action;
   ui.notice.textContent = "처리 중…";
   try {
     const response = await fetch(`/api/rooms/${roomCode}`, {
@@ -89,6 +91,7 @@ async function act(action, extra = {}) {
     ui.notice.textContent = error.message || "다시 시도해 주세요.";
   } finally {
     busy = false;
+    delete document.body.dataset.busy;
   }
 }
 
@@ -131,7 +134,7 @@ function render() {
   ui.lotStage.hidden = !showLot;
   if (dealer.currentItem) {
     ui.seller.textContent = playerName(dealer.sellerId);
-    ui.itemImage.src = itemSrc(dealer.currentItem.id);
+    ui.itemImage.src = lotItemSrc(dealer.currentItem.id);
     ui.itemImage.alt = dealer.currentItem.name;
     ui.itemName.textContent = itemName(dealer.currentItem);
     ui.itemOriginal.textContent = itemSubtitle(dealer.currentItem);
@@ -193,7 +196,12 @@ function renderGame() {
         </button>`}
       <button class="secondary-action" data-goto-cards>보유 전략 카드 보기</button>`;
     const bidButton = $("bid-button");
-    if (bidButton) bidButton.onclick = () => act("dealer-bid");
+    if (bidButton) bidButton.onclick = () => {
+      bidButton.disabled = true;
+      bidButton.classList.add("is-loading");
+      bidButton.textContent = "입찰 확인 중…";
+      act("dealer-bid");
+    };
     ui.content.querySelector("[data-goto-cards]").onclick = () => setTab("cards");
     return;
   }
@@ -242,7 +250,7 @@ function renderCards() {
   ui.content.innerHTML = `
     <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 후 결정적인 순간에 사용하세요</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>
-    <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${dealer.phase !== "auction" ? "disabled" : ""}>사용</button>`}</div></div>`; }).join("") : "<div class='notice'>암시장에서 전략 카드를 구입할 수 있습니다.</div>"}</div>`;
+    <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${dealer.phase !== "auction" ? "disabled" : ""}>사용</button>`}</div></div>`; }).join("") : `<div class="empty-state"><div class="empty-state-icon">+</div><strong>아직 보유한 전략패가 없습니다</strong><small>정책 거래소에서 전략패를 구입하면 이곳에 보관됩니다.</small></div>`}</div>`;
   ui.content.querySelectorAll("[data-use]").forEach((button) => { button.onclick = () => act("dealer-use-card", { cardId: Number(button.dataset.use), targetId: $("target").value }); });
 }
 
@@ -264,7 +272,10 @@ setInterval(() => {
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
   const seconds = Math.ceil(left / 1000);
   ui.timer.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  ui.timer.classList.toggle("danger", seconds <= 5 && dealer.phase !== "finished");
+  const critical = seconds <= 5 && dealer.phase !== "finished";
+  ui.timer.classList.toggle("danger", critical);
+  ui.timer.closest(".timer")?.classList.toggle("critical", critical);
+  document.body.dataset.timeCritical = critical ? "true" : "false";
 }, 200);
 setInterval(sync, 650);
 sync();

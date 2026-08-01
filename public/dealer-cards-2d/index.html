@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=11" />
+  <link rel="stylesheet" href="./styles.css?v=12" />
 </head>
 <body>
   <main id="app">
@@ -36,11 +36,11 @@
 
     <section class="lot-stage" id="lot-stage" hidden>
       <article class="lot-card" id="lot-card">
-        <div class="lot-card-topline">
+      <div class="lot-card-topline" aria-label="경매 상태">
           <div class="lot-ribbon"><span>AUCTIONEER</span><b id="seller">판매자</b></div>
           <span class="live-chip"><i></i> OPEN</span>
         </div>
-        <div class="item-render-wrap">
+      <div class="item-render-wrap" aria-hidden="true">
           <img id="item-image" src="" alt="" />
           <div class="image-vignette"></div>
         </div>
@@ -71,12 +71,12 @@
 
     <nav class="dock" aria-label="게임 메뉴">
       <span class="dock-rail" aria-hidden="true"></span>
-      <button data-tab="game" class="active"><span class="dock-icon">♠</span><em>경매장</em></button>
-      <button data-tab="items"><span class="dock-icon">◆</span><em>소장품</em><b id="item-count">0/4</b></button>
-      <button data-tab="cards"><span class="dock-icon">♣</span><em>전략패</em><b id="card-count">0/3</b></button>
-      <button data-tab="rules"><span class="dock-icon">§</span><em>정부</em></button>
+      <button data-tab="game" class="active" aria-label="경매장"><span class="dock-icon" aria-hidden="true"></span><em>경매장</em></button>
+      <button data-tab="items" aria-label="소장품"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
+      <button data-tab="cards" aria-label="전략패"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
+      <button data-tab="rules" aria-label="정부"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=9"></script>
+  <script type="module" src="./game.js?v=10"></script>
 </body>
 </html>

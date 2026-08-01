@@ -9,6 +9,11 @@
 .dock button.active .dock-icon:before { width:26px; height:26px; }
 .dock button.active em { margin-top:-3px; color:#e8cd84; }
 .dock button.active:after { display:none; }
+.dock button.active .dock-icon { width:52px; height:52px; translate:0 -4px; }
+.dock button.active .dock-icon:before { width:28px; height:28px; }
+.primary-action.is-loading { color:#f0ddb4; background:linear-gradient(180deg,#6a2d37,#35151c); cursor:wait; }
+body[data-busy] .timer { filter:saturate(.9); }
+body[data-time-critical="true"] .sheet { box-shadow:inset 0 2px rgba(255,250,224,.48),inset 0 -18px 31px rgba(84,51,28,.13),0 18px 34px rgba(0,0,0,.56),0 -2px 17px rgba(162,77,56,.1); }
 .dock button:focus-visible { outline:none; }
 .dock button:focus-visible .dock-icon { outline:1px solid #d4ae68; outline-offset:3px; }
 body[data-phase="auction"] .sheet { min-height:182px; }

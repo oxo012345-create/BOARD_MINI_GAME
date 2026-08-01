@@ -48,17 +48,22 @@ body[data-tab="cards"] .sheet { height: var(--strategy-sheet-height); overflow: 
 }
 
 @media (max-height: 760px) {
-  :root { --strategy-sheet-height: 194px; --table-top: 140px; }
+  :root { --strategy-sheet-height: 196px; --table-top: 128px; }
   .sheet { padding-top: 14px; }
 }
 
 @media (max-width: 370px) {
-  :root { --hud-height: 68px; --table-diameter: 82vw; --strategy-sheet-height: 190px; }
+  :root { --hud-height: 68px; --table-diameter: 84vw; --strategy-sheet-height: 196px; }
   .hud { padding-inline: 9px; }
   .cash small, .cash-value i { display: none; }
   .cash strong { font-size: 14px; }
-  .brand-mark { width: 42px; height: 42px; }
+  .brand-mark { width: 40px; height: 40px; }
   .player-ribbon { padding-left: 13px; gap: 8px; }
-  .seat { min-width: 96px; }
+  .seat { min-width: 104px; }
   .sheet { left: 6px; right: 6px; padding-inline: 14px; }
+}
+
+@media (min-width: 431px) {
+  .seat { min-width: 116px; }
+  .player-ribbon { padding-inline: 18px; }
 }
