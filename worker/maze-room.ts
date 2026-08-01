@@ -33,8 +33,11 @@ function clone<T>(value: T): T {
 }
 
 export class MazeRoom extends DurableObject<MazeRoomEnv> {
+  private static readonly STORAGE_SYNC_INTERVAL_MS = 1_000;
   private room: StoredRoom | null = null;
   private readonly ready: Promise<void>;
+  private lastStorageSyncAt = 0;
+  private storageSync: Promise<void> = Promise.resolve();
   private lastD1SyncAt = 0;
   private d1Sync: Promise<void> = Promise.resolve();
   private lastItemSignature = "";
@@ -66,6 +69,7 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
           maze: clone(payload.maze),
         };
         await this.ctx.storage.put("room", this.room);
+        this.lastStorageSyncAt = Date.now();
       } else {
         this.room.hostId = payload.hostId;
         for (const player of payload.players) this.room.players[player.id] = clone(player);
@@ -133,7 +137,9 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
       for (const outgoing of messages) this.broadcast(outgoing);
     }
 
-    this.persist(message.type !== "state");
+    const importantChange = message.type === "hello"
+      || messages.some((outgoing) => outgoing.type === "event" || outgoing.type === "world");
+    this.persist(importantChange);
   }
 
   async webSocketClose(socket: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
@@ -185,15 +191,24 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
     }, except);
   }
 
-  private persist(forceD1: boolean) {
+  private persist(forcePersist: boolean) {
     if (!this.room) return;
-    const stored = clone(this.room);
-    this.ctx.waitUntil(this.ctx.storage.put("room", stored));
-
     const now = Date.now();
-    if (!forceD1 && now - this.lastD1SyncAt < 5_000) return;
+    const shouldStore = forcePersist || now - this.lastStorageSyncAt >= MazeRoom.STORAGE_SYNC_INTERVAL_MS;
+    const shouldSyncD1 = Boolean(this.env.DB) && (forcePersist || now - this.lastD1SyncAt >= 5_000);
+    if (!shouldStore && !shouldSyncD1) return;
+
+    const stored = clone(this.room);
+    if (shouldStore) {
+      this.lastStorageSyncAt = now;
+      this.storageSync = this.storageSync
+        .catch(() => undefined)
+        .then(() => this.ctx.storage.put("room", stored));
+      this.ctx.waitUntil(this.storageSync);
+    }
+
+    if (!shouldSyncD1 || !this.env.DB) return;
     this.lastD1SyncAt = now;
-    if (!this.env.DB) return;
     this.d1Sync = this.d1Sync
       .catch(() => undefined)
       .then(async () => {
