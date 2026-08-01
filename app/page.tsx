@@ -1110,8 +1110,8 @@ export default function Home() {
   </main>;
   if (currentGame.id === "double-dealers") return <main className="maze-courier-shell dealer-table-shell">
     <iframe
-      key={`${room.code}-${currentGame.startedAt}-dealer-premium-v4`}
-      src={`/dealer-cards-2d/index.html?embedded=1&room=${room.code}&ui=dealer-premium-v4`}
+      key={`${room.code}-${currentGame.startedAt}-dealer-arena-v5`}
+      src={`/dealer-cards-2d/index.html?embedded=1&room=${room.code}&ui=dealer-arena-v5`}
       title="수상한 딜러들 프리미엄 소셜 경매"
     />
     <div className="maze-courier-toolbar dealer-table-toolbar">
