@@ -877,7 +877,7 @@ const networkPostQueue = [];
 let lastAppliedNetworkSequence = -1;
 const networkSentStates = new Map();
 
-function resolveMultiplayerServerUrl() {
+function resolveMultiplayerServerUrl(realtimeEndpoint = "") {
   const provided = launchParams.get("server")?.trim();
   if (provided) localStorage.setItem("mazeCourierServerUrl", provided);
   const saved = provided || localStorage.getItem("mazeCourierServerUrl");
@@ -891,7 +891,10 @@ function resolveMultiplayerServerUrl() {
       localStorage.removeItem("mazeCourierServerUrl");
     }
   }
-  const url = new URL(`/api/rooms/${requestedRoomCode}/maze/socket`, window.location.href);
+  const url = realtimeEndpoint
+    ? new URL(realtimeEndpoint)
+    : new URL(`/api/rooms/${requestedRoomCode}/maze/socket`, window.location.href);
+  if (realtimeEndpoint) url.pathname = `${url.pathname.replace(/\/$/, "")}/connect`;
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.href;
 }
@@ -1350,14 +1353,31 @@ function scheduleMultiplayerReconnect() {
   networkReconnectTimer = window.setTimeout(connectMultiplayer, delay);
 }
 
-function connectMultiplayer() {
+async function connectMultiplayer() {
   if (!multiplayerEnabled || !requestedRoomCode) return;
   clearTimeout(networkReconnectTimer);
   if (multiplayerSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(multiplayerSocket.readyState)) return;
   setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 연결 중`);
   multiplayerTransport = "websocket";
   try {
-    const socket = new WebSocket(resolveMultiplayerServerUrl());
+    let endpoint = "";
+    let ticket = "";
+    if (!launchParams.get("server")) {
+      const accessResponse = await fetch(`/api/rooms/${requestedRoomCode}/maze/realtime`, { method: "POST", cache: "no-store" });
+      if (!accessResponse.ok) throw new Error(`realtime access ${accessResponse.status}`);
+      const access = await accessResponse.json();
+      endpoint = String(access.endpoint || "");
+      ticket = String(access.ticket || "");
+      const bootstrapResponse = await fetch(`${endpoint.replace(/\/$/, "")}/bootstrap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: access.bootstrap }),
+      });
+      if (!bootstrapResponse.ok) throw new Error(`realtime bootstrap ${bootstrapResponse.status}`);
+    }
+    const socketUrl = new URL(resolveMultiplayerServerUrl(endpoint));
+    if (ticket) socketUrl.searchParams.set("ticket", ticket);
+    const socket = new WebSocket(socketUrl.href);
     multiplayerSocket = socket;
     socket.addEventListener("open", () => {
       if (socket !== multiplayerSocket) return;
@@ -1391,7 +1411,7 @@ function connectMultiplayer() {
   } catch {
     multiplayerConnected = false;
     multiplayerSocket = null;
-    scheduleMultiplayerReconnect();
+    void connectHttpFallback();
   }
 }
 

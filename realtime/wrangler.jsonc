@@ -1,0 +1,18 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hanpan-maze-realtime",
+  "main": "index.ts",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://hanpan-mobile-game.oxo012345.chatgpt.site"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAZE_ROOMS", "class_name": "MazeRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "maze-room-v1", "new_sqlite_classes": ["MazeRoom"] }
+  ]
+}

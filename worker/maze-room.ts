@@ -3,7 +3,7 @@ import { applyMazeMessage, mazeGameSnapshot, mazeWelcome, type MazeState } from 
 import type { Player } from "../app/api/_lib/rooms";
 
 type MazeRoomEnv = {
-  DB: D1Database;
+  DB?: D1Database;
 };
 
 type BootstrapPayload = {
@@ -184,10 +184,11 @@ export class MazeRoom extends DurableObject<MazeRoomEnv> {
     const now = Date.now();
     if (!forceD1 && now - this.lastD1SyncAt < 5_000) return;
     this.lastD1SyncAt = now;
+    if (!this.env.DB) return;
     this.d1Sync = this.d1Sync
       .catch(() => undefined)
       .then(async () => {
-        await this.env.DB.prepare(`UPDATE rooms
+        await this.env.DB!.prepare(`UPDATE rooms
           SET state = json_set(
             state,
             '$.game.maze', json(?),
