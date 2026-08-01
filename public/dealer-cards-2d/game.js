@@ -125,6 +125,7 @@ function render() {
   ui.cash.textContent = money(dealer.balances[mine]);
   ui.itemCount.textContent = `${inventory.length}/4`;
   ui.cardCount.textContent = `${myCards().length}/3`;
+  ui.seats.dataset.count = String(room.players.length);
   ui.seats.innerHTML = room.players.map((player, index) => `
     <div class="seat ${player.id === mine ? "me" : ""} ${player.id === dealer.sellerId ? "seller" : ""}" style="--seat:${playerColors[index % playerColors.length]}">
       <i data-initial="${escapeHtml(player.name.slice(0, 1).toUpperCase())}"></i><b>${escapeHtml(player.name)}</b><span>${money(dealer.balances[player.id])}</span>
@@ -145,6 +146,7 @@ function render() {
     ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
   }
   const knows = dealer.currentItem && (dealer.knowsPrice || dealer.knowsClauses);
+  ui.lotCard.dataset.ledger = knows ? "open" : "closed";
   ui.dossier.hidden = !knows;
   if (knows) {
     ui.value.textContent = dealer.knowsPrice ? money(dealer.currentItem.value) : "가격 미확인";

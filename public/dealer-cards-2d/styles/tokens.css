@@ -19,10 +19,10 @@
   --muted: #a38d6d;
   --line: rgba(193, 154, 91, .34);
   --hud-height: 72px;
-  --dock-height: 78px;
-  --strategy-sheet-height: 208px;
-  --table-diameter: min(86vw, 432px);
-  --table-top: clamp(136px, 17.2dvh, 160px);
+  --dock-height: 80px;
+  --strategy-sheet-height: clamp(208px, 32dvh, 282px);
+  --table-diameter: min(86vw, 42dvh, 432px);
+  --table-top: clamp(132px, 17dvh, 158px);
   --shadow-soft: 0 8px 18px rgba(0, 0, 0, .28);
   --shadow-panel: 0 14px 32px rgba(0, 0, 0, .42);
   --z-table: 2;
@@ -36,8 +36,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-body { color: var(--cream); letter-spacing: -.02em; }
+html, body, #app { width: 100%; max-width: 100%; height: 100%; min-height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+body { color: var(--cream); letter-spacing: -.02em; min-width: 0; touch-action: pan-y; }
 button, select { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:focus-visible, select:focus-visible { outline: 2px solid var(--bronze-hi); outline-offset: 3px; }
