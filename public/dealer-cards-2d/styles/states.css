@@ -5,7 +5,7 @@
 .primary-action:not(:disabled):hover,.secondary-action:not(:disabled):hover,.inventory-row:hover { filter:brightness(1.045); }
 .primary-action:active,.secondary-action:active,.dock button:active { transform:translateY(1px); box-shadow:inset 0 3px 8px rgba(0,0,0,.28); }
 .dock button.active { color:#e3c982; }
-.dock button.active .dock-icon { width:50px; height:50px; translate:0 -3px; color:#f1d893; background:url("../assets/svg/frame-token.svg") center/100% 100% no-repeat,radial-gradient(circle at 35% 25%,#9c3a49,#36131b 72%); filter:drop-shadow(0 0 7px rgba(217,154,64,.62)) drop-shadow(0 3px 3px #0009); box-shadow:inset 0 2px rgba(255,236,182,.1); }
+.dock button.active .dock-icon { width:50px; height:50px; translate:0 -3px; color:#f1d893; background:url("../assets/svg/frame-token.svg?v=52") center/100% 100% no-repeat,radial-gradient(circle at 35% 25%,#9c3a49,#36131b 72%); filter:drop-shadow(0 0 7px rgba(217,154,64,.62)) drop-shadow(0 3px 3px #0009); box-shadow:inset 0 2px rgba(255,236,182,.1); }
 .dock button.active .dock-icon:before { width:26px; height:26px; }
 .dock button.active em { margin-top:-3px; color:#e8cd84; }
 .dock button.active:after { display:none; }
