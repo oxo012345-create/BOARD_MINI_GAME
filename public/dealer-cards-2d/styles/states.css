@@ -9,7 +9,7 @@
 .dock button.active:after { content:""; position:absolute; bottom:-6px; width:31px; height:2px; border-radius:2px; background:#b98a4c; }
 body[data-phase="auction"] .sheet { min-height:182px; }
 body[data-phase="resolution"] .sheet { min-height:220px; }
-body[data-phase="finished"] .sheet { min-height:min(32%,292px); }
+body[data-phase="finished"]:not([data-tab="cards"]):not([data-tab="items"]):not([data-tab="rules"]) .sheet { min-height:min(32%,292px); }
 body[data-phase="resolution"] .lot-card { box-shadow:0 0 0 3px #110b08,0 0 0 4px rgba(190,150,87,.56),0 0 18px rgba(176,125,62,.16),var(--shadow-panel); }
 
 @media (prefers-reduced-motion:reduce) { *,*:before,*:after { animation-duration:.001ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; } }

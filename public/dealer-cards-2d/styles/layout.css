@@ -53,7 +53,7 @@ body[data-tab="cards"] .sheet { height: var(--strategy-sheet-height); overflow: 
 }
 
 @media (max-width: 370px) {
-  :root { --hud-height: 82px; --table-diameter: 85.5vw; }
+  :root { --hud-height: 82px; --table-diameter: calc(85.5vw - 24px); }
   .hud { padding-inline: 9px; }
   .cash small, .cash-value i { display: none; }
   .cash strong { font-size: 14px; }
