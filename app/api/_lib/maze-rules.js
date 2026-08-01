@@ -1,5 +1,5 @@
 export const MAX_PLAYERS = 8;
-export const GAME_DURATION_MS = 5 * 60 * 1000;
+export const GAME_DURATION_MS = 3 * 60 * 1000;
 export const GRID = 19;
 export const HALF = (GRID - 1) / 2;
 export const TILE_SIZE = 0.92;

@@ -209,7 +209,7 @@ const selectedCharacterIndex = THREE.MathUtils.clamp(
 );
 const activeLoadout = CHARACTER_LOADOUTS[selectedCharacterIndex];
 
-const GAME_DURATION_SECONDS = 5 * 60;
+const GAME_DURATION_SECONDS = 3 * 60;
 const SUPPLY_DEPOTS = [
   { grid: [8, 0], spawn: [-1, -8.3] },
   { grid: [10, 0], spawn: [1, -8.3] },
@@ -874,7 +874,12 @@ let multiplayerTransport = "websocket";
 let networkPollTimer = 0;
 let networkPostInFlight = false;
 const networkPostQueue = [];
+const networkSessionId = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+let networkActionSequence = 0;
+const MAX_SOCKET_BUFFERED_BYTES = 8 * 1024;
 let lastAppliedNetworkSequence = -1;
+let lastAppliedGameServerTime = 0;
+let activeNetworkStartedAt = 0;
 const networkSentStates = new Map();
 
 function resolveMultiplayerServerUrl(realtimeEndpoint = "") {
@@ -1074,6 +1079,9 @@ function syncAuthoritativeOils(serverOils) {
 
 function applyAuthoritativeGame(game, immediate = false) {
   if (!game) return;
+  const snapshotTime = Number(game.serverTime) || 0;
+  if (!immediate && snapshotTime && snapshotTime < lastAppliedGameServerTime) return;
+  lastAppliedGameServerTime = Math.max(lastAppliedGameServerTime, snapshotTime);
   serverClockOffset = Number(game.serverTime || Date.now()) - Date.now();
   gameTimeRemaining = Math.max(0, (Number(game.endsAt) - (Date.now() + serverClockOffset)) / 1000);
   gameActive = gameTimeRemaining > 0;
@@ -1130,9 +1138,20 @@ function removeRemotePlayer(playerId) {
 
 function applyNetworkWorld(message) {
   if (!message) return;
-  regenerateWallLayout(Number(message.mapSeed) >>> 0);
-  buildMap(message.theme in THEMES ? message.theme : "ice");
-  resetGameState();
+  const startedAt = Number(message.game?.startedAt || message.startedAt || 0);
+  if (activeNetworkStartedAt && startedAt && startedAt < activeNetworkStartedAt) return;
+  const newGeneration = !activeNetworkStartedAt || (startedAt && startedAt > activeNetworkStartedAt);
+  if (newGeneration) {
+    activeNetworkStartedAt = startedAt;
+    lastAppliedGameServerTime = 0;
+    lastAppliedNetworkSequence = -1;
+    networkSentStates.clear();
+  }
+  if (newGeneration) {
+    regenerateWallLayout(Number(message.mapSeed) >>> 0);
+    buildMap(message.theme in THEMES ? message.theme : "ice");
+    resetGameState();
+  }
   const elapsed = Math.max(0, (Date.now() - Number(message.startedAt || Date.now())) / 1000);
   gameTimeRemaining = Math.max(0, GAME_DURATION_SECONDS - elapsed);
   gameTimerLabel.textContent = formatGameTime(gameTimeRemaining);
@@ -1222,6 +1241,10 @@ function handleMultiplayerMessage(message) {
     const target = message.targetId === localNetworkId ? playerCharacter : remotePlayers.get(message.targetId);
     if (message.kind === "message") showGameMessage(message.message || "서버 알림");
     if (message.kind === "pickup") playSfx("item-pickup", 0.9);
+    if (message.kind === "discarded") {
+      playSfx("item-drop", 0.72);
+      if (message.actorId === localNetworkId) showGameMessage("재료를 버렸습니다.");
+    }
     if (message.kind === "submitted") playSfx("item-drop", 0.86);
     if (message.kind === "recipeComplete") {
       playSfx("item-drop", 0.95);
@@ -1275,6 +1298,10 @@ function postMultiplayer(payload) {
     return true;
   }
   try {
+    if (multiplayerSocket.bufferedAmount > MAX_SOCKET_BUFFERED_BYTES) {
+      multiplayerSocket.close(4000, "stalled connection");
+      return false;
+    }
     multiplayerSocket.send(JSON.stringify(payload));
     return true;
   } catch {
@@ -1285,10 +1312,14 @@ function postMultiplayer(payload) {
 
 async function postMultiplayerHttp(payload) {
   if (!multiplayerConnected) return false;
+  if (payload?.type === "action" && Date.now() + serverClockOffset - Number(payload.sentAt || 0) > 1_500) return false;
   if (networkPostInFlight) {
     const tailIndex = networkPostQueue.length - 1;
     if (payload?.type === "state" && networkPostQueue[tailIndex]?.type === "state") networkPostQueue[tailIndex] = payload;
-    else networkPostQueue.push(payload);
+    else if (payload?.type === "action") {
+      networkPostQueue.splice(0, networkPostQueue.length, ...networkPostQueue.filter((entry) => entry?.type === "state"));
+      networkPostQueue.push(payload);
+    } else networkPostQueue.push(payload);
     return true;
   }
   networkPostInFlight = true;
@@ -1307,7 +1338,10 @@ async function postMultiplayerHttp(payload) {
     return false;
   } finally {
     networkPostInFlight = false;
-    const nextPayload = networkPostQueue.shift();
+    let nextPayload = networkPostQueue.shift();
+    while (nextPayload?.type === "action" && Date.now() + serverClockOffset - Number(nextPayload.sentAt || 0) > 1_500) {
+      nextPayload = networkPostQueue.shift();
+    }
     if (nextPayload) window.setTimeout(() => { void postMultiplayerHttp(nextPayload); }, 0);
   }
 }
@@ -1329,6 +1363,8 @@ async function pollMultiplayerHttp() {
 async function connectHttpFallback() {
   if (multiplayerClosing) return;
   multiplayerTransport = "http";
+  networkPostQueue.length = 0;
+  clearMovementInput();
   multiplayerSocket = { readyState: WebSocket.OPEN, close: () => { multiplayerConnected = false; } };
   setOnlineStatus("connecting", `${activeRoomCode || requestedRoomCode} · 호환 연결 중`);
   try {
@@ -1402,6 +1438,8 @@ async function connectMultiplayer() {
       if (socket !== multiplayerSocket) return;
       multiplayerConnected = false;
       multiplayerSocket = null;
+      networkPostQueue.length = 0;
+      clearMovementInput();
       if (event.code === 4003) multiplayerFatalError = true;
       if (!multiplayerFatalError) void connectHttpFallback();
     });
@@ -1430,7 +1468,12 @@ function sendMultiplayerControl(kind, value) {
 
 function sendAuthoritativeAction(action, skill = null) {
   if (!multiplayerConnected || multiplayerSocket?.readyState !== WebSocket.OPEN) return false;
-  const payload = { type: "action", action };
+  const payload = {
+    type: "action",
+    action,
+    actionId: `${networkSessionId}:${++networkActionSequence}`,
+    sentAt: Date.now() + serverClockOffset,
+  };
   if (skill) payload.skill = skill;
   postMultiplayer(payload);
   return true;
@@ -1459,6 +1502,7 @@ function updateMultiplayer(delta) {
   networkSequence += 1;
   const payload = {
     type: "state",
+    sentAt: Date.now() + serverClockOffset,
     seq: networkSequence,
     x: position.x,
     y: position.y,
@@ -2230,7 +2274,12 @@ function advanceRecipe() {
 }
 
 function dropHeldItem() {
-  showGameMessage("재료는 바닥에 내려놓을 수 없습니다. 중앙 제작대에 제출하세요.");
+  if (!heldItem) return;
+  removeIngredientItem(heldItem);
+  ensureRecipeIngredientsAvailable();
+  updateRecipeUI();
+  playSfx("item-drop", 0.72);
+  showGameMessage("재료를 버렸습니다.");
 }
 
 function interactWithItem() {
@@ -2246,12 +2295,8 @@ function interactWithItem() {
     );
     if (distanceToTable < 2.05) {
       const key = heldItem.ingredientKey;
-      if (!currentRecipe.ingredients.includes(key)) {
-        showGameMessage(`${INGREDIENTS[key].name}은(는) 현재 주문 재료가 아닙니다.`);
-        return;
-      }
-      if (recipeProgress.has(key)) {
-        showGameMessage(`${INGREDIENTS[key].name}은(는) 이미 제출했습니다.`);
+      if (!currentRecipe.ingredients.includes(key) || recipeProgress.has(key)) {
+        dropHeldItem();
         return;
       }
       recipeProgress.add(key);
@@ -3071,7 +3116,7 @@ function resetGameState() {
   shuffleRecipes();
   currentRecipe = null;
   recipeProgress = new Set();
-  gameTimerLabel.textContent = "05:00";
+  gameTimerLabel.textContent = "03:00";
   gameScoreLabel.textContent = "0점";
   if (multiplayerEnabled) {
     recipeNameLabel.textContent = "서버 주문 동기화 중";
@@ -5098,20 +5143,29 @@ copyRoomCodeButton.addEventListener("click", async () => {
 });
 
 actionButtons.forEach((button) => {
+  button.draggable = false;
+  button.addEventListener("dragstart", (event) => event.preventDefault());
+  button.addEventListener("contextmenu", (event) => event.preventDefault());
   const action = button.dataset.action;
   if (action === "sprint") {
+    let sprintPointerId = null;
     button.addEventListener("pointerdown", (event) => {
+      if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+      sprintPointerId = event.pointerId;
       sprintHeld = true;
       button.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
     const stopSprint = (event) => {
+      if (sprintPointerId !== null && event.pointerId !== sprintPointerId) return;
       sprintHeld = false;
-      if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+      sprintPointerId = null;
+      if (button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId);
       event.preventDefault();
     };
     button.addEventListener("pointerup", stopSprint);
     button.addEventListener("pointercancel", stopSprint);
+    button.addEventListener("lostpointercapture", stopSprint);
     return;
   }
   button.addEventListener("click", () => useSkill(action));
