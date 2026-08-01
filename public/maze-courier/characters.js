@@ -29,21 +29,21 @@ if (providedServerUrl) {
 
 const CHARACTER_CONFIGS = [
   { name: "민트 배달부", role: "균형형 · 기본 운반", movement: "달리기", disruption: "강력 밀치기", color: 0x35d5b5, accent: 0xffa52d, accessory: "pack", eyes: "oval" },
-  { name: "딸기 요리사", role: "가벼움 · 빠른 탐색", movement: "점프", disruption: "유체화", color: 0xff567f, accent: 0xfff2d2, accessory: "chef", eyes: "happy" },
+  { name: "딸기 요리사", role: "가벼움 · 빠른 탐색", movement: "점프", disruption: "기름칠", color: 0xff567f, accent: 0xfff2d2, accessory: "chef", eyes: "happy" },
   { name: "레몬 탐험가", role: "민첩형 · 지름길 발견", movement: "달리기", disruption: "자리바꾸기", color: 0xffd33f, accent: 0x4e9cff, accessory: "lamp", eyes: "focused" },
   { name: "블루 연구원", role: "위험 감지 · 함정 분석", movement: "점프", disruption: "급속냉각", color: 0x4d91ff, accent: 0x79f4ff, accessory: "goggles", eyes: "round" },
   { name: "보라 수호자", role: "중량형 · 길목 방어", movement: "달리기", disruption: "기름칠", color: 0x9a62f2, accent: 0xffd84c, accessory: "shoulders", eyes: "angry" },
   { name: "주황 정비사", role: "힘형 · 대형 재료 운반", movement: "점프", disruption: "강력 밀치기", color: 0xff842d, accent: 0x3a4962, accessory: "helmet", eyes: "sleepy" },
-  { name: "라임 냉동원", role: "냉기 저항 · 얼음 운반", movement: "달리기", disruption: "유체화", color: 0x83e34f, accent: 0x42d8ff, accessory: "earmuffs", eyes: "tall" },
+  { name: "라임 냉동원", role: "냉기 저항 · 얼음 운반", movement: "달리기", disruption: "급속냉각", color: 0x83e34f, accent: 0x42d8ff, accessory: "earmuffs", eyes: "tall" },
   { name: "차콜 조련사", role: "밀치기형 · 몬스터 제어", movement: "점프", disruption: "기름칠", color: 0x586174, accent: 0xff4f72, accessory: "horns", eyes: "tiny" },
   { name: "레드 구조대", role: "구조형 · 동료 구출", movement: "달리기", disruption: "급속냉각", color: 0xe9434f, accent: 0xffd349, accessory: "cap", eyes: "wink" },
   { name: "아쿠아 잠수부", role: "탐색형 · 수로 통과", movement: "점프", disruption: "자리바꾸기", color: 0x28c4ce, accent: 0x7ff5ff, accessory: "diver", eyes: "bubble" },
   { name: "골드 보물꾼", role: "운형 · 희귀 재료 발견", movement: "달리기", disruption: "강력 밀치기", color: 0xe2ad31, accent: 0xffef7a, accessory: "crown", eyes: "cyclops" },
-  { name: "화이트 의무원", role: "지원형 · 회복과 보호", movement: "점프", disruption: "유체화", color: 0xe8edf5, accent: 0x51d6c5, accessory: "headband", eyes: "square" },
-  { name: "네이비 잠입꾼", role: "은신형 · 위험 통로 정찰", movement: "달리기", disruption: "기름칠", color: 0x263b78, accent: 0x8a96ff, accessory: "bandana", eyes: "diamond" },
+  { name: "화이트 의무원", role: "지원형 · 회복과 보호", movement: "점프", disruption: "강력 밀치기", color: 0xe8edf5, accent: 0x51d6c5, accessory: "headband", eyes: "square" },
+  { name: "네이비 잠입꾼", role: "은신형 · 위험 통로 정찰", movement: "달리기", disruption: "유체화", color: 0x263b78, accent: 0x8a96ff, accessory: "bandana", eyes: "diamond" },
   { name: "브라운 창고지기", role: "적재형 · 추가 아이템 운반", movement: "점프", disruption: "급속냉각", color: 0x9b643c, accent: 0xf1ba6b, accessory: "crate", eyes: "triple" },
   { name: "마젠타 연금술사", role: "변환형 · 가짜 재료 판별", movement: "달리기", disruption: "자리바꾸기", color: 0xd94eb7, accent: 0x73f29e, accessory: "antenna", eyes: "uneven" },
-  { name: "실버 꼬마비행사", role: "소형 · 좁은 길 통과", movement: "점프", disruption: "유체화", color: 0x9aa9bd, accent: 0xff684d, accessory: "propeller", eyes: "sparkle" },
+  { name: "실버 꼬마비행사", role: "소형 · 좁은 길 통과", movement: "점프", disruption: "자리바꾸기", color: 0x9aa9bd, accent: 0xff684d, accessory: "propeller", eyes: "sparkle" },
 ];
 
 const scene = new THREE.Scene();
