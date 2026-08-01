@@ -62,21 +62,21 @@ export const FOOD_RECIPES = [
 
 export const CHARACTER_LOADOUTS = [
   { movement: "sprint", disruption: "power-push" },
-  { movement: "sprint", disruption: "oil" },
-  { movement: "jump", disruption: "swap" },
-  { movement: "fluidize", disruption: "freeze" },
-  { movement: "fluidize", disruption: "power-push" },
-  { movement: "jump", disruption: "power-push" },
-  { movement: "sprint", disruption: "freeze" },
-  { movement: "fluidize", disruption: "power-push" },
-  { movement: "jump", disruption: "swap" },
-  { movement: "fluidize", disruption: "oil" },
+  { movement: "jump", disruption: "fluidize" },
   { movement: "sprint", disruption: "swap" },
   { movement: "jump", disruption: "freeze" },
-  { movement: "fluidize", disruption: "swap" },
   { movement: "sprint", disruption: "oil" },
-  { movement: "fluidize", disruption: "freeze" },
+  { movement: "jump", disruption: "power-push" },
+  { movement: "sprint", disruption: "fluidize" },
   { movement: "jump", disruption: "oil" },
+  { movement: "sprint", disruption: "freeze" },
+  { movement: "jump", disruption: "swap" },
+  { movement: "sprint", disruption: "power-push" },
+  { movement: "jump", disruption: "fluidize" },
+  { movement: "sprint", disruption: "oil" },
+  { movement: "jump", disruption: "freeze" },
+  { movement: "sprint", disruption: "swap" },
+  { movement: "jump", disruption: "fluidize" },
 ];
 
 export const SKILL_COOLDOWNS_MS = {
