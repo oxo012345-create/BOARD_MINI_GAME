@@ -54,7 +54,7 @@ body[data-menu="closed"] .sheet-backdrop { opacity: 0; pointer-events: none; }
 
 .dock {
   position: absolute; z-index: var(--z-dock); left: 0; right: 0; bottom: 0; height: calc(var(--dock-height) + env(safe-area-inset-bottom));
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 100%; overflow: hidden; padding: 3px max(8px, env(safe-area-inset-left)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-right)); touch-action: manipulation;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 100%; overflow: hidden; padding: 3px max(8px, env(safe-area-inset-left)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-right)); touch-action: manipulation;
 }
 
 @media (min-width: 700px) {

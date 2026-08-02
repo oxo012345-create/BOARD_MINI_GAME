@@ -25,7 +25,9 @@ let serverOffset = 0;
 
 function syncDockButtons() {
   document.querySelectorAll(".dock button").forEach((button) => {
-    const active = button.dataset.tab === tab;
+    // The auction board is the underlying screen now, so only an open
+    // utility panel receives the active treatment in the three-item dock.
+    const active = menuOpen && button.dataset.tab === tab;
     button.classList.toggle("active", active);
     button.setAttribute("aria-expanded", active && menuOpen ? "true" : "false");
   });
