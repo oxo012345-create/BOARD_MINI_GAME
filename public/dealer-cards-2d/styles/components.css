@@ -25,7 +25,7 @@
 .seat.me:before { content:"ME"; position:absolute; z-index:2; top:3px; right:6px; color:#5f2730; font:800 5px "Roboto Slab",serif; letter-spacing:.06em; }
 .seat.seller b { color:#ead6ae; }
 
-.table-ring:before { content:""; position:absolute; z-index:4; inset:-13px; background:url("../assets/svg/frame-table.svg?v=53") center / contain no-repeat; filter:drop-shadow(0 7px 7px rgba(0,0,0,.36)); }
+.table-ring:before { content:""; position:absolute; z-index:4; inset:-15px; background:url("../assets/svg/frame-table.svg?v=54") center / contain no-repeat; filter:drop-shadow(0 7px 7px rgba(0,0,0,.36)); }
 .table-pattern { position:absolute; z-index:2; inset:20px; border-radius:50%; background:url("../assets/svg/pattern-table.svg") center / 100% 100% no-repeat; opacity:.13; filter:drop-shadow(0 1px rgba(0,0,0,.3)); }
 #game-board-canvas { position:absolute; z-index:1; inset:15px; width:calc(100% - 30px); height:calc(100% - 30px); border-radius:50%; pointer-events:none; opacity:.24; mix-blend-mode:screen; }
 .table-emblem { display:none; }

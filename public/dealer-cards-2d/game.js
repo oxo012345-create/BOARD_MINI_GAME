@@ -16,6 +16,9 @@ let room = null;
 let dealer = null;
 let tab = "game";
 let menuOpen = false;
+// Keep the sheet closed during the initial room fetch. This prevents a
+// connection retry state from flashing a full menu over the board.
+document.body.dataset.menu = "closed";
 let busy = false;
 let lastRevision = -1;
 let serverOffset = 0;

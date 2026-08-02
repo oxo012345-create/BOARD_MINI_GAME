@@ -59,6 +59,10 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(html, /한판/);
     assert.match(html, /새 방 만들기/);
     assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
+    const dealerHtml = await (await fetch(`${baseUrl}/dealer-cards-2d/index.html`)).text();
+    assert.match(dealerHtml, /data-menu="closed"/);
+    assert.match(dealerHtml, /id="lot-actions"/);
+    assert.doesNotMatch(dealerHtml, /sheet-handle/);
 
     const roomResponse = await fetch(`${baseUrl}/api/rooms`, {
       method: "POST",
