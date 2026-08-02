@@ -125,19 +125,19 @@ function transition(state, nextPhase) {
     next.dealer.currentItem = null;
     next.dealer.selected = {};
   } else if (phase === "auction") {
-    next.dealer.currentItem = clone(ITEM_FIXTURES[1]);
+    next.dealer.currentItem = clone(next.dealer.currentItem || ITEM_FIXTURES[1]);
     next.dealer.sellerId = next.room.players[1]?.id || next.room.meId;
     next.dealer.currentBid = 100;
     next.dealer.highestBidderId = null;
     next.dealer.knowsPrice = next.dealer.sellerId === next.room.meId;
     next.dealer.knowsClauses = next.dealer.sellerId === next.room.meId;
   } else if (phase === "resolution") {
-    next.dealer.currentItem = clone(ITEM_FIXTURES[1]);
+    next.dealer.currentItem = clone(next.dealer.currentItem || ITEM_FIXTURES[1]);
     next.dealer.lastResult = {
       sold: true,
       buyerId: next.room.players[2]?.id || next.room.meId,
       finalBid: Math.max(150, next.dealer.currentBid),
-      item: clone(ITEM_FIXTURES[1]),
+      item: clone(next.dealer.currentItem),
       message: "디버그 낙찰 결과입니다.",
     };
   } else if (phase === "shop") {
@@ -162,12 +162,16 @@ export function applyDebugAction(state, action, payload = {}) {
   if (!state?.dealer || !state.room) return state;
   const next = clone(state);
   const mine = next.room.meId;
+  const timedActions = new Set(["dealer-select", "dealer-bid", "dealer-use-card", "dealer-reroll", "dealer-buy-card"]);
+  if (timedActions.has(action) && next.dealer.deadline > 0 && Date.now() >= next.dealer.deadline) return next;
   next.room.revision += 1;
   next.room.serverNow = Date.now();
   if (action === "dealer-select") {
-    next.dealer.selected[mine] = Number(payload.itemIndex) || 0;
+    const index = Math.max(0, Math.min(2, Number(payload.itemIndex) || 0));
+    const selectedItem = next.dealer.candidates?.[mine]?.[index] || ITEM_FIXTURES[index] || ITEM_FIXTURES[0];
+    next.dealer.selected[mine] = index;
     next.dealer.phase = "auction";
-    next.dealer.currentItem = clone(ITEM_FIXTURES[1]);
+    next.dealer.currentItem = clone(selectedItem);
     next.dealer.sellerId = mine;
     next.dealer.knowsPrice = true;
     next.dealer.knowsClauses = true;
@@ -198,4 +202,3 @@ export function applyDebugAction(state, action, payload = {}) {
   }
   return next;
 }
-

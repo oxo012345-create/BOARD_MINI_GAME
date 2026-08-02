@@ -42,7 +42,7 @@ body[data-debug-panel="open"] .debug-panel { display: block; }
 .debug-panel-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding-bottom:8px; border-bottom:1px solid rgba(185,139,74,.32); }
 .debug-panel-header strong { display:block; color:#f1dbad; font:800 13px "Noto Serif KR",serif; }
 .debug-panel-header small { display:block; margin-top:2px; color:#bca57d; font-size:8px; }
-.debug-close { width:27px; height:27px; padding:0; color:#f0d9a7; font-size:20px; line-height:1; border:1px solid rgba(176,123,62,.75); border-radius:50%; background:#411c22; cursor:pointer; }
+.debug-close { width:36px; height:36px; min-width:36px; padding:0; color:#f0d9a7; font-size:20px; line-height:1; border:1px solid rgba(176,123,62,.75); border-radius:50%; background:#411c22; cursor:pointer; }
 .debug-summary { margin:8px 0; padding:7px 8px; color:#9fe0cf; font:700 8px "Roboto Slab",serif; border-left:2px solid #4e9380; background:rgba(38,77,67,.2); }
 .debug-field { display:grid; grid-template-columns:78px minmax(0,1fr); align-items:center; gap:8px; margin-top:7px; color:#d7bd8b; font-size:9px; }
 .debug-field select { width:100%; min-height:32px; padding:4px 8px; color:#f2dfb9; border:1px solid #8d6339; border-radius:6px; background:#2e1815; font-size:9px; }

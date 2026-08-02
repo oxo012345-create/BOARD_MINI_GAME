@@ -29,7 +29,7 @@
 .table-board, .lot-stage { position: absolute; left: 0; right: 0; top: var(--table-top); bottom: calc(var(--dock-height) + 18px + env(safe-area-inset-bottom)); max-width: 100%; min-width: 0; overflow: visible; }
 .table-board { z-index: var(--z-table); display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
 .table-ring { position: relative; flex: none; width: var(--table-diameter); aspect-ratio: 1; }
-.lot-stage { z-index: var(--z-lot); display: grid; place-items: center; perspective: 1200px; touch-action: none; }
+.lot-stage { z-index: var(--z-lot); display: grid; place-items: center; align-content: center; padding-bottom: clamp(56px, 9dvh, 76px); perspective: 1200px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 
 .sheet-backdrop { position:absolute; z-index:calc(var(--z-sheet) - 1); inset:0; background:rgba(7,3,2,.62); backdrop-filter:blur(3px) saturate(.8); opacity:1; transition:opacity .2s ease; }
 .sheet {
@@ -47,6 +47,8 @@ body[data-menu="closed"] .sheet-backdrop { opacity: 0; pointer-events: none; }
 
 .candidate-grid, .shop-grid { display: grid; grid-auto-flow: column; grid-auto-columns: min(48vw, 188px); gap: 10px; max-width: 100%; overflow-x: auto; margin: 0; padding: 0 0 8px; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; }
 .candidate-grid::-webkit-scrollbar, .shop-grid::-webkit-scrollbar { display: none; }
+.scroll-cue { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: -2px 0 6px; color: #755b42; font-size: 8px; }
+.scroll-cue span { color: #8f653b; font: 800 12px "Roboto Slab",serif; }
 .inventory-list, .log { display: grid; gap: 9px; }
 .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 
@@ -60,8 +62,23 @@ body[data-menu="closed"] .sheet-backdrop { opacity: 0; pointer-events: none; }
 }
 .loading-state strong { font-size: 15px; font-weight: 700; }
 .loading-state small { max-width: 260px; color: #bca37b; font-size: 9px; line-height: 1.45; }
+.loading-retry { min-height: 44px; margin-top: 4px; padding: 10px 18px; color: #ead7ae; border: 1px solid #a77a42; border-radius: 9px; background: linear-gradient(180deg,#713340,#3d1820); box-shadow: 0 3px 0 #1b0b09, inset 0 1px rgba(255,226,170,.12); font-size: 11px; font-weight: 700; }
 .loading-seal { display: grid; place-items: center; width: 42px; height: 42px; color: #e2c17a; font: 800 15px "Roboto Slab", Georgia, serif; border: 1px solid #a2753f; border-radius: 50%; background: radial-gradient(circle at 35% 28%, #68452a, #1d100b 72%); box-shadow: 0 0 0 3px rgba(49, 27, 18, .8), inset 0 1px rgba(255,241,194,.22), 0 0 14px rgba(190,139,67,.16); }
 body[data-loaded="true"] .loading-state { opacity: 0; visibility: hidden; pointer-events: none; scale: .98; }
+
+body[data-app-state="waiting"] .hud,
+body[data-app-state="waiting"] .player-ribbon,
+body[data-app-state="waiting"] .table-board,
+body[data-app-state="waiting"] .dock,
+body[data-app-state="error"] .hud,
+body[data-app-state="error"] .player-ribbon,
+body[data-app-state="error"] .table-board,
+body[data-app-state="error"] .dock { opacity: 0; pointer-events: none; }
+body[data-app-state="error"] .loading-state { border-color: rgba(164, 85, 73, .8); }
+
+.stage-action { position: absolute; z-index: calc(var(--z-dock) - 1); left: 50%; bottom: calc(var(--dock-height) + 8px + env(safe-area-inset-bottom)); width: min(74%, 320px); min-height: 44px; translate: -50% 0; padding: 10px 18px; color: #ead7ae; border: 1px solid #a77a42; border-radius: 10px; background: linear-gradient(180deg,#713340,#3d1820); box-shadow: 0 4px 0 #1b0b09, 0 8px 16px rgba(0,0,0,.34), inset 0 1px rgba(255,226,170,.12); font-size: 11px; font-weight: 700; transition: transform .15s ease, filter .15s ease; }
+.stage-action:hover { filter: brightness(1.08); }
+.stage-action:active { translate: -50% 1px; box-shadow: inset 0 3px 8px rgba(0,0,0,.28); }
 
 @media (min-width: 700px) {
   #app { max-width: 520px; margin: 0 auto; border-inline: 1px solid rgba(137,95,49,.22); box-shadow: 0 0 90px rgba(0,0,0,.7); }

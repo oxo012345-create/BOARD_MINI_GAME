@@ -55,7 +55,7 @@
 .sheet { color:var(--ink); border:0; border-radius:18px; box-shadow:inset 0 2px rgba(255,250,224,.48),inset 0 -18px 31px rgba(84,51,28,.13),0 18px 34px rgba(0,0,0,.56); }
 .sheet:after { content:""; position:absolute; z-index:0; inset:-5px; pointer-events:none; background:url("../assets/svg/frame-panel.svg?v=53") center / 100% 100% no-repeat; filter:drop-shadow(0 7px 5px rgba(0,0,0,.38)); }
 .sheet:before { content:"H"; position:absolute; z-index:5; left:50%; bottom:-16px; display:grid; place-items:center; width:45px; height:35px; translate:-50%; color:#d8bd7a; font:800 8px "Roboto Slab",serif; border:0; border-radius:0; background:url("../assets/svg/medallion-panel.svg?v=53") center/100% 100% no-repeat; box-shadow:none; text-shadow:0 1px 1px #120906; }
-.sheet-close { position:absolute; z-index:9; top:10px; right:12px; display:grid; place-items:center; width:32px; height:32px; padding:0; color:#e6c989; font:500 25px/1 Arial,sans-serif; border:1px solid rgba(172,128,66,.86); border-radius:50%; background:radial-gradient(circle at 35% 24%,#6f3b36,#2a1412 74%); box-shadow:0 3px 7px rgba(0,0,0,.42),inset 0 1px rgba(255,236,180,.18); }
+.sheet-close { position:absolute; z-index:9; top:3px; right:5px; display:grid; place-items:center; width:44px; height:44px; padding:0; color:#e6c989; font:500 25px/1 Arial,sans-serif; border:1px solid rgba(172,128,66,.86); border-radius:50%; background:radial-gradient(circle at 35% 24%,#6f3b36,#2a1412 74%); box-shadow:0 3px 7px rgba(0,0,0,.42),inset 0 1px rgba(255,236,180,.18); }
 .sheet-close:hover { filter:brightness(1.14); }
 .sheet-close:active { translate:0 1px; box-shadow:inset 0 2px 5px rgba(0,0,0,.35); }
 .sheet-close:focus-visible { outline:2px solid var(--bronze-hi); outline-offset:3px; }
@@ -100,7 +100,7 @@
 .dock .dock-icon { display:grid; place-items:center; width:40px; height:40px; color:#927b56; border:0; border-radius:50%; background:url("../assets/svg/frame-token.svg?v=53") center/100% 100% no-repeat,radial-gradient(circle at 38% 28%,#3e2819,#130b08 72%); box-shadow:inset 0 1px rgba(255,235,187,.04); transition:width .18s ease,height .18s ease,translate .18s ease,filter .18s ease; }
 .dock .dock-icon:before { content:""; width:22px; height:22px; background:currentColor; mask:var(--dock-icon) center/contain no-repeat; -webkit-mask:var(--dock-icon) center/contain no-repeat; }
 .dock button[data-tab="game"] .dock-icon { --dock-icon:url("../assets/svg/icon-auction.svg?v=53"); } .dock button[data-tab="items"] .dock-icon { --dock-icon:url("../assets/svg/icon-collection.svg?v=53"); } .dock button[data-tab="cards"] .dock-icon { --dock-icon:url("../assets/svg/icon-strategy.svg?v=53"); } .dock button[data-tab="rules"] .dock-icon { --dock-icon:url("../assets/svg/icon-government.svg?v=53"); }
-.dock button em { margin-top:2px; font-size:8px; font-style:normal; font-weight:600; } .dock button>b { position:absolute; z-index:3; top:0; left:calc(50% + 8px); min-width:20px; padding:2px 4px; color:#e7d1a4; font:700 7px "Roboto Slab",serif; text-align:center; border:1px solid #956a3b; border-radius:10px; background:#662531; box-shadow:0 2px 5px #0006; }
+.dock button em { margin-top:2px; color:#b09a78; font-size:10px; font-style:normal; font-weight:600; } .dock button>b { position:absolute; z-index:3; top:0; left:calc(50% + 8px); min-width:20px; padding:2px 4px; color:#e7d1a4; font:700 7px "Roboto Slab",serif; text-align:center; border:1px solid #956a3b; border-radius:10px; background:#662531; box-shadow:0 2px 5px #0006; }
 
 @keyframes lot-enter { from { opacity:0; transform:translateY(14px) scale(.975); } }
 @keyframes lot-content-enter { from { opacity:0; transform:translateY(10px) scale(.985); } }
@@ -205,7 +205,7 @@
   .timer { min-width:70px; padding-inline:8px; }
   .timer strong { font-size:17px; }
   .cash strong { font-size:14px; }
-  .seat { min-width:104px; }
+  .seat { min-width:0; }
   .lot-stack { width:min(78vw,calc(100% - 18px)); }
   .lot-actions .primary-action,.lot-actions .secondary-action { min-height:40px; padding-block:8px; font-size:9px; }
   .section-title { padding-left:38px; }

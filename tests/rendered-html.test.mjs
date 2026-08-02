@@ -726,6 +726,15 @@ test("provides a safe solo debug mode for every dealer phase", async () => {
     assert.equal(auction.dealer.phase, "auction");
     assert.ok(auction.dealer.currentItem);
   }
+  const selectedThirdLot = fixture.applyDebugAction(fixture.createDebugState("select", 4), "dealer-select", { itemIndex: 2 });
+  assert.equal(selectedThirdLot.dealer.phase, "auction");
+  assert.equal(selectedThirdLot.dealer.currentItem.id, 24);
+  const expiredAuction = fixture.createDebugState("auction-mystery", 4);
+  expiredAuction.dealer.deadline = Date.now() - 1;
+  const expiredRevision = expiredAuction.room.revision;
+  const blockedBid = fixture.applyDebugAction(expiredAuction, "dealer-bid");
+  assert.equal(blockedBid.room.revision, expiredRevision);
+  assert.equal(blockedBid.dealer.currentBid, expiredAuction.dealer.currentBid);
   let state = fixture.createDebugState("auction-mystery", 4);
   assert.equal(state.dealer.knowsPrice, false);
   assert.equal(state.dealer.knowsClauses, false);
