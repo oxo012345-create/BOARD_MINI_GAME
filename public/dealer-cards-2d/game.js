@@ -7,10 +7,13 @@ const ui = {
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
-  itemCount: $("item-count"), cardCount: $("card-count"),
+  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
-window.addEventListener("pagehide", () => gameBoard.destroy(), { once: true });
+window.addEventListener("pagehide", () => {
+  gameBoard.destroy();
+  if (syncTimer) window.clearTimeout(syncTimer);
+}, { once: true });
 
 let room = null;
 let dealer = null;
@@ -22,6 +25,22 @@ document.body.dataset.menu = "closed";
 let busy = false;
 let lastRevision = -1;
 let serverOffset = 0;
+let lastRenderedPhase = null;
+let syncTimer = null;
+let syncInFlight = false;
+let nextSyncDelay = 2000;
+
+function showLoading(title = "게임 정보를 불러오는 중…", detail = "방장이 시작 버튼을 누르면 게임이 시작됩니다.") {
+  document.body.dataset.loaded = "false";
+  if (ui.loadingTitle) ui.loadingTitle.textContent = title;
+  if (ui.loadingDetail) ui.loadingDetail.textContent = detail;
+}
+
+function hideLoading() {
+  document.body.dataset.loaded = "true";
+}
+
+showLoading();
 
 function syncDockButtons() {
   document.querySelectorAll(".dock button").forEach((button) => {
@@ -117,20 +136,42 @@ async function act(action, extra = {}) {
 }
 
 async function sync() {
+  if (syncInFlight) return;
+  syncInFlight = true;
   try {
     const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
-    if (!response.ok) throw new Error();
+    if (!response.ok) {
+      if (response.status === 404) showLoading("방을 찾을 수 없습니다", "방 코드가 만료되었거나 잘못되었습니다.");
+      else if (response.status === 401) showLoading("참가 인증이 필요합니다", "방에 다시 참가한 뒤 게임을 열어 주세요.");
+      else if (response.status === 429) {
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        nextSyncDelay = Math.max(10_000, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 10_000);
+        showLoading("연결을 조정하는 중…", "잠시 후 게임 정보를 다시 불러옵니다.");
+      } else showLoading("게임 정보를 불러오는 중…", "연결이 안정되면 자동으로 다시 시도합니다.");
+      return;
+    }
     const body = await response.json();
     room = body.room;
     serverOffset = room.serverNow - Date.now();
     dealer = room?.game?.dealer;
-    if (!dealer) throw new Error();
+    nextSyncDelay = 2000;
+    if (!dealer) {
+      document.body.dataset.phase = "waiting";
+      ui.lotStage.hidden = true;
+      showLoading("게임 정보를 불러오는 중…", "방장이 시작 버튼을 누르면 게임이 시작됩니다.");
+      return;
+    }
+    hideLoading();
     if (room.revision !== lastRevision) {
       lastRevision = room.revision;
       render();
     }
   } catch {
-    ui.notice.textContent = "연결을 다시 시도하는 중…";
+    if (!room || !dealer) showLoading("게임 정보를 불러오는 중…", "연결이 안정되면 자동으로 다시 시도합니다.");
+  } finally {
+    syncInFlight = false;
+    if (syncTimer) window.clearTimeout(syncTimer);
+    syncTimer = window.setTimeout(() => { syncTimer = null; void sync(); }, nextSyncDelay);
   }
 }
 
@@ -138,6 +179,17 @@ function render() {
   if (!room || !dealer) return;
   ui.notice.textContent = "";
   const mine = me();
+  const phaseChanged = dealer.phase !== lastRenderedPhase;
+  if (phaseChanged) {
+    if (dealer.phase === "select") {
+      // Open the private lot choices as soon as the host starts a round.
+      tab = "game";
+      menuOpen = true;
+    } else if (tab === "game" && menuOpen) {
+      closeSheet();
+    }
+    lastRenderedPhase = dealer.phase;
+  }
   const inventory = dealer.inventories[mine] || [];
   document.body.dataset.phase = dealer.phase;
   gameBoard.setPhase(dealer.phase);
@@ -149,7 +201,7 @@ function render() {
   ui.seats.dataset.count = String(room.players.length);
   ui.seats.innerHTML = room.players.map((player, index) => `
     <div class="seat ${player.id === mine ? "me" : ""} ${player.id === dealer.sellerId ? "seller" : ""}" style="--seat:${playerColors[index % playerColors.length]}">
-      <i data-initial="${escapeHtml(player.name.slice(0, 1).toUpperCase())}"></i><b>${escapeHtml(player.name)}</b><span>${money(dealer.balances[player.id])}</span>
+      <b>${escapeHtml(player.name || `플레이어${index + 1}`)}</b><span>${money(dealer.balances[player.id])}</span>
     </div>`).join("");
 
   const showLot = dealer.currentItem && !["select", "shop", "finished"].includes(dealer.phase);
@@ -224,6 +276,11 @@ function renderTab() {
   document.body.dataset.tab = tab;
   document.body.dataset.menu = menuOpen ? "open" : "closed";
   ui.sheetBackdrop?.setAttribute("aria-hidden", menuOpen ? "false" : "true");
+  if (!room || !dealer) {
+    ui.content.innerHTML = "";
+    showLoading("게임 정보를 불러오는 중…", "방장이 시작 버튼을 누르면 게임이 시작됩니다.");
+    return;
+  }
   if (tab === "items") { renderItems(); return; }
   if (tab === "cards") { renderCards(); return; }
   if (tab === "rules") { renderRules(); return; }
@@ -287,6 +344,7 @@ function renderGame() {
 }
 
 function renderItems() {
+  if (!dealer) return;
   const list = dealer.inventories[me()] || [];
   ui.content.innerHTML = `
     <div class="section-title"><h2>정부 승인 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
@@ -295,6 +353,7 @@ function renderItems() {
 }
 
 function renderCards() {
+  if (!room || !dealer) return;
   const mine = me();
   const list = myCards();
   const targetOptions = room.players.filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
@@ -306,6 +365,7 @@ function renderCards() {
 }
 
 function renderRules() {
+  if (!dealer) return;
   ui.content.innerHTML = `
     <div class="section-title"><h2>정부 경매 위원회</h2><span>현장에서 직접 토론하고 설득하는 전략 경매</span></div>
     <div class="log"><div>시작 자금 $2,000 · 컬렉션 4칸 · 전략 카드 3칸</div><div>비밀 소장품 3개 중 하나를 20초 안에 출품</div><div>경매 50초 · $100 시작 · $50 호가 · 막판 입찰 시 5초 연장</div><div>판매자는 실제 감정가와 계약 조항을 보고 직접 설득</div><div>라운드 상점 60초 · 리롤 비용 $100부터 단계적으로 증가</div><div>5라운드 종료 후 가장 많은 현금을 가진 딜러가 승리</div>${dealer.log.slice(0, 8).map((entry) => `<div>${escapeHtml(entry)}</div>`).join("")}</div>`;
@@ -337,5 +397,4 @@ setInterval(() => {
   ui.timer.closest(".timer")?.classList.toggle("critical", critical);
   document.body.dataset.timeCritical = critical ? "true" : "false";
 }, 200);
-setInterval(sync, 650);
 sync();

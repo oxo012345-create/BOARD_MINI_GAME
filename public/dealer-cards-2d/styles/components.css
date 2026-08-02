@@ -14,13 +14,11 @@
 .timer:after { content: ""; position: absolute; inset: -4px; pointer-events: none; background: url("../assets/svg/frame-timer.svg?v=53") center / 100% 100% no-repeat; }
 .timer small { font-size: 6px; } .timer strong { color: #dec58b; font: 800 18px "Roboto Slab",serif; font-variant-numeric: tabular-nums; }
 
-.seat { --seat:#6f5235; position: relative; flex: none; display: grid; grid-template-columns: 30px minmax(0,1fr); grid-template-rows: 16px 14px; column-gap: 8px; align-items: center; min-width: 100px; max-width: 100%; height: 48px; padding: 7px 10px 6px 14px; color: #d9c7a4; border-radius: 7px; clip-path: polygon(8px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 9px); box-shadow: 0 0 0 2px #100a08, inset 0 2px rgba(255,255,255,.02), 0 5px 10px rgba(0,0,0,.34); }
+  .seat { --seat:#6f5235; position: relative; flex: 0 0 calc((100% - 18px) / 4); display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: 18px 15px; row-gap: 2px; align-items: center; min-width: 0; max-width: none; height: 53px; padding: 8px 8px 7px; color: #d9c7a4; border-radius: 7px; clip-path: polygon(8px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 9px); box-shadow: 0 0 0 2px #100a08, inset 0 2px rgba(255,255,255,.02), 0 5px 10px rgba(0,0,0,.34); }
 .seat:after { content:""; position:absolute; inset:-3px; pointer-events:none; background:url("../assets/svg/frame-player.svg?v=53") center / 100% 100% no-repeat; opacity:1; filter:drop-shadow(0 3px 3px #0008); }
-.seat i { grid-row:span 2; z-index:1; display:grid; place-items:center; width:36px; height:36px; margin-left:-8px; color:#e8d3a2; border:0; border-radius:50%; background:url("../assets/svg/frame-token.svg?v=53") center/100% 100% no-repeat,radial-gradient(circle at 35% 26%,color-mix(in srgb,var(--seat) 46%,#754a2d),#1a0e0b 72%); box-shadow:inset 0 2px rgba(255,240,194,.08); }
-.seat i:before { content:attr(data-initial); font-size:12px; font-style:normal; font-weight:800; }
-.seat b { z-index:1; max-width:64px; overflow:hidden; color:#dfcfad; font-size:9px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-.seat span { z-index:1; color:#a99473; font:700 8px "Roboto Slab",serif; font-variant-numeric:tabular-nums; }
-.seat.me { min-width:104px; color:var(--ink); box-shadow:0 0 0 2px #160e0a,0 0 0 3px #9d713c,inset 0 0 0 1px rgba(255,248,221,.5),0 0 14px rgba(202,151,73,.32),0 6px 11px rgba(0,0,0,.3); }
+  .seat b { z-index:1; max-width:100%; overflow:hidden; color:#dfcfad; font-size:clamp(8px,2.4vw,10px); font-weight:700; line-height:1.1; text-overflow:ellipsis; white-space:nowrap; }
+  .seat span { z-index:1; color:#a99473; font:700 clamp(7px,2.1vw,8.5px) "Roboto Slab",serif; font-variant-numeric:tabular-nums; }
+  .seat.me { min-width:0; color:var(--ink); box-shadow:0 0 0 2px #160e0a,0 0 0 3px #9d713c,inset 0 0 0 1px rgba(255,248,221,.5),0 0 14px rgba(202,151,73,.32),0 6px 11px rgba(0,0,0,.3); }
 .seat.me b { color:#321a10; } .seat.me span { color:#70513a; }
 .seat.me:before { content:"ME"; position:absolute; z-index:2; top:3px; right:6px; color:#5f2730; font:800 5px "Roboto Slab",serif; letter-spacing:.06em; }
 .seat.seller b { color:#ead6ae; }
@@ -122,10 +120,7 @@
 .timer.critical { filter: saturate(1.12) brightness(1.08); }
 .timer.critical:before { content:""; position:absolute; inset:2px; border-radius:7px; box-shadow: inset 0 0 0 1px rgba(213,126,80,.34), 0 0 13px rgba(177,83,56,.18); pointer-events:none; }
 
-.seat { min-width: 108px; height: 53px; grid-template-columns: 32px minmax(0,1fr); grid-template-rows: 18px 15px; column-gap: 8px; padding: 8px 10px 7px 14px; }
-.seat i { width: 38px; height: 38px; margin-left: -9px; }
-.seat b { max-width: 72px; font-size: 10px; }
-.seat span { font-size: 8.5px; }
+.seat { flex-basis: calc((100% - 18px) / 4); }
 .seat.seller:not(.me):before { content:"SELLER"; position:absolute; z-index:2; top:3px; right:7px; color:#d5a779; font:800 5px "Roboto Slab",serif; letter-spacing:.05em; }
 
 .table-ring:after { content:""; position:absolute; z-index:3; inset:28%; border:1px solid rgba(171,125,63,.16); border-radius:50%; background:url("../assets/svg/marker-table.svg") center / 44px 44px no-repeat; opacity:.78; filter:drop-shadow(0 2px 2px rgba(0,0,0,.32)); pointer-events:none; }

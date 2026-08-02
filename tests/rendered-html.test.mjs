@@ -60,11 +60,17 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(html, /새 방 만들기/);
     assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
     const dealerHtml = await (await fetch(`${baseUrl}/dealer-cards-2d/index.html`)).text();
+    const dealerScript = await readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8");
     assert.match(dealerHtml, /data-menu="closed"/);
+    assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
+    assert.doesNotMatch(dealerHtml, /data-initial/);
     assert.equal((dealerHtml.match(/class="dock-icon"/g) ?? []).length, 3);
+    assert.match(dealerScript, /게임 정보를 불러오는 중/);
+    assert.match(dealerScript, /menuOpen = true/);
+    assert.doesNotMatch(dealerScript, /setInterval\(sync, 650\)/);
 
     const roomResponse = await fetch(`${baseUrl}/api/rooms`, {
       method: "POST",
