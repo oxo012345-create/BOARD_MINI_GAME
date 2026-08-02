@@ -161,7 +161,11 @@ body[data-dragging="sheet"] .sheet-handle { filter:brightness(1.12); box-shadow:
 .bid-panel span, .highest { font-size:6px; }
 .bid-panel>b { font-size:19px; }
 
-.private-dossier { position:relative; right:auto; bottom:auto; left:auto; align-self:flex-end; width:min(88%,220px); max-width:calc(100% - 18px); margin-top:-13px; padding:12px 12px 10px; opacity:.97; border-color:rgba(157,119,68,.88); border-radius:12px; box-shadow:0 7px 15px rgba(0,0,0,.48),0 0 0 1px rgba(62,35,21,.55),inset 0 1px rgba(255,250,225,.5),inset 0 -6px 12px rgba(84,51,27,.17); backdrop-filter:blur(3px); transform:none; pointer-events:none; }
+.private-dossier { position:relative; right:auto; bottom:auto; left:auto; align-self:stretch; width:100%; max-width:100%; margin-top:10px; padding:15px 24px 13px; opacity:.97; border-color:rgba(157,119,68,.88); border-radius:15px; box-shadow:0 7px 15px rgba(0,0,0,.48),0 0 0 1px rgba(62,35,21,.55),inset 0 1px rgba(255,250,225,.5),inset 0 -6px 12px rgba(84,51,27,.17); backdrop-filter:blur(3px); transform:none; pointer-events:none; }
+.private-dossier > header, .private-dossier > .appraisal-value, .private-dossier > #clauses { position:relative; z-index:1; }
+.dossier-roll { position:absolute; z-index:0; top:5px; bottom:5px; display:block; width:18px; border:1px solid rgba(115,78,38,.75); background:radial-gradient(ellipse at 45% 30%,rgba(255,246,207,.58),transparent 46%),linear-gradient(90deg,rgba(84,48,27,.42),rgba(246,222,169,.42) 42%,rgba(112,70,35,.34)),url("../assets/textures/texture-parchment-soft.webp") center/220px 220px; box-shadow:inset 2px 0 4px rgba(255,247,210,.45),inset -3px 0 5px rgba(77,42,24,.34),0 2px 4px rgba(46,24,14,.26); pointer-events:none; }
+.dossier-roll-left { left:2px; border-radius:13px 5px 5px 13px; transform:rotate(-1deg); transform-origin:left center; }
+.dossier-roll-right { right:2px; border-radius:5px 13px 13px 5px; transform:rotate(1deg); transform-origin:right center; }
 .private-dossier header { padding:2px 0 6px; }
 .private-dossier header span { font-size:6px; }
 .private-dossier header b { font-size:7px; }
@@ -194,7 +198,7 @@ body[data-dragging="sheet"] .sheet-handle { filter:brightness(1.12); box-shadow:
   .hud strong { font-size:clamp(12px,3.7vw,15px); }
   .cash strong { font-size:15px; }
   .lot-stack { width:min(74vw,300px,calc(100% - 20px)); }
-  .private-dossier { width:min(88%,220px); }
+  .private-dossier { width:100%; max-width:100%; padding-inline:20px; }
 }
 
 @media (max-width:370px) {
