@@ -1,6 +1,10 @@
 import { createGameBoard } from "./game-board.js?v=2";
+import { applyDebugAction, createDebugState, DEBUG_PHASES, DEBUG_SCENARIOS, transitionDebugPhase } from "./debug-fixtures.js?v=1";
+import { mountDebugPanel } from "./debug-panel.js?v=1";
 
-const roomCode = new URLSearchParams(location.search).get("room")?.replace(/\D/g, "").slice(0, 4) || "";
+const query = new URLSearchParams(location.search);
+const debugMode = query.get("debug") === "1";
+const roomCode = query.get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
 const ui = {
   round: $("round"), phase: $("phase"), timer: $("timer"), cash: $("cash"), seats: $("seats"),
@@ -29,6 +33,10 @@ let lastRenderedPhase = null;
 let syncTimer = null;
 let syncInFlight = false;
 let nextSyncDelay = 2000;
+let debugState = null;
+let debugScenario = DEBUG_SCENARIOS.some((item) => item.id === query.get("case")) ? query.get("case") : "select";
+let debugPlayerCount = Math.min(8, Math.max(1, Number(query.get("players")) || 4));
+let debugPanel = null;
 
 function showLoading(title = "게임 정보를 불러오는 중…", detail = "방장이 시작 버튼을 누르면 게임이 시작됩니다.") {
   document.body.dataset.loaded = "false";
@@ -38,6 +46,97 @@ function showLoading(title = "게임 정보를 불러오는 중…", detail = "�
 
 function hideLoading() {
   document.body.dataset.loaded = "true";
+}
+
+function updateDebugUrl() {
+  if (!debugMode) return;
+  const url = new URL(location.href);
+  url.searchParams.set("debug", "1");
+  url.searchParams.set("case", debugScenario);
+  url.searchParams.set("players", String(debugPlayerCount));
+  history.replaceState(null, "", url);
+}
+
+function debugSummary() {
+  if (!dealer) return `대기 · ${debugPlayerCount}명 · 방장 시작 전`;
+  const phase = DEBUG_PHASES.find((item) => item.id === dealer.phase)?.label || dealer.phase;
+  return `${phase} · ${room?.players.length || debugPlayerCount}명 · ${dealer.sellerId === room?.meId ? "판매자 시점" : "입찰자 시점"}`;
+}
+
+function syncDebugPanel() {
+  debugPanel?.update(debugSummary());
+}
+
+function applyDebugSnapshot(nextState, { resetPhase = false } = {}) {
+  const previousPhase = dealer?.phase || null;
+  debugState = nextState;
+  room = nextState?.room || null;
+  dealer = nextState?.dealer || null;
+  serverOffset = 0;
+  lastRevision = room?.revision ?? -1;
+  lastRenderedPhase = resetPhase || previousPhase !== dealer?.phase ? null : dealer?.phase || null;
+  if (!dealer) {
+    document.body.dataset.phase = "waiting";
+    ui.lotStage.hidden = true;
+    closeSheet();
+    showLoading("게임 정보를 불러오는 중…", "방장이 시작 버튼을 누르면 게임이 시작됩니다.");
+  } else {
+    hideLoading();
+    render();
+  }
+  syncDebugPanel();
+}
+
+function bootDebugMode() {
+  if (!debugMode) return;
+  document.body.dataset.debug = "true";
+  applyDebugSnapshot(createDebugState(debugScenario, debugPlayerCount), { resetPhase: true });
+}
+
+function setDebugScenario(nextScenario) {
+  if (!debugMode) return;
+  debugScenario = DEBUG_SCENARIOS.some((item) => item.id === nextScenario) ? nextScenario : "select";
+  updateDebugUrl();
+  applyDebugSnapshot(createDebugState(debugScenario, debugPlayerCount), { resetPhase: true });
+  debugPanel?.setScenario(debugScenario);
+}
+
+function setDebugPlayerCount(nextCount) {
+  if (!debugMode) return;
+  debugPlayerCount = Math.min(8, Math.max(1, Number(nextCount) || 4));
+  updateDebugUrl();
+  applyDebugSnapshot(createDebugState(debugScenario, debugPlayerCount), { resetPhase: true });
+  debugPanel?.setPlayerCount(debugPlayerCount);
+}
+
+function setDebugPhase(nextPhase) {
+  if (!debugMode) return;
+  if (!debugState?.dealer) debugState = createDebugState("select", debugPlayerCount);
+  updateDebugUrl();
+  applyDebugSnapshot(transitionDebugPhase(debugState, nextPhase), { resetPhase: true });
+}
+
+function runDebugAction(action) {
+  if (!debugMode) return;
+  if (action === "open-sheet") {
+    tab = "game";
+    menuOpen = true;
+    syncDockButtons();
+    renderTab();
+    syncDebugPanel();
+    return;
+  }
+  if (action === "close-sheet") {
+    closeSheet();
+    syncDebugPanel();
+    return;
+  }
+  if (action === "reset") {
+    setDebugScenario(debugScenario);
+    return;
+  }
+  if (!debugState?.dealer) return;
+  applyDebugSnapshot(applyDebugAction(debugState, action));
 }
 
 showLoading();
@@ -115,6 +214,17 @@ async function act(action, extra = {}) {
   busy = true;
   document.body.dataset.busy = action;
   ui.notice.textContent = "처리 중…";
+  if (debugMode) {
+    try {
+      if (debugState?.dealer) applyDebugSnapshot(applyDebugAction(debugState, action, extra));
+    } catch (error) {
+      ui.notice.textContent = error instanceof Error ? error.message : "디버그 동작을 처리하지 못했어요.";
+    } finally {
+      busy = false;
+      delete document.body.dataset.busy;
+    }
+    return;
+  }
   try {
     const response = await fetch(`/api/rooms/${roomCode}`, {
       method: "PATCH",
@@ -136,6 +246,10 @@ async function act(action, extra = {}) {
 }
 
 async function sync() {
+  if (debugMode) {
+    if (!debugState) bootDebugMode();
+    return;
+  }
   if (syncInFlight) return;
   syncInFlight = true;
   try {
@@ -387,6 +501,19 @@ document.querySelectorAll(".dock button").forEach((button) => { button.onclick =
 ui.sheetBackdrop?.addEventListener("click", closeSheet);
 ui.sheetClose?.addEventListener("click", closeSheet);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menuOpen) closeSheet(); });
+if (debugMode) {
+  debugPanel = mountDebugPanel({
+    scenarios: DEBUG_SCENARIOS,
+    phases: DEBUG_PHASES,
+    initialScenario: debugScenario,
+    initialPlayerCount: debugPlayerCount,
+    onScenarioChange: setDebugScenario,
+    onPlayerCountChange: setDebugPlayerCount,
+    onPhaseChange: setDebugPhase,
+    onAction: runDebugAction,
+  });
+  updateDebugUrl();
+}
 setInterval(() => {
   if (!dealer) return;
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
@@ -397,4 +524,5 @@ setInterval(() => {
   ui.timer.closest(".timer")?.classList.toggle("critical", critical);
   document.body.dataset.timeCritical = critical ? "true" : "false";
 }, 200);
-sync();
+if (debugMode) bootDebugMode();
+else sync();

@@ -708,6 +708,39 @@ test("server-renders the Hanpan mobile app shell", async () => {
   });
 });
 
+test("provides a safe solo debug mode for every dealer phase", async () => {
+  const fixture = await import(new URL("../public/dealer-cards-2d/debug-fixtures.js", import.meta.url));
+  const [debugHtml, debugScript, debugPanel, debugStyles] = await Promise.all([
+    readFile(new URL("../public/dealer-cards-2d/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/dealer-cards-2d/debug-panel.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/dealer-cards-2d/styles/debug.css", import.meta.url), "utf8"),
+  ]);
+  assert.equal(fixture.DEBUG_SCENARIOS.length, 8);
+  for (const count of [1, 4, 5, 8]) {
+    const state = fixture.createDebugState("select", count);
+    assert.equal(state.room.players.length, count);
+    assert.equal(state.dealer.phase, "select");
+    assert.equal(state.dealer.candidates[state.room.meId].length, 3);
+    const auction = fixture.applyDebugAction(state, "dealer-select", { itemIndex: 1 });
+    assert.equal(auction.dealer.phase, "auction");
+    assert.ok(auction.dealer.currentItem);
+  }
+  let state = fixture.createDebugState("auction-mystery", 4);
+  assert.equal(state.dealer.knowsPrice, false);
+  assert.equal(state.dealer.knowsClauses, false);
+  state = fixture.transitionDebugPhase(state, "shop");
+  assert.equal(state.dealer.phase, "shop");
+  state = fixture.applyDebugAction(state, "dealer-reroll");
+  assert.equal(state.dealer.rerolls[state.room.meId], 1);
+  assert.deepEqual(state.dealer.shopOffers[state.room.meId], [1, 5, 14]);
+  assert.match(debugHtml, /type="module" src="\.\/game\.js/);
+  assert.match(debugScript, /debugMode/);
+  assert.match(debugScript, /mountDebugPanel/);
+  assert.match(debugPanel, /로컬 디버그/);
+  assert.match(debugStyles, /debug-panel/);
+});
+
 test("keeps the requested game set and removes excluded modes", async () => {
   const [page, layout, hosting, surprise, realtime, eventsRoute, roomRoute] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
