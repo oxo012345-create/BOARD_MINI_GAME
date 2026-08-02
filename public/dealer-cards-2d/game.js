@@ -362,6 +362,7 @@ ui.sheetHandle?.addEventListener("pointerup", finishSheetDrag);
 ui.sheetHandle?.addEventListener("pointercancel", finishSheetDrag);
 document.addEventListener("pointerup", finishSheetDrag);
 document.addEventListener("pointercancel", finishSheetDrag);
+document.addEventListener("pointermove", moveSheetDrag, { passive: false });
 ui.sheetHandle?.addEventListener("keydown", (event) => {
   if (event.key === "ArrowUp") { event.preventDefault(); nudgeSheet(24); }
   if (event.key === "ArrowDown") { event.preventDefault(); nudgeSheet(-24); }
