@@ -739,6 +739,7 @@ test("provides a safe solo debug mode for every dealer phase", async () => {
   assert.match(debugScript, /mountDebugPanel/);
   assert.match(debugPanel, /로컬 디버그/);
   assert.match(debugStyles, /debug-panel/);
+  assert.match(debugStyles, /body\[data-debug-panel="closed"\] \.debug-panel \{ display: none; \}/);
 });
 
 test("keeps the requested game set and removes excluded modes", async () => {

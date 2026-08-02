@@ -36,7 +36,7 @@ body[data-debug="true"] .debug-panel {
   scrollbar-width: thin;
 }
 
-body[data-debug="closed"] .debug-panel { display: none; }
+body[data-debug-panel="closed"] .debug-panel { display: none; }
 body[data-debug-panel="open"] .debug-panel { display: block; }
 
 .debug-panel-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding-bottom:8px; border-bottom:1px solid rgba(185,139,74,.32); }
@@ -60,4 +60,3 @@ body[data-debug-panel="open"] .debug-panel { display: block; }
   body[data-debug="true"] .debug-panel { right:5px; width:calc(100vw - 10px); }
   .debug-field { grid-template-columns:70px minmax(0,1fr); }
 }
-
