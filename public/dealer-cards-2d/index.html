@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=15" />
+  <link rel="stylesheet" href="./styles.css?v=16" />
 </head>
 <body>
   <main id="app">
@@ -56,18 +56,18 @@
         </div>
        </article>
          <aside class="private-dossier" id="private-dossier" hidden>
-          <i class="dossier-roll dossier-roll-left" aria-hidden="true"></i>
-          <i class="dossier-roll dossier-roll-right" aria-hidden="true"></i>
-          <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
-          <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
-          <div id="clauses"></div>
+           <i class="dossier-roll dossier-roll-left" aria-hidden="true"></i>
+           <i class="dossier-roll dossier-roll-right" aria-hidden="true"></i>
+           <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
+           <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
+           <div id="clauses"></div>
          </aside>
-      </div>
-    </section>
+         <div class="lot-actions" id="lot-actions" hidden></div>
+       </div>
+     </section>
 
-    <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
-    <section class="sheet" id="sheet">
-      <div class="sheet-handle" id="sheet-handle" role="separator" aria-label="패널 높이 조절" aria-valuemin="220" aria-valuemax="620" aria-valuenow="320" tabindex="0"></div>
+     <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="게임 메뉴 패널">
       <button class="sheet-close" id="sheet-close" type="button" aria-label="패널 닫기">×</button>
       <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="sheet-scroll" id="sheet-scroll">
@@ -78,12 +78,12 @@
 
     <nav class="dock" aria-label="게임 메뉴">
       <span class="dock-rail" aria-hidden="true"></span>
-      <button data-tab="game" class="active" aria-label="경매장" aria-expanded="true"><span class="dock-icon" aria-hidden="true"></span><em>경매장</em></button>
+      <button data-tab="game" class="active" aria-label="경매장" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>경매장</em></button>
       <button data-tab="items" aria-label="소장품" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
       <button data-tab="cards" aria-label="전략패" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
       <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=14"></script>
+  <script type="module" src="./game.js?v=15"></script>
 </body>
 </html>

@@ -5,8 +5,8 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   round: $("round"), phase: $("phase"), timer: $("timer"), cash: $("cash"), seats: $("seats"),
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
-  itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"),
-  value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheet: $("sheet"), sheetHandle: $("sheet-handle"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
+  itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
+  value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
   itemCount: $("item-count"), cardCount: $("card-count"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
@@ -15,70 +15,10 @@ window.addEventListener("pagehide", () => gameBoard.destroy(), { once: true });
 let room = null;
 let dealer = null;
 let tab = "game";
-let menuOpen = true;
+let menuOpen = false;
 let busy = false;
 let lastRevision = -1;
 let serverOffset = 0;
-let sheetDrag = null;
-
-const SHEET_MIN = 220;
-const sheetViewport = () => Math.max(document.documentElement.clientHeight || 0, window.visualViewport?.height || 0, window.innerHeight || 0);
-const sheetLimits = () => {
-  const viewport = sheetViewport();
-  const max = Math.max(SHEET_MIN, Math.min(viewport * .74, viewport - 170));
-  return { min: SHEET_MIN, max };
-};
-const clampSheetHeight = (value) => {
-  const { min, max } = sheetLimits();
-  return Math.round(Math.min(max, Math.max(min, Number(value) || min)));
-};
-const setSheetHeight = (value) => {
-  const height = clampSheetHeight(value);
-  document.documentElement.style.setProperty("--sheet-height", `${height}px`);
-  ui.sheetHandle?.setAttribute("aria-valuenow", String(height));
-  ui.sheetHandle?.setAttribute("aria-valuemax", String(sheetLimits().max));
-  return height;
-};
-const readSheetHeight = () => Math.round(ui.sheet?.getBoundingClientRect().height || SHEET_MIN);
-const syncSheetHandle = () => {
-  if (!ui.sheetHandle) return;
-  ui.sheetHandle.setAttribute("aria-valuenow", String(readSheetHeight()));
-  ui.sheetHandle.setAttribute("aria-valuemax", String(sheetLimits().max));
-};
-
-function beginSheetDrag(event) {
-  if (event.pointerType === "mouse" && event.button !== 0) return;
-  const openHeight = Math.max(readSheetHeight(), SHEET_MIN);
-  sheetDrag = { pointerId: event.pointerId, startY: event.clientY, startHeight: openHeight };
-  menuOpen = true;
-  document.body.dataset.menu = "open";
-  document.body.dataset.dragging = "sheet";
-  ui.sheetHandle?.setPointerCapture?.(event.pointerId);
-  renderTab();
-  event.preventDefault();
-}
-
-function moveSheetDrag(event) {
-  if (!sheetDrag || event.pointerId !== sheetDrag.pointerId) return;
-  setSheetHeight(sheetDrag.startHeight - (event.clientY - sheetDrag.startY));
-  document.body.dataset.menu = "open";
-  event.preventDefault();
-}
-
-function finishSheetDrag(event) {
-  if (!sheetDrag || (event && event.pointerId !== sheetDrag.pointerId)) return;
-  sheetDrag = null;
-  document.body.removeAttribute("data-dragging");
-  menuOpen = true;
-  renderTab();
-  ui.sheetHandle?.releasePointerCapture?.(event?.pointerId);
-}
-
-function nudgeSheet(delta) {
-  menuOpen = true;
-  setSheetHeight(readSheetHeight() + delta);
-  renderTab();
-}
 
 function syncDockButtons() {
   document.querySelectorAll(".dock button").forEach((button) => {
@@ -89,10 +29,6 @@ function syncDockButtons() {
 }
 
 function closeSheet() {
-  if (sheetDrag) {
-    sheetDrag = null;
-    document.body.removeAttribute("data-dragging");
-  }
   menuOpen = false;
   document.body.dataset.menu = "closed";
   ui.sheetBackdrop?.setAttribute("aria-hidden", "true");
@@ -225,27 +161,68 @@ function render() {
     ui.bid.textContent = money(dealer.highestBidderId ? dealer.currentBid : 100);
     ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
   }
-  const knows = dealer.currentItem && (dealer.knowsPrice || dealer.knowsClauses);
-  ui.lotCard.dataset.ledger = knows ? "open" : "closed";
-  ui.dossier.hidden = !knows;
-  if (knows) {
-    ui.value.textContent = dealer.knowsPrice ? money(dealer.currentItem.value) : "가격 미확인";
-    ui.clauses.innerHTML = dealer.knowsClauses
+  const isAuction = Boolean(dealer.currentItem && dealer.phase === "auction");
+  const knowsPrice = Boolean(dealer.knowsPrice);
+  const knowsClauses = Boolean(dealer.knowsClauses);
+  const knows = knowsPrice || knowsClauses;
+  ui.lotCard.dataset.ledger = knows ? "open" : "mystery";
+  ui.dossier.hidden = !isAuction;
+  ui.dossier.dataset.mystery = isAuction && !knows ? "true" : "false";
+  if (isAuction) {
+    ui.value.textContent = knowsPrice ? money(dealer.currentItem.value) : "$?";
+    ui.clauses.innerHTML = knowsClauses && dealer.currentItem.clauses.length
       ? dealer.currentItem.clauses.map((id) => `<div>§${id} ${escapeHtml(clauseText[id])}</div>`).join("")
-      : "<div>조항 미확인</div>";
+      : "<div>§? 조항 비공개</div><div>§? 감정 정보 비공개</div>";
+  } else {
+    ui.dossier.dataset.mystery = "false";
   }
+  renderLotActions();
   renderTab();
+}
+
+function renderLotActions() {
+  const show = Boolean(dealer.currentItem && dealer.phase === "auction");
+  ui.lotActions.hidden = !show;
+  if (!show) {
+    ui.lotActions.innerHTML = "";
+    return;
+  }
+  const mine = me();
+  const seller = dealer.sellerId === mine;
+  const blocked = dealer.blockedBidders.includes(mine);
+  const full = (dealer.inventories[mine]?.length || 0) >= 4;
+  const next = dealer.currentBid + 50;
+  const afford = dealer.balances[mine] >= next;
+  const bidLabel = blocked
+    ? "해머 잠금 · 입찰 제한"
+    : full
+      ? "소장품 보관함이 가득 찼습니다"
+      : !afford
+        ? "호가할 자금이 부족합니다"
+        : `호가표 들기 · ${money(next)}`;
+  ui.lotActions.innerHTML = `
+    ${seller
+      ? `<p class="lot-action-note">판매 중인 물건입니다. 입찰은 다른 딜러가 진행합니다.</p>`
+      : `<button class="primary-action" id="lot-bid-button" ${blocked || full || !afford ? "disabled" : ""}>${bidLabel}</button>`}
+    <button class="secondary-action" data-lot-goto-cards>보유 전략 카드 보기</button>`;
+  const bidButton = $("lot-bid-button");
+  if (bidButton) bidButton.onclick = () => {
+    bidButton.disabled = true;
+    bidButton.classList.add("is-loading");
+    bidButton.textContent = "입찰 확인 중…";
+    act("dealer-bid");
+  };
+  ui.lotActions.querySelector("[data-lot-goto-cards]")?.addEventListener("click", () => setTab("cards"));
 }
 
 function renderTab() {
   document.body.dataset.tab = tab;
   document.body.dataset.menu = menuOpen ? "open" : "closed";
   ui.sheetBackdrop?.setAttribute("aria-hidden", menuOpen ? "false" : "true");
-  if (tab === "items") { renderItems(); syncSheetHandle(); return; }
-  if (tab === "cards") { renderCards(); syncSheetHandle(); return; }
-  if (tab === "rules") { renderRules(); syncSheetHandle(); return; }
+  if (tab === "items") { renderItems(); return; }
+  if (tab === "cards") { renderCards(); return; }
+  if (tab === "rules") { renderRules(); return; }
   renderGame();
-  syncSheetHandle();
 }
 
 function renderGame() {
@@ -267,27 +244,11 @@ function renderGame() {
   }
   if (dealer.phase === "auction") {
     const seller = dealer.sellerId === mine;
-    const blocked = dealer.blockedBidders.includes(mine);
     const speechLocked = dealer.speechLocked.includes(mine);
-    const full = (dealer.inventories[mine]?.length || 0) >= 4;
-    const next = dealer.currentBid + 50;
-    const afford = dealer.balances[mine] >= next;
     ui.content.innerHTML = `
-      <div class="section-title"><h2>${seller ? "가치를 설득하고 거래를 주도하세요" : "정보를 판단하고 입찰하세요"}</h2><span>마지막 3초의 입찰은 5초 연장됩니다</span></div>
+      <div class="section-title"><h2>${seller ? "가치를 설득하고 거래를 주도하세요" : "정보를 판단하고 입찰하세요"}</h2><span>입찰 버튼은 감정서 아래에 표시됩니다</span></div>
       ${speechLocked ? `<div class="notice">침묵 조항 발동 · 이번 경매가 끝날 때까지 말할 수 없습니다.</div>` : ""}
-      ${seller ? `<div class="notice">감정가와 계약 조항은 판매자에게만 공개됩니다. 무엇을 공개할지는 당신의 선택입니다.</div>` : `
-        <button class="primary-action" id="bid-button" ${blocked || full || !afford ? "disabled" : ""}>
-          ${blocked ? "해머 잠금 · 입찰 제한" : full ? "소장품 보관함이 가득 찼습니다" : !afford ? "호가할 자금이 부족합니다" : `호가표 들기 · ${money(next)}`}
-        </button>`}
-      <button class="secondary-action" data-goto-cards>보유 전략 카드 보기</button>`;
-    const bidButton = $("bid-button");
-    if (bidButton) bidButton.onclick = () => {
-      bidButton.disabled = true;
-      bidButton.classList.add("is-loading");
-      bidButton.textContent = "입찰 확인 중…";
-      act("dealer-bid");
-    };
-    ui.content.querySelector("[data-goto-cards]").onclick = () => setTab("cards");
+      <div class="notice">${seller ? "감정가와 계약 조항은 판매자에게만 공개됩니다." : "가격과 조항은 비공개입니다. 실제 대화로 판단한 뒤 아이템 아래에서 입찰하세요."}</div>`;
     return;
   }
   if (dealer.phase === "resolution") {
@@ -346,6 +307,10 @@ function renderRules() {
 }
 
 function setTab(next) {
+  if (tab === next && menuOpen) {
+    closeSheet();
+    return;
+  }
   tab = next;
   menuOpen = true;
   syncDockButtons();
@@ -356,21 +321,7 @@ function setTab(next) {
 document.querySelectorAll(".dock button").forEach((button) => { button.onclick = () => setTab(button.dataset.tab); });
 ui.sheetBackdrop?.addEventListener("click", closeSheet);
 ui.sheetClose?.addEventListener("click", closeSheet);
-ui.sheetHandle?.addEventListener("pointerdown", beginSheetDrag);
-ui.sheetHandle?.addEventListener("pointermove", moveSheetDrag);
-ui.sheetHandle?.addEventListener("pointerup", finishSheetDrag);
-ui.sheetHandle?.addEventListener("pointercancel", finishSheetDrag);
-document.addEventListener("pointerup", finishSheetDrag);
-document.addEventListener("pointercancel", finishSheetDrag);
-document.addEventListener("pointermove", moveSheetDrag, { passive: false });
-ui.sheetHandle?.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowUp") { event.preventDefault(); nudgeSheet(24); }
-  if (event.key === "ArrowDown") { event.preventDefault(); nudgeSheet(-24); }
-  if (event.key === "Home") { event.preventDefault(); nudgeSheet(SHEET_MIN - readSheetHeight()); }
-  if (event.key === "End") { event.preventDefault(); nudgeSheet(sheetLimits().max - readSheetHeight()); }
-});
 document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menuOpen) closeSheet(); });
-window.addEventListener("resize", syncSheetHandle, { passive: true });
 setInterval(() => {
   if (!dealer) return;
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
