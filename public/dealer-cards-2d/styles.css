@@ -4,4 +4,4 @@
 @import url("./styles/components.css") layer(components);
 @import url("./styles/materials.css") layer(materials);
 @import url("./styles/states.css") layer(states);
-@import url("./styles/debug.css?v=1") layer(components);
+@import url("./styles/debug.css?v=2") layer(components);
