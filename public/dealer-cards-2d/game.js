@@ -7,11 +7,11 @@ const debugMode = query.get("debug") === "1";
 const roomCode = query.get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
 const ui = {
-  round: $("round"), phase: $("phase"), timer: $("timer"), cash: $("cash"), seats: $("seats"),
+  round: $("round"), phase: $("phase"), timer: $("timer"), timerLabel: $("timer-label"), cash: $("cash"), seats: $("seats"),
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
-  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), stageAction: $("stage-action"),
+  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), stageAction: $("stage-action"), actionToast: $("action-toast"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
 window.addEventListener("pagehide", () => {
@@ -38,10 +38,14 @@ let debugScenario = DEBUG_SCENARIOS.some((item) => item.id === query.get("case")
 let debugPlayerCount = Math.min(8, Math.max(1, Number(query.get("players")) || 4));
 let debugPanel = null;
 let timerExpired = false;
+let toastTimer = null;
+let lastMenuButton = null;
+let preloadedItemId = null;
 
 function clearStaleView() {
   ui.round.textContent = "ROUND —";
   ui.phase.textContent = "대기 중";
+  if (ui.timerLabel) ui.timerLabel.textContent = "연결 중";
   ui.timer.textContent = "--:--";
   ui.cash.textContent = "—";
   ui.seats.innerHTML = "";
@@ -70,6 +74,70 @@ function hideLoading() {
   document.body.dataset.loaded = "true";
   document.body.dataset.appState = "ready";
   if (ui.loadingRetry) ui.loadingRetry.hidden = true;
+}
+
+const timerLabels = {
+  select: "선택 마감",
+  auction: "경매 마감",
+  resolution: "결과 확인",
+  shop: "상점 마감",
+  finished: "최종 결과",
+};
+const phaseGuidance = {
+  select: "출품할 물건을 고르고 다른 딜러의 선택을 기다리세요.",
+  auction: "판매자의 설명을 듣고 원하는 순간에 호가하세요.",
+  resolution: "낙찰 결과와 공개된 조항을 확인하세요.",
+  shop: "전략패를 구입하거나 리롤한 뒤 다음 라운드를 준비하세요.",
+  finished: "컬렉션을 정산하고 최종 보유금을 확인하세요.",
+};
+
+function updatePhaseMeta() {
+  const phase = dealer?.phase;
+  const label = timerLabels[phase] || "남은 시간";
+  if (ui.timerLabel) ui.timerLabel.textContent = label;
+  ui.timer?.setAttribute("aria-label", `${label} ${ui.timer?.textContent || ""}`);
+  document.body.dataset.seller = dealer && dealer.sellerId === me() ? "true" : "false";
+  document.body.dataset.guidance = phaseGuidance[phase] || "";
+}
+
+function preloadItem(item) {
+  if (!item || item.id === preloadedItemId) return;
+  preloadedItemId = item.id;
+  const image = new Image();
+  image.decoding = "async";
+  image.src = lotItemSrc(item.id);
+}
+
+function showToast(message, tone = "info") {
+  if (!ui.actionToast || !message) return;
+  if (toastTimer) window.clearTimeout(toastTimer);
+  ui.actionToast.textContent = message;
+  ui.actionToast.dataset.tone = tone;
+  ui.actionToast.hidden = false;
+  requestAnimationFrame(() => ui.actionToast?.classList.add("visible"));
+  toastTimer = window.setTimeout(() => {
+    ui.actionToast?.classList.remove("visible");
+    window.setTimeout(() => { if (ui.actionToast) ui.actionToast.hidden = true; }, 180);
+  }, tone === "error" ? 4200 : 2600);
+}
+
+function actionSuccessMessage(action) {
+  if (action === "dealer-select") return "출품 선택 완료 · 다른 딜러의 선택을 기다립니다.";
+  if (action === "dealer-bid") return `입찰 완료 · 현재 ${money(dealer?.currentBid)}${dealer?.highestBidderId === me() ? " · 최고 입찰" : ""}`;
+  if (action === "dealer-use-card") return "전략패 사용 완료 · 효과가 적용되었습니다.";
+  if (action === "dealer-reroll") return "상점 목록을 새로 고쳤습니다.";
+  if (action === "dealer-buy-card") return "전략패를 소장품에 추가했습니다.";
+  if (action === "dealer-checkout") return "컬렉션 정산을 완료했습니다.";
+  return "처리가 완료되었습니다.";
+}
+
+function phaseTransitionMessage(phase) {
+  if (phase === "select") return "새 라운드가 열렸습니다. 출품할 물건을 선택하세요.";
+  if (phase === "auction") return "경매가 시작되었습니다. 아이템을 살펴보고 입찰하세요.";
+  if (phase === "resolution") return "경매가 마감되었습니다. 낙찰 결과를 확인하세요.";
+  if (phase === "shop") return "라운드 상점이 열렸습니다. 전략패를 준비하세요.";
+  if (phase === "finished") return "모든 라운드가 끝났습니다. 최종 결과를 확인하세요.";
+  return "게임 단계가 변경되었습니다.";
 }
 
 function phaseExpired(phase = dealer?.phase) {
@@ -192,6 +260,10 @@ function closeSheet() {
   document.body.dataset.menu = "closed";
   ui.sheetBackdrop?.setAttribute("aria-hidden", "true");
   syncDockButtons();
+  const returnButton = lastMenuButton;
+  if (returnButton && document.contains(returnButton)) {
+    window.setTimeout(() => returnButton.focus({ preventScroll: true }), 0);
+  }
 }
 
 function renderStageAction() {
@@ -202,6 +274,7 @@ function renderStageAction() {
   ui.stageAction.hidden = !label || menuOpen || document.body.dataset.appState !== "ready";
   if (!label) return;
   ui.stageAction.textContent = label;
+  ui.stageAction.setAttribute("aria-label", `${label} 팝업 열기`);
   ui.stageAction.onclick = () => {
     tab = "game";
     menuOpen = true;
@@ -265,6 +338,7 @@ async function act(action, extra = {}) {
   if (busy) return;
   if (actionBlockedByDeadline(action)) {
     ui.notice.textContent = "시간이 끝났습니다. 다음 단계로 이동합니다.";
+    showToast("시간이 끝났습니다. 다음 단계로 이동합니다.", "error");
     renderLotActions();
     if (menuOpen && tab === "game") renderTab();
     return;
@@ -274,9 +348,14 @@ async function act(action, extra = {}) {
   ui.notice.textContent = "처리 중…";
   if (debugMode) {
     try {
-      if (debugState?.dealer) applyDebugSnapshot(applyDebugAction(debugState, action, extra));
+      if (debugState?.dealer) {
+        applyDebugSnapshot(applyDebugAction(debugState, action, extra));
+        showToast(actionSuccessMessage(action));
+      }
     } catch (error) {
-      ui.notice.textContent = error instanceof Error ? error.message : "디버그 동작을 처리하지 못했어요.";
+      const message = error instanceof Error ? error.message : "디버그 동작을 처리하지 못했어요.";
+      ui.notice.textContent = message;
+      showToast(message, "error");
     } finally {
       busy = false;
       delete document.body.dataset.busy;
@@ -295,8 +374,11 @@ async function act(action, extra = {}) {
     serverOffset = room.serverNow - Date.now();
     dealer = room.game?.dealer;
     render();
+    showToast(actionSuccessMessage(action));
   } catch (error) {
-    ui.notice.textContent = error.message || "다시 시도해 주세요.";
+    const message = error.message || "다시 시도해 주세요.";
+    ui.notice.textContent = message;
+    showToast(message, "error");
   } finally {
     busy = false;
     delete document.body.dataset.busy;
@@ -349,6 +431,7 @@ function render() {
   if (!room || !dealer) return;
   ui.notice.textContent = "";
   const mine = me();
+  const previousPhase = lastRenderedPhase;
   const phaseChanged = dealer.phase !== lastRenderedPhase;
   if (phaseChanged) {
     if (dealer.phase === "select") {
@@ -364,25 +447,35 @@ function render() {
     } else if (tab === "game" && menuOpen) {
       closeSheet();
     }
+    if (previousPhase !== null) showToast(phaseTransitionMessage(dealer.phase));
     lastRenderedPhase = dealer.phase;
   }
   const inventory = dealer.inventories[mine] || [];
   document.body.dataset.phase = dealer.phase;
   gameBoard.setPhase(dealer.phase);
+  updatePhaseMeta();
   ui.round.textContent = `ROUND ${dealer.round}/${dealer.totalRounds}`;
   ui.phase.textContent = phaseNames[dealer.phase];
   ui.cash.textContent = money(dealer.balances[mine]);
   ui.itemCount.textContent = `${inventory.length}/4`;
   ui.cardCount.textContent = `${myCards().length}/3`;
   ui.seats.dataset.count = String(room.players.length);
-  ui.seats.innerHTML = room.players.map((player, index) => `
-    <div class="seat ${player.id === mine ? "me" : ""} ${player.id === dealer.sellerId ? "seller" : ""}" style="--seat:${playerColors[index % playerColors.length]}">
-      <b>${escapeHtml(player.name || `플레이어${index + 1}`)}</b><span>${money(dealer.balances[player.id])}</span>
-    </div>`).join("");
+  ui.seats.innerHTML = room.players.map((player, index) => {
+    const isMe = player.id === mine;
+    const isSeller = player.id === dealer.sellerId;
+    const isHighest = dealer.phase === "auction" && player.id === dealer.highestBidderId;
+    const role = isMe ? (isSeller ? "ME · SELLER" : "ME") : isSeller ? "SELLER" : isHighest ? "TOP BID" : "";
+    const label = `${player.name || `플레이어${index + 1}`} ${money(dealer.balances[player.id])}${isMe ? " · 내 자리" : isSeller ? " · 판매자" : isHighest ? " · 최고 입찰" : ""}`;
+    return `
+    <div class="seat ${isMe ? "me" : ""} ${isSeller ? "seller" : ""} ${isHighest ? "highest" : ""}" style="--seat:${playerColors[index % playerColors.length]}" aria-label="${escapeHtml(label)}">
+      <em class="seat-role">${role}</em><b>${escapeHtml(player.name || `플레이어${index + 1}`)}</b><span>${money(dealer.balances[player.id])}</span>
+    </div>`;
+  }).join("");
 
   const showLot = dealer.currentItem && !["select", "shop", "finished"].includes(dealer.phase);
   ui.lotStage.hidden = !showLot;
   if (dealer.currentItem) {
+    preloadItem(dealer.currentItem);
     ui.seller.textContent = playerName(dealer.sellerId);
     ui.itemImage.src = lotItemSrc(dealer.currentItem.id);
     ui.itemImage.alt = dealer.currentItem.name;
@@ -440,8 +533,8 @@ function renderLotActions() {
   ui.lotActions.innerHTML = `
     ${seller
       ? `<p class="lot-action-note ${expired ? "is-closed" : ""}">${expired ? "경매가 마감되었습니다. 결과를 기다려 주세요." : "판매 중인 물건입니다. 입찰은 다른 딜러가 진행합니다."}</p>`
-      : `<button class="primary-action" id="lot-bid-button" ${blocked || full || !afford || expired ? "disabled" : ""} aria-disabled="${blocked || full || !afford || expired ? "true" : "false"}">${bidLabel}</button>`}
-    <button class="secondary-action" data-lot-goto-cards>보유 전략 카드 보기</button>`;
+      : `<button class="primary-action" id="lot-bid-button" ${blocked || full || !afford || expired ? "disabled" : ""} aria-disabled="${blocked || full || !afford || expired ? "true" : "false"}" aria-label="${escapeHtml(bidLabel)}">${bidLabel}</button>`}
+    <button class="secondary-action" data-lot-goto-cards aria-label="보유 전략 카드 보기">보유 전략 카드 보기</button>`;
   const bidButton = $("lot-bid-button");
   if (bidButton) bidButton.onclick = () => {
     bidButton.disabled = true;
@@ -474,6 +567,7 @@ function renderGame() {
     const selected = dealer.selected[mine] !== undefined;
     const items = dealer.candidates[mine] || [];
     const expired = phaseExpired("select");
+    items.forEach(preloadItem);
     ui.content.innerHTML = `
       <div class="section-title"><h2>비공개 자산 심사</h2><span>감정가와 조항을 검토한 뒤 출품 자산을 선택하세요</span></div>
       ${items.length > 2 ? `<p class="scroll-cue">좌우로 밀어 더 많은 물건 보기 <span aria-hidden="true">→</span></p>` : ""}
@@ -500,7 +594,7 @@ function renderGame() {
     const result = dealer.lastResult;
     ui.content.innerHTML = `
       <div class="section-title"><h2>${result?.sold ? "SOLD · 낙찰 완료" : "PASS · 유찰"}</h2><span>다음 물품 준비 중</span></div>
-      ${result ? `<div class="inventory-row"><img src="${itemSrc(result.item.id)}" alt="${escapeHtml(itemName(result.item))}" /><div><strong>${escapeHtml(itemName(result.item))}</strong><small>${escapeHtml(result.message)}</small>${result.item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(result.item.value)}</b></div>` : ""}`;
+      ${result ? `<div class="inventory-row"><img src="${itemSrc(result.item.id)}" alt="${escapeHtml(itemName(result.item))}" /><div><strong>${escapeHtml(itemName(result.item))}</strong><small>${escapeHtml(result.message)}</small>${result.item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${result.sold ? money(result.bid ?? result.finalBid ?? result.item.value) : "유찰"}</b></div>` : ""}`;
     return;
   }
   if (dealer.phase === "shop") {
@@ -547,7 +641,11 @@ function renderCards() {
     <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 후 결정적인 순간에 사용하세요</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>
     <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; const disabled = dealer.phase !== "auction" || expired; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${disabled ? "disabled" : ""}>${expired ? "마감" : "사용"}</button>`}</div></div>`; }).join("") : `<div class="empty-state"><div class="empty-state-icon">+</div><strong>아직 보유한 전략패가 없습니다</strong><small>정책 거래소에서 전략패를 구입하면 이곳에 보관됩니다.</small></div>`}</div>`;
-    ui.content.querySelectorAll("[data-use]").forEach((button) => { button.onclick = () => act("dealer-use-card", { cardId: Number(button.dataset.use), targetId: $("target").value }); });
+    ui.content.querySelectorAll("[data-use]").forEach((button) => {
+      const cardId = Number(button.dataset.use);
+      button.setAttribute("aria-label", `${cardKoreanNames[cardId]} ${expired ? "사용 마감" : "사용"}`);
+      button.onclick = () => act("dealer-use-card", { cardId, targetId: $("target").value });
+    });
 }
 
 function renderRules() {
@@ -558,6 +656,7 @@ function renderRules() {
 }
 
 function setTab(next) {
+  lastMenuButton = document.querySelector(`.dock button[data-tab="${next}"]`);
   if (tab === next && menuOpen) {
     closeSheet();
     return;
@@ -593,11 +692,13 @@ if (debugMode) {
 setInterval(() => {
   if (!dealer) {
     ui.timer.textContent = "--:--";
+    if (ui.timerLabel) ui.timerLabel.textContent = "연결 중";
     return;
   }
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
   const seconds = Math.ceil(left / 1000);
   ui.timer.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  updatePhaseMeta();
   const critical = seconds <= 5 && dealer.phase !== "finished";
   const expired = left <= 0 && dealer.phase !== "finished";
   ui.timer.classList.toggle("danger", critical);
@@ -605,6 +706,7 @@ setInterval(() => {
   document.body.dataset.timeCritical = critical ? "true" : "false";
   if (expired !== timerExpired) {
     timerExpired = expired;
+    if (expired) showToast(`${timerLabels[dealer.phase] || "단계"} 시간이 끝났습니다.`, "error");
     renderLotActions();
     if (menuOpen && tab === "game") renderTab();
     renderStageAction();

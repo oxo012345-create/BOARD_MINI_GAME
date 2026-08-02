@@ -26,4 +26,50 @@ body[data-phase="resolution"] .lot-card { filter:drop-shadow(0 7px 10px rgba(0,0
 .lot-copy { background-color:transparent; background-image:linear-gradient(180deg,rgba(17,9,6,0),rgba(17,9,6,.68)); background-blend-mode:normal; }
 .private-dossier { background-color:rgba(221,194,143,.95); background-image:linear-gradient(180deg,rgba(247,229,187,.72),rgba(183,142,81,.2)),url("../assets/textures/texture-parchment-soft.webp"); background-size:auto,512px 512px; background-blend-mode:normal,multiply; }
 
+/* Final polish: make state changes legible without adding another card or
+   changing the compact mobile hierarchy. */
+.seat { isolation: isolate; }
+.seat.me:before,
+.seat.seller:not(.me):before { display: none; }
+.seat-role { position: absolute; z-index: 2; top: 4px; right: 7px; max-width: 56%; overflow: hidden; color: #d5a779; font: 800 5px "Roboto Slab",serif; font-style: normal; letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+.seat.me .seat-role { color: #6a313a; }
+.seat.highest:not(.me) { box-shadow: 0 0 0 2px #160e0a,0 0 0 3px #a98246,0 0 12px rgba(202,151,73,.25),0 6px 11px rgba(0,0,0,.3); }
+.seat.highest .seat-role { color: #e1c17f; }
+.seat b { padding-right: 2px; }
+
+/* The image file contains its own dark studio background. A feathered mask
+   keeps that background inside the table vignette instead of exposing a hard
+   rectangular image edge. */
+.item-render-wrap { inset: 7% 4% 25%; border-radius: 26px; background: radial-gradient(ellipse at 50% 48%,#2b1710 0%,#120a08 62%,transparent 100%); box-shadow: none; -webkit-mask-image: radial-gradient(ellipse at 50% 45%,#000 47%,rgba(0,0,0,.98) 64%,rgba(0,0,0,.62) 78%,transparent 96%); mask-image: radial-gradient(ellipse at 50% 45%,#000 47%,rgba(0,0,0,.98) 64%,rgba(0,0,0,.62) 78%,transparent 96%); }
+.item-render-wrap img { object-position: center 43%; scale: 1.04; filter: saturate(.94) contrast(1.06) brightness(.94); }
+.image-vignette { background: radial-gradient(ellipse at 50% 42%,transparent 30%,rgba(8,4,2,.12) 58%,rgba(8,4,2,.62) 100%),linear-gradient(180deg,rgba(8,4,2,.03),transparent 36%,rgba(8,4,2,.45) 100%); mix-blend-mode: multiply; }
+
+.private-dossier { min-height: 138px; padding: 16px 28px 15px; }
+.private-dossier header span { font-size: 7px; letter-spacing: .05em; }
+.private-dossier header b { font-size: 8px; }
+.appraisal-value { padding: 7px 0 5px; }
+.appraisal-value small { font-size: 8px; }
+.appraisal-value strong { font-size: 21px; }
+.private-dossier #clauses { gap: 4px; font-size: 8px; }
+.private-dossier #clauses div { padding: 5px 7px; }
+.private-dossier[data-mystery="true"] .appraisal-value strong { color: #766040; }
+
+.scroll-cue { min-height: 24px; padding: 5px 8px; border: 1px solid rgba(138,99,54,.28); border-radius: 7px; background: rgba(239,222,182,.12); font-size: 9px; }
+.scroll-cue span { font-size: 13px; }
+.section-title span { font-size: 9px; }
+.lot-meta span { font-size: 6px; }
+.lot-copy>p#item-original { font-size: 7px; }
+.bid-panel span, .highest { font-size: 7px; }
+.lot-ribbon span { font-size: 6px; }
+.live-chip { font-size: 6px; }
+.primary-action,.secondary-action { min-height: 44px; }
+.lot-actions .primary-action,.lot-actions .secondary-action { min-height: 44px; font-size: 11px; }
+
+@media (max-width: 370px) {
+  .private-dossier { min-height: 132px; padding-inline: 23px; }
+  .section-title span { font-size: 8px; }
+  .lot-actions .primary-action,.lot-actions .secondary-action { min-height: 44px; padding-block: 10px; font-size: 10px; }
+  .dock button em { font-size: 9px; }
+}
+
 @media (prefers-reduced-motion:reduce) { *,*:before,*:after { animation-duration:.001ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; } }

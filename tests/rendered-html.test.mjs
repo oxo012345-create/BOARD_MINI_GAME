@@ -64,12 +64,18 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHtml, /data-menu="closed"/);
     assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
+    assert.match(dealerHtml, /id="timer-label"/);
+    assert.match(dealerHtml, /id="action-toast"/);
+    assert.match(dealerHtml, /viewport-fit=cover/);
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
     assert.doesNotMatch(dealerHtml, /data-initial/);
     assert.equal((dealerHtml.match(/class="dock-icon"/g) ?? []).length, 3);
     assert.match(dealerScript, /게임 정보를 불러오는 중/);
     assert.match(dealerScript, /menuOpen = true/);
+    assert.match(dealerScript, /phaseTransitionMessage/);
+    assert.match(dealerScript, /preloadItem/);
+    assert.match(dealerScript, /seat-role/);
     assert.doesNotMatch(dealerScript, /setInterval\(sync, 650\)/);
 
     const roomResponse = await fetch(`${baseUrl}/api/rooms`, {

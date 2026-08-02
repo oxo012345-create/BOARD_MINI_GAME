@@ -2,13 +2,13 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#120c09" />
   <title>수상한 딜러들 · 정부 경매 위원회</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20" />
+  <link rel="stylesheet" href="./styles.css?v=22" />
 </head>
 <body data-menu="closed" data-app-state="loading">
   <main id="app">
@@ -27,7 +27,7 @@
         <span class="brand-mark">H</span>
         <div><small id="round">ROUND 1/5</small><strong id="phase">비공개 감정</strong></div>
       </div>
-      <div class="timer" aria-label="남은 시간"><small>CLOSING</small><strong id="timer">0:20</strong></div>
+      <div class="timer" aria-label="남은 시간"><small id="timer-label">선택 마감</small><strong id="timer">0:20</strong></div>
       <div class="cash"><small>MY PURSE</small><div class="cash-value"><i>₩</i><strong id="cash">$2,000</strong></div></div>
     </header>
 
@@ -48,7 +48,7 @@
           <span class="live-chip"><i></i> OPEN</span>
         </div>
       <div class="item-render-wrap" aria-hidden="true">
-          <img id="item-image" src="" alt="" />
+          <img id="item-image" src="" alt="" decoding="async" fetchpriority="high" />
           <div class="image-vignette"></div>
         </div>
         <div class="lot-copy">
@@ -73,13 +73,14 @@
      </section>
 
     <button class="stage-action" id="stage-action" type="button" hidden></button>
+    <div class="action-toast" id="action-toast" role="status" aria-live="polite" hidden></div>
 
      <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
-    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="게임 메뉴 패널">
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="게임 메뉴 패널" aria-describedby="notice">
       <button class="sheet-close" id="sheet-close" type="button" aria-label="패널 닫기">×</button>
       <div class="sheet-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="sheet-scroll" id="sheet-scroll">
-        <div id="notice" class="notice">경매장에 연결하는 중…</div>
+        <div id="notice" class="notice" role="status" aria-live="polite">경매장에 연결하는 중…</div>
         <div id="content"></div>
       </div>
     </section>
@@ -91,6 +92,6 @@
       <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=19"></script>
+  <script type="module" src="./game.js?v=21"></script>
 </body>
 </html>
