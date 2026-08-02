@@ -89,7 +89,10 @@ function syncDockButtons() {
 }
 
 function closeSheet() {
-  if (sheetDrag) return;
+  if (sheetDrag) {
+    sheetDrag = null;
+    document.body.removeAttribute("data-dragging");
+  }
   menuOpen = false;
   document.body.dataset.menu = "closed";
   ui.sheetBackdrop?.setAttribute("aria-hidden", "true");
@@ -357,6 +360,8 @@ ui.sheetHandle?.addEventListener("pointerdown", beginSheetDrag);
 ui.sheetHandle?.addEventListener("pointermove", moveSheetDrag);
 ui.sheetHandle?.addEventListener("pointerup", finishSheetDrag);
 ui.sheetHandle?.addEventListener("pointercancel", finishSheetDrag);
+document.addEventListener("pointerup", finishSheetDrag);
+document.addEventListener("pointercancel", finishSheetDrag);
 ui.sheetHandle?.addEventListener("keydown", (event) => {
   if (event.key === "ArrowUp") { event.preventDefault(); nudgeSheet(24); }
   if (event.key === "ArrowDown") { event.preventDefault(); nudgeSheet(-24); }
