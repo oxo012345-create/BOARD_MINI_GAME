@@ -275,6 +275,9 @@
   font: 900 5.35cqw/1 Arial, Helvetica, sans-serif;
   text-shadow: none;
   transform: translateY(-.02em);
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 .hud-menu-lines::before { content: none; }
 
