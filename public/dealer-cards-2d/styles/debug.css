@@ -1,8 +1,9 @@
 body[data-debug="true"] .debug-toggle {
   position: fixed;
   z-index: 120;
-  top: max(8px, env(safe-area-inset-top));
+  top: 50%;
   right: max(8px, env(safe-area-inset-right));
+  translate: 0 -50%;
   min-width: 58px;
   min-height: 28px;
   padding: 5px 9px;
@@ -21,8 +22,9 @@ body[data-debug="true"] .debug-toggle:active { transform: translateY(1px); }
 body[data-debug="true"] .debug-panel {
   position: fixed;
   z-index: 119;
-  top: calc(max(8px, env(safe-area-inset-top)) + 36px);
+  top: 50%;
   right: max(8px, env(safe-area-inset-right));
+  translate: 0 -50%;
   width: min(92vw, 344px);
   max-height: min(72dvh, 560px);
   overflow: auto;
@@ -57,6 +59,7 @@ body[data-debug-panel="open"] .debug-panel { display: block; }
 .debug-panel-footer code { color:#a99370; font-size:8px; }
 
 @media (max-width: 370px) {
+  body[data-debug="true"] .debug-toggle { right: 5px; }
   body[data-debug="true"] .debug-panel { right:5px; width:calc(100vw - 10px); }
   .debug-field { grid-template-columns:70px minmax(0,1fr); }
 }

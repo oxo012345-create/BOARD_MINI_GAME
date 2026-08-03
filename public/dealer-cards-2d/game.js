@@ -11,7 +11,7 @@ const ui = {
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
-  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), stageAction: $("stage-action"), actionToast: $("action-toast"),
+  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), actionBanner: $("action-banner"), stageAction: $("stage-action"), actionToast: $("action-toast"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
 window.addEventListener("pagehide", () => {
@@ -270,13 +270,27 @@ function closeSheet() {
   }
 }
 
+function syncActionBanner() {
+  if (!ui.actionBanner) return;
+  const ready = document.body.dataset.appState === "ready" && !menuOpen;
+  const lotVisible = Boolean(ui.lotActions && !ui.lotActions.hidden && ui.lotActions.innerHTML.trim());
+  const stageVisible = Boolean(ui.stageAction && !ui.stageAction.hidden && ui.stageAction.textContent.trim());
+  ui.actionBanner.dataset.visible = ready && (lotVisible || stageVisible) ? "true" : "false";
+}
+
 function renderStageAction() {
-  if (!ui.stageAction) return;
+  if (!ui.stageAction) {
+    syncActionBanner();
+    return;
+  }
   const phase = dealer?.phase;
   const labels = { resolution: "낙찰 결과 보기", shop: "상점 열기", finished: "최종 결과 보기" };
   const label = labels[phase];
   ui.stageAction.hidden = !label || menuOpen || document.body.dataset.appState !== "ready";
-  if (!label) return;
+  if (!label) {
+    syncActionBanner();
+    return;
+  }
   ui.stageAction.textContent = label;
   ui.stageAction.setAttribute("aria-label", `${label} 팝업 열기`);
   ui.stageAction.onclick = () => {
@@ -285,6 +299,7 @@ function renderStageAction() {
     syncDockButtons();
     renderTab();
   };
+  syncActionBanner();
 }
 
 const money = (value) => `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
@@ -546,6 +561,7 @@ function renderLotActions() {
   ui.lotActions.hidden = !show;
   if (!show) {
     ui.lotActions.innerHTML = "";
+    syncActionBanner();
     return;
   }
   const mine = me();
@@ -577,6 +593,7 @@ function renderLotActions() {
     act("dealer-bid");
   };
   ui.lotActions.querySelector("[data-lot-goto-cards]")?.addEventListener("click", () => setTab("cards"));
+  syncActionBanner();
 }
 
 function renderTab() {

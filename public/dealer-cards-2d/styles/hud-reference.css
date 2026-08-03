@@ -449,3 +449,100 @@
 }
 .phase-banner strong { color: #3d2417; font-size: 10px; font-weight: 800; }
 .phase-banner span { color: #775b40; font-size: 8px; text-align: right; }
+
+/* Keep the live text above the ornamental SVG frames. The frame artwork is
+   intentionally layered, but it must never cover the timer or seat labels on
+   narrow iPhone viewports. */
+.brand-copy,
+.brand-copy strong,
+.brand-copy small,
+.timer small,
+.timer strong,
+.cash-value,
+.cash-value i,
+.cash-value strong,
+.hud-menu { z-index: 3; }
+.brand-copy strong,
+.brand-copy small,
+.timer small,
+.timer strong,
+.cash-value,
+.cash-value strong { position: relative; }
+.timer::after { z-index: 1; }
+.seat b,
+.seat span { z-index: 3; }
+
+/* The government control lives in the header; the action banner below is the
+   only contextual control strip above the utility dock. */
+.dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dock button[data-tab="rules"] { display: none; }
+
+.action-banner {
+  position: absolute;
+  z-index: calc(var(--z-dock) + 1);
+  left: 50%;
+  bottom: calc(var(--dock-height) + 7px + env(safe-area-inset-bottom));
+  width: min(90%, 430px);
+  min-height: 0;
+  translate: -50% 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease, visibility .18s ease, translate .18s ease;
+}
+.action-banner[data-visible="true"] {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  translate: -50% -2px;
+}
+.action-banner-inner {
+  display: grid;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid rgba(160,113,56,.86);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(73,37,27,.98), rgba(29,15,12,.99)),
+    url("../assets/textures/texture-leather-fine.webp") center / 180px 180px;
+  box-shadow: 0 7px 16px rgba(0,0,0,.54), 0 0 0 2px rgba(28,15,10,.9), inset 0 1px rgba(255,229,171,.13), inset 0 -5px 10px rgba(0,0,0,.28);
+}
+.action-banner .lot-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  width: 100%;
+  margin: 0;
+}
+.action-banner .lot-action-note { grid-column: 1 / -1; }
+.action-banner .primary-action,
+.action-banner .secondary-action {
+  min-height: 43px;
+  margin: 0;
+  padding: 9px 8px;
+  font-size: clamp(9px, 2.45vw, 11px);
+  line-height: 1.15;
+}
+.action-banner .stage-action {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  min-height: 43px;
+  translate: none;
+  margin: 0;
+  padding: 9px 12px;
+}
+.action-banner .stage-action:active { translate: 0 1px; }
+body[data-menu="open"] .action-banner,
+body[data-app-state="waiting"] .action-banner,
+body[data-app-state="error"] .action-banner { opacity: 0; visibility: hidden; pointer-events: none; }
+
+@media (max-width: 370px) {
+  .action-banner { width: calc(100% - 18px); }
+  .action-banner-inner { padding: 5px; gap: 5px; }
+  .action-banner .lot-actions { gap: 5px; }
+  .action-banner .primary-action,
+  .action-banner .secondary-action,
+  .action-banner .stage-action { min-height: 40px; font-size: 9px; }
+}

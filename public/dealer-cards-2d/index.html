@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=28" />
+  <link rel="stylesheet" href="./styles.css?v=29" />
 </head>
 <body data-menu="closed" data-app-state="loading">
   <main id="app">
@@ -69,11 +69,15 @@
            <div class="appraisal-value"><small>감정가</small><strong id="true-value">$0</strong></div>
            <div id="clauses"></div>
          </aside>
-         <div class="lot-actions" id="lot-actions" hidden></div>
        </div>
      </section>
 
-    <button class="stage-action" id="stage-action" type="button" hidden></button>
+    <section class="action-banner" id="action-banner" aria-live="polite">
+      <div class="action-banner-inner">
+        <div class="lot-actions" id="lot-actions" hidden></div>
+        <button class="stage-action" id="stage-action" type="button" hidden></button>
+      </div>
+    </section>
     <div class="action-toast" id="action-toast" role="status" aria-live="polite" hidden></div>
 
      <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
@@ -90,9 +94,8 @@
       <span class="dock-rail" aria-hidden="true"></span>
       <button data-tab="items" aria-label="소장품" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
       <button data-tab="cards" aria-label="전략패" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
-      <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=24"></script>
+  <script type="module" src="./game.js?v=25"></script>
 </body>
 </html>

@@ -74,7 +74,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
     assert.doesNotMatch(dealerHtml, /data-initial/);
-    assert.equal((dealerHtml.match(/class="dock-icon"/g) ?? []).length, 3);
+    assert.equal((dealerHtml.match(/class="dock-icon"/g) ?? []).length, 2);
     assert.match(dealerStyles, /background-color:\s*transparent;/);
     assert.match(dealerStyles, /parchment-scroll-roll\.webp\?v=2/);
     assert.match(dealerStyles, /filter:\s*drop-shadow\(/);
