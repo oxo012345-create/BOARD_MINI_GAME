@@ -1,14 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120" fill="none" preserveAspectRatio="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 88" fill="none" preserveAspectRatio="none">
   <defs>
-    <linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f0d28b"/><stop offset=".22" stop-color="#a76f31"/><stop offset=".62" stop-color="#4a2916"/><stop offset="1" stop-color="#c48c47"/></linearGradient>
-    <filter id="s" x="-8%" y="-20%" width="120%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#070301" flood-opacity=".82"/></filter>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#e2bd70"/>
+      <stop offset=".22" stop-color="#8a5728"/>
+      <stop offset=".58" stop-color="#3d2213"/>
+      <stop offset="1" stop-color="#a46d33"/>
+    </linearGradient>
   </defs>
-  <path d="M18 2h254l26 25v70l-20 21H2V21L18 2z" stroke="#140a06" stroke-width="10" filter="url(#s)"/>
-  <path d="M20 5h250l23 23v67l-17 18H7V24L20 5z" stroke="url(#m)" stroke-width="5"/>
-  <path d="M25 10h242l18 19v63l-13 14H14V29l11-19z" stroke="#28160d" stroke-width="3"/>
-  <path d="M31 15h233l13 15v59l-10 10H21V33l10-18z" stroke="#d6a75d" stroke-width="1.7"/>
-  <path d="M38 20h222l9 11v55l-7 7H28V36l10-16z" stroke="#f2dc9d" stroke-width=".8" opacity=".48"/>
-  <path d="M267 8l20 20-9 9-20-20 9-9zM17 98l11 11-11 11-11-11 11-11z" fill="url(#m)" stroke="#28160d" stroke-width="2"/>
-  <path d="M31 8h88" stroke="#f6dfa4" stroke-width="1.1" opacity=".48"/>
-  <path d="M28 106h230" stroke="#1a0d07" stroke-width="2" opacity=".7"/>
+  <path d="M13 3h151l13 13v56l-13 13H13L3 75V13L13 3Z" stroke="#090503" stroke-width="5"/>
+  <path d="M14 5h149l11 12v54l-11 11H14L6 74V14l8-9Z" stroke="url(#edge)" stroke-width="2.5"/>
+  <path d="M19 10h140l9 9v49l-9 9H19l-7-7V18l7-8Z" stroke="#27160d" stroke-width="1.5"/>
+  <path d="M23 13h133l7 8v45l-7 7H23l-6-6V21l6-8Z" stroke="#d7aa60" stroke-width=".8" opacity=".9"/>
+  <path d="M27 17h125" stroke="#f0d28d" stroke-width=".55" opacity=".38"/>
+  <path d="M162 7l11 11-5 5-11-11 5-5ZM13 72l8 8-8 8-8-8 8-8Z" fill="#69411f" stroke="#bd8743" stroke-width=".8"/>
 </svg>

@@ -1,19 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 120" fill="none" preserveAspectRatio="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 120" fill="none" preserveAspectRatio="none">
   <defs>
-    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d7ae60"/><stop offset=".2" stop-color="#805022"/><stop offset=".54" stop-color="#3b2112"/><stop offset=".82" stop-color="#aa7433"/><stop offset="1" stop-color="#211109"/></linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#765025"/><stop offset=".12" stop-color="#dfc17b"/><stop offset=".5" stop-color="#a77230"/><stop offset=".88" stop-color="#dfc17b"/><stop offset="1" stop-color="#765025"/></linearGradient>
-    <filter id="lift" x="-4%" y="-30%" width="108%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#050201" flood-opacity=".9"/><feDropShadow dx="0" dy="-1" stdDeviation=".55" flood-color="#efd48f" flood-opacity=".24"/></filter>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ebc879"/>
+      <stop offset=".18" stop-color="#8d5927"/>
+      <stop offset=".48" stop-color="#3d2112"/>
+      <stop offset=".78" stop-color="#b27835"/>
+      <stop offset="1" stop-color="#2a160d"/>
+    </linearGradient>
+    <linearGradient id="hairline" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#6d431f"/>
+      <stop offset=".08" stop-color="#e2bc70"/>
+      <stop offset=".5" stop-color="#9b652f"/>
+      <stop offset=".92" stop-color="#e2bc70"/>
+      <stop offset="1" stop-color="#6d431f"/>
+    </linearGradient>
   </defs>
-  <rect x="4" y="3" width="992" height="113" rx="24" stroke="#100805" stroke-width="9"/>
-  <rect x="8" y="6" width="984" height="107" rx="20" stroke="url(#metal)" stroke-width="4.2" filter="url(#lift)"/>
-  <rect x="14" y="11" width="972" height="97" rx="16" stroke="#21120b" stroke-width="2.5"/>
-  <rect x="18" y="14" width="964" height="91" rx="13" stroke="url(#shine)" stroke-width="1.4"/>
-  <rect x="23" y="19" width="954" height="81" rx="10" stroke="#e3c77f" stroke-width=".7" opacity=".38"/>
-  <g stroke="url(#metal)" stroke-linecap="round" stroke-linejoin="round" opacity=".86">
-    <path d="M20 35c12 0 19-6 21-17M26 21c7 7 15 9 25 4M20 85c12 0 19 6 21 17M26 99c7-7 15-9 25-4" stroke-width="2.4"/>
-    <path d="M980 35c-12 0-19-6-21-17M974 21c-7 7-15 9-25 4M980 85c-12 0-19 6-21 17M974 99c-7-7-15-9-25-4" stroke-width="2.4"/>
+  <path d="M20 3h1140l17 17v80l-17 17H20L3 100V20L20 3Z" stroke="#090503" stroke-width="6"/>
+  <path d="M21 5h1138l15 16v78l-15 16H21L6 99V21L21 5Z" stroke="url(#rail)" stroke-width="3.2"/>
+  <path d="M27 10h1126l12 13v74l-12 13H27L15 97V23L27 10Z" stroke="#24130b" stroke-width="2"/>
+  <path d="M31 13h1118l9 11v72l-9 11H31l-9-11V24l9-11Z" stroke="url(#hairline)" stroke-width="1.15"/>
+  <path d="M38 18h1104" stroke="#f1d491" stroke-width=".7" opacity=".34"/>
+  <path d="M38 102h1104" stroke="#120906" stroke-width="1.4" opacity=".8"/>
+  <g stroke="url(#rail)" stroke-linecap="round" stroke-linejoin="round" opacity=".9">
+    <path d="M17 35c10-2 17-8 19-18m-15 6c7 4 13 4 19 0M17 85c10 2 17 8 19 18m-15-6c7-4 13-4 19 0" stroke-width="1.8"/>
+    <path d="M1163 35c-10-2-17-8-19-18m15 6c-7 4-13 4-19 0m23 62c-10 2-17 8-19 18m15-6c-7-4-13-4-19 0" stroke-width="1.8"/>
   </g>
-  <path d="M500 99l11 11-11 11-11-11 11-11z" fill="url(#metal)" stroke="#1b0d07" stroke-width="2"/>
-  <path d="M500 103l7 7-7 7-7-7 7-7z" stroke="#e8cd87" stroke-width=".8" opacity=".72"/>
-  <path d="M58 15h884" stroke="#f0d791" stroke-width=".8" opacity=".2"/><path d="M56 104h888" stroke="#160a06" stroke-width="1.7" opacity=".72"/>
+  <path d="M590 108l7 7-7 7-7-7 7-7Z" fill="#6f451f" stroke="#d2a75e" stroke-width="1"/>
+  <path d="M590 112l3 3-3 3-3-3 3-3Z" fill="#17100b"/>
 </svg>

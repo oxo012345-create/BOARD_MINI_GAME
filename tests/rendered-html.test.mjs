@@ -62,6 +62,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const dealerHtml = await (await fetch(`${baseUrl}/dealer-cards-2d/index.html`)).text();
     const dealerScript = await readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8");
     const dealerStyles = await readFile(new URL("../public/dealer-cards-2d/styles/states.css", import.meta.url), "utf8");
+    const dealerHudStyles = await readFile(new URL("../public/dealer-cards-2d/styles/hud-reference.css", import.meta.url), "utf8");
     assert.match(dealerHtml, /data-menu="closed"/);
     assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
@@ -87,6 +88,10 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerScript, /seat-shell/);
     assert.match(dealerScript, /seat-role-me/);
     assert.match(dealerScript, /hudMenu/);
+    assert.match(dealerHudStyles, /grid-template-columns:\s*repeat\(8,/);
+    assert.match(dealerHudStyles, /flex-direction:\s*row;/);
+    assert.match(dealerHudStyles, /\.seat-role-seller/);
+    assert.doesNotMatch(dealerHudStyles, /data-count="8"[^}]+grid-template-columns/);
     assert.doesNotMatch(dealerScript, /setInterval\(sync, 650\)/);
 
     const roomResponse = await fetch(`${baseUrl}/api/rooms`, {
