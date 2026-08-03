@@ -217,26 +217,50 @@
   left: auto;
   display: grid;
   place-items: center;
-  width: 6.25cqw;
-  height: 6.25cqw;
+  width: 7.8cqw;
+  height: 7.8cqw;
+  min-width: 29px;
+  min-height: 29px;
   padding: 0;
-  color: #c69a55;
+  color: #5c3a1b;
   border: 0;
   border-radius: 50%;
   clip-path: none;
   background:
-    radial-gradient(circle at 35% 28%, rgba(204,158,82,.48), transparent 36%),
-    radial-gradient(circle at 50% 46%, #5f3d24 0%, #2a170f 66%, #120a07 100%);
-  border: .16cqw solid #b4813d;
+    radial-gradient(circle at 50% 42%, rgba(33,19,11,.98) 0%, rgba(13,8,5,.98) 72%, rgba(7,4,3,.99) 100%);
+  border: .18cqw solid #b4813d;
   box-shadow:
-    0 0 0 .2cqw rgba(45,25,15,.92),
-    0 0 0 .34cqw rgba(133,91,39,.72),
-    inset 0 .16cqw rgba(255,231,169,.3),
-    inset 0 -.3cqw .42cqw rgba(0,0,0,.68),
-    0 .18cqw .24cqw rgba(0,0,0,.72);
+    0 0 0 .26cqw rgba(30,16,9,.96),
+    0 0 0 .46cqw rgba(137,94,39,.8),
+    inset 0 .18cqw rgba(255,235,179,.25),
+    inset 0 -.34cqw .48cqw rgba(0,0,0,.76),
+    0 .2cqw .3cqw rgba(0,0,0,.76);
 }
 
-.hud-menu::before { display: none; }
+.hud-menu::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  width: 35%;
+  height: 62%;
+  border-radius: .55cqw;
+  background: linear-gradient(180deg, #ead7a4 0%, #d1ad6a 48%, #a8793b 100%);
+  box-shadow:
+    inset 0 .12cqw rgba(255,248,217,.58),
+    inset 0 -.14cqw .18cqw rgba(71,39,17,.56),
+    0 .12cqw .2cqw rgba(0,0,0,.58);
+  pointer-events: none;
+}
+
+.hud-menu::after {
+  content: "";
+  position: absolute;
+  inset: .62cqw;
+  z-index: 0;
+  border: .12cqw solid rgba(224,178,97,.54);
+  border-radius: 50%;
+  pointer-events: none;
+}
 .hud-menu:hover { filter: brightness(1.12); }
 .hud-menu:active { translate: 0 .08cqw; }
 
@@ -247,9 +271,10 @@
   place-items: center;
   width: auto;
   height: auto;
-  color: currentColor;
-  font: 700 3.2cqw/1 Georgia, "Times New Roman", serif;
-  text-shadow: 0 .1cqw .12cqw rgba(0,0,0,.9);
+  color: #5a391a;
+  font: 800 4.8cqw/1 Georgia, "Times New Roman", serif;
+  text-shadow: none;
+  transform: translateY(-.02em);
 }
 .hud-menu-lines::before { content: none; }
 
@@ -486,7 +511,7 @@
 /* The government control lives in the header; the action banner below is the
    only contextual control strip above the utility dock. */
 .dock {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.24fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.46fr) minmax(0, 1fr);
   padding-inline: max(3px, env(safe-area-inset-left)) max(3px, env(safe-area-inset-right));
 }
 .dock button[data-tab="rules"] { display: none; }
@@ -501,8 +526,21 @@
   justify-content: center;
   min-width: 0;
   min-height: 72px;
-  padding: 2px 3px 0;
-  translate: 0 -3px;
+  padding: 8px 8px 0;
+  translate: 0 -5px;
+}
+
+.dock-action-slot::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 6px;
+  left: 4%;
+  right: 4%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #76532f 13%, #d2ad68 50%, #76532f 87%, transparent 100%);
+  box-shadow: 0 1px 0 rgba(28, 14, 8, .92), 0 0 2px rgba(194, 148, 76, .2);
+  pointer-events: none;
 }
 .dock-action-slot .lot-actions {
   display: grid;
@@ -527,9 +565,9 @@
   min-height: 46px;
   margin: 0;
   padding: 8px 5px;
-  translate: 0 -1px;
-  width: calc(100% + 10px);
-  margin-inline: -5px;
+  translate: 0 -2px;
+  width: calc(100% + 18px);
+  margin-inline: -9px;
   border-radius: 9px;
   font-size: clamp(9px, 2.25vw, 11px);
   line-height: 1.15;
