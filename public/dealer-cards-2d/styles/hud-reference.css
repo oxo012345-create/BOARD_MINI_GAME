@@ -235,13 +235,15 @@
 .hud-menu-lines {
   position: relative;
   z-index: 1;
-  display: block;
-  width: 3.1cqw;
-  height: .72cqw;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 1.2cqw 0 currentColor, 2.4cqw 0 currentColor;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  color: currentColor;
+  font: 700 3.2cqw/1 Georgia, "Times New Roman", serif;
+  text-shadow: 0 .1cqw .12cqw rgba(0,0,0,.9);
 }
+.hud-menu-lines::before { content: "?"; }
 
 .player-ribbon {
   position: absolute;
@@ -475,8 +477,51 @@
 
 /* The government control lives in the header; the action banner below is the
    only contextual control strip above the utility dock. */
-.dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dock { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .dock button[data-tab="rules"] { display: none; }
+
+/* The contextual auction action occupies the thumb-friendly center slot of
+   the dock. Collection and strategy remain separated on either side. */
+.dock-action-slot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 72px;
+  padding: 5px 6px 4px;
+}
+.dock-action-slot .lot-actions {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  margin: 0;
+  gap: 0;
+}
+.dock-action-slot .lot-action-note {
+  width: 100%;
+  margin: 0;
+  padding: 8px 5px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+.dock-action-slot .primary-action,
+.dock-action-slot .stage-action {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 8px 5px;
+  translate: none;
+  border-radius: 9px;
+  font-size: clamp(9px, 2.25vw, 11px);
+  line-height: 1.15;
+  white-space: normal;
+}
+.dock-action-slot .stage-action:active { translate: 0 1px; }
 
 .action-banner {
   position: absolute;

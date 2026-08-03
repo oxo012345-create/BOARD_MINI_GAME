@@ -72,12 +72,6 @@
        </div>
      </section>
 
-    <section class="action-banner" id="action-banner" aria-live="polite">
-      <div class="action-banner-inner">
-        <div class="lot-actions" id="lot-actions" hidden></div>
-        <button class="stage-action" id="stage-action" type="button" hidden></button>
-      </div>
-    </section>
     <div class="action-toast" id="action-toast" role="status" aria-live="polite" hidden></div>
 
      <div class="sheet-backdrop" id="sheet-backdrop" aria-hidden="true"></div>
@@ -93,9 +87,13 @@
     <nav class="dock" aria-label="게임 메뉴">
       <span class="dock-rail" aria-hidden="true"></span>
       <button data-tab="items" aria-label="소장품" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>소장품</em><b id="item-count">0/4</b></button>
+      <div class="dock-action-slot" id="dock-action-slot" aria-live="polite">
+        <div class="lot-actions" id="lot-actions" hidden></div>
+        <button class="stage-action" id="stage-action" type="button" hidden></button>
+      </div>
       <button data-tab="cards" aria-label="전략패" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=27"></script>
+  <script type="module" src="./game.js?v=28"></script>
 </body>
 </html>
