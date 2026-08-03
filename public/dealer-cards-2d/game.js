@@ -7,7 +7,7 @@ const debugMode = query.get("debug") === "1";
 const roomCode = query.get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
 const ui = {
-  round: $("round"), phase: $("phase"), timer: $("timer"), timerLabel: $("timer-label"), cash: $("cash"), seats: $("seats"),
+  round: $("round"), phase: $("phase"), timer: $("timer"), timerLabel: $("timer-label"), cash: $("cash"), seats: $("seats"), hudMenu: $("hud-menu"),
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
@@ -252,6 +252,9 @@ function syncDockButtons() {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
+  const hudMenuActive = menuOpen && tab === "rules";
+  ui.hudMenu?.setAttribute("aria-expanded", hudMenuActive ? "true" : "false");
+  ui.hudMenu?.setAttribute("aria-label", hudMenuActive ? "정부 메뉴 닫기" : "정부 메뉴 열기");
   renderStageAction();
 }
 
@@ -464,11 +467,16 @@ function render() {
     const isMe = player.id === mine;
     const isSeller = player.id === dealer.sellerId;
     const isHighest = dealer.phase === "auction" && player.id === dealer.highestBidderId;
-    const role = isMe ? (isSeller ? "ME · SELLER" : "ME") : isSeller ? "SELLER" : isHighest ? "TOP BID" : "";
-    const label = `${player.name || `플레이어${index + 1}`} ${money(dealer.balances[player.id])}${isMe ? " · 내 자리" : isSeller ? " · 판매자" : isHighest ? " · 최고 입찰" : ""}`;
+    const displayName = player.name || `플레이어${index + 1}`;
+    const roleText = [isMe ? "본인" : "", isSeller ? "판매자" : "", isHighest ? "최고 입찰" : ""].filter(Boolean).join(" · ");
+    const label = `${displayName} ${money(dealer.balances[player.id])}${roleText ? ` · ${roleText}` : ""}`;
+    const badges = [
+      isMe ? '<em class="seat-role seat-role-me" aria-hidden="true">ME</em>' : "",
+      isSeller ? '<em class="seat-role seat-role-seller" aria-hidden="true">SELLER</em>' : "",
+    ].join("");
     return `
-    <div class="seat ${isMe ? "me" : ""} ${isSeller ? "seller" : ""} ${isHighest ? "highest" : ""}" style="--seat:${playerColors[index % playerColors.length]}" aria-label="${escapeHtml(label)}">
-      <em class="seat-role">${role}</em><b>${escapeHtml(player.name || `플레이어${index + 1}`)}</b><span>${money(dealer.balances[player.id])}</span>
+    <div class="seat-shell" aria-label="${escapeHtml(label)}">
+      ${badges}<div class="seat ${isMe ? "me" : ""} ${isSeller ? "seller" : ""} ${isHighest ? "highest" : ""}" style="--seat:${playerColors[index % playerColors.length]}"><b>${escapeHtml(displayName)}</b><span>${money(dealer.balances[player.id])}</span></div>
     </div>`;
   }).join("");
 
@@ -669,6 +677,7 @@ function setTab(next) {
 }
 
 document.querySelectorAll(".dock button").forEach((button) => { button.onclick = () => setTab(button.dataset.tab); });
+ui.hudMenu?.addEventListener("click", () => setTab("rules"));
 ui.sheetBackdrop?.addEventListener("click", closeSheet);
 ui.sheetClose?.addEventListener("click", closeSheet);
 ui.loadingRetry?.addEventListener("click", () => {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=24" />
+  <link rel="stylesheet" href="./styles.css?v=25" />
 </head>
 <body data-menu="closed" data-app-state="loading">
   <main id="app">
@@ -20,15 +20,16 @@
       <button class="loading-retry" id="loading-retry" type="button" hidden>다시 연결</button>
     </section>
 
-    <header class="hud">
+    <header class="hud" aria-label="게임 상태">
       <span class="hud-ornament" aria-hidden="true"></span>
       <span class="hud-rivets" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       <div class="brand-lockup">
-        <span class="brand-mark">H</span>
-        <div><small id="round">ROUND 1/5</small><strong id="phase">비공개 감정</strong></div>
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-copy"><strong id="phase">정부 공개 경매</strong><small id="round">ROUND 1/5</small></div>
       </div>
-      <div class="timer" aria-label="남은 시간"><small id="timer-label">선택 마감</small><strong id="timer">0:20</strong></div>
-      <div class="cash"><small>MY PURSE</small><div class="cash-value"><i>₩</i><strong id="cash">$2,000</strong></div></div>
+      <div class="timer" aria-label="남은 시간"><small id="timer-label">경매 마감</small><strong id="timer">0:20</strong></div>
+      <div class="cash"><small>MY PURSE</small><div class="cash-value"><i aria-hidden="true"></i><strong id="cash">$2,000</strong></div></div>
+      <button class="hud-menu" id="hud-menu" data-tab="rules" type="button" aria-label="정부 메뉴 열기" aria-expanded="false" aria-controls="sheet"><span class="hud-menu-lines" aria-hidden="true"></span></button>
     </header>
 
     <section class="player-ribbon" id="seats" aria-label="참가자 현황"></section>
@@ -92,6 +93,6 @@
       <button data-tab="rules" aria-label="정부" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>정부</em></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=21"></script>
+  <script type="module" src="./game.js?v=23"></script>
 </body>
 </html>

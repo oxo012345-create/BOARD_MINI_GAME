@@ -68,6 +68,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHtml, /id="timer-label"/);
     assert.match(dealerHtml, /id="action-toast"/);
     assert.match(dealerHtml, /viewport-fit=cover/);
+    assert.match(dealerHtml, /id="hud-menu"/);
     assert.match(dealerStyles, /parchment-scroll-roll\.webp/);
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
@@ -83,6 +84,9 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerScript, /phaseTransitionMessage/);
     assert.match(dealerScript, /preloadItem/);
     assert.match(dealerScript, /seat-role/);
+    assert.match(dealerScript, /seat-shell/);
+    assert.match(dealerScript, /seat-role-me/);
+    assert.match(dealerScript, /hudMenu/);
     assert.doesNotMatch(dealerScript, /setInterval\(sync, 650\)/);
 
     const roomResponse = await fetch(`${baseUrl}/api/rooms`, {
