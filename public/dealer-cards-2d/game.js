@@ -32,7 +32,7 @@ let serverOffset = 0;
 let lastRenderedPhase = null;
 let syncTimer = null;
 let syncInFlight = false;
-let nextSyncDelay = 2000;
+let nextSyncDelay = 1800;
 let debugState = null;
 let debugScenario = DEBUG_SCENARIOS.some((item) => item.id === query.get("case")) ? query.get("case") : "select";
 let debugPlayerCount = Math.min(8, Math.max(1, Number(query.get("players")) || 4));
@@ -43,6 +43,7 @@ let lastMenuButton = null;
 let preloadedItemId = null;
 
 function clearStaleView() {
+  if (menuOpen) closeSheet();
   ui.round.textContent = "ROUND —";
   ui.phase.textContent = "대기 중";
   if (ui.timerLabel) ui.timerLabel.textContent = "연결 중";
@@ -330,6 +331,12 @@ const cardKoreanNames = [
 const me = () => room?.meId;
 const myCards = () => dealer?.cards?.[me()] || [];
 const playerName = (id) => room?.players.find((player) => player.id === id)?.name || "참가자";
+const dealerPlayers = () => {
+  if (!room) return [];
+  if (!dealer?.balances) return room.players;
+  const participantIds = new Set(Object.keys(dealer.balances));
+  return room.players.filter((player) => participantIds.has(player.id));
+};
 const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const lotItemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
@@ -372,13 +379,27 @@ async function act(action, extra = {}) {
       body: JSON.stringify({ action, ...extra }),
     });
     const body = await response.json();
+    const conflict = response.status === 409 && (body?.code === "ROOM_CONFLICT" || String(action).startsWith("dealer-"));
+    if (conflict) {
+      const error = new Error("다른 플레이어의 행동을 먼저 반영했습니다.");
+      error.name = "ROOM_CONFLICT";
+      throw error;
+    }
     if (!response.ok) throw new Error(body.error || "요청 실패");
     room = body.room;
     serverOffset = room.serverNow - Date.now();
     dealer = room.game?.dealer;
+    lastRevision = room.revision ?? lastRevision;
     render();
     showToast(actionSuccessMessage(action));
   } catch (error) {
+    if (error?.name === "ROOM_CONFLICT") {
+      const message = "다른 플레이어가 먼저 변경했습니다. 최신 상태를 불러옵니다.";
+      ui.notice.textContent = message;
+      showToast(message, "error");
+      await sync();
+      return;
+    }
     const message = error.message || "다시 시도해 주세요.";
     ui.notice.textContent = message;
     showToast(message, "error");
@@ -411,9 +432,13 @@ async function sync() {
     room = body.room;
     serverOffset = room.serverNow - Date.now();
     dealer = room?.game?.dealer;
-    nextSyncDelay = 2000;
-    if (!dealer) {
-      showLoading("게임 정보를 불러오는 중…", "방장이 로비에서 시작 버튼을 누르면 물건 선택 단계가 열립니다.", "waiting");
+    nextSyncDelay = dealer?.phase === "auction" ? 1600 : 2200;
+    if (!dealer || room?.view !== "game") {
+      const waitingTitle = room?.view === "briefing" ? "게임 시작을 기다리는 중…" : "게임 정보를 불러오는 중…";
+      const waitingDetail = room?.view === "briefing"
+        ? "방장이 시작 버튼을 누르면 물건 선택 단계가 열립니다."
+        : "방장이 로비에서 게임을 준비하면 이 화면에 자동으로 표시됩니다.";
+      showLoading(waitingTitle, waitingDetail, "waiting");
       return;
     }
     hideLoading();
@@ -462,8 +487,9 @@ function render() {
   ui.cash.textContent = money(dealer.balances[mine]);
   ui.itemCount.textContent = `${inventory.length}/4`;
   ui.cardCount.textContent = `${myCards().length}/3`;
-  ui.seats.dataset.count = String(room.players.length);
-  ui.seats.innerHTML = room.players.map((player, index) => {
+  const players = dealerPlayers();
+  ui.seats.dataset.count = String(players.length);
+  ui.seats.innerHTML = players.map((player, index) => {
     const isMe = player.id === mine;
     const isSeller = player.id === dealer.sellerId;
     const isHighest = dealer.phase === "auction" && player.id === dealer.highestBidderId;
@@ -575,9 +601,12 @@ function renderGame() {
     const selected = dealer.selected[mine] !== undefined;
     const items = dealer.candidates[mine] || [];
     const expired = phaseExpired("select");
+    const selectedCount = Object.keys(dealer.selected || {}).length;
+    const participantCount = dealerPlayers().length;
     items.forEach(preloadItem);
     ui.content.innerHTML = `
       <div class="section-title"><h2>비공개 자산 심사</h2><span>감정가와 조항을 검토한 뒤 출품 자산을 선택하세요</span></div>
+      <div class="phase-banner" role="status"><strong>이번 라운드 출품품 선택</strong><span>${selected ? "선택 완료" : "내 선택 필요"} · ${selectedCount}/${participantCount}명 제출</span></div>
       ${items.length > 2 ? `<p class="scroll-cue">좌우로 밀어 더 많은 물건 보기 <span aria-hidden="true">→</span></p>` : ""}
       <div class="candidate-grid">${items.map((item, index) => `
         <button class="item-card ${selected && dealer.selected[mine] === index ? "selected" : ""}" data-select="${index}" ${selected || expired ? "disabled" : ""} aria-label="${escapeHtml(itemName(item))} ${expired ? "선택 마감" : "출품 선택"}">
@@ -621,7 +650,7 @@ function renderGame() {
     $("checkout").onclick = () => act("dealer-checkout");
     return;
   }
-  const ranks = [...room.players].sort((a, b) => dealer.balances[b.id] - dealer.balances[a.id]);
+  const ranks = [...dealerPlayers()].sort((a, b) => dealer.balances[b.id] - dealer.balances[a.id]);
   ui.content.innerHTML = `
     <div class="section-title"><h2>최종 딜러 랭킹</h2><span>현금 기준 · 남은 컬렉션 정산 가능</span></div>
     ${ranks.map((player, index) => `<div class="rank"><span>${index + 1}</span><strong>${escapeHtml(player.name)}${player.id === mine ? " · 나" : ""}</strong><b>${money(dealer.balances[player.id])}</b></div>`).join("")}
@@ -644,7 +673,7 @@ function renderCards() {
   const mine = me();
   const list = myCards();
   const expired = phaseExpired("auction");
-  const targetOptions = room.players.filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
+  const targetOptions = dealerPlayers().filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
   ui.content.innerHTML = `
     <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 후 결정적인 순간에 사용하세요</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>

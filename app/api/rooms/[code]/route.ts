@@ -3,7 +3,7 @@ import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceT
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
-import { createDealerState, dealerAction, tickDealer } from "../../_lib/dealer";
+import { createDealerState, dealerAction, tickDealer, type DealerState } from "../../_lib/dealer";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -69,9 +69,19 @@ function handleGemInvestigationTimeout(room: RoomState) {
   return true;
 }
 
+/** Keep the dealer roster fixed to the players whose balances were created
+ * when the host started the round. Waiting/late players must not influence
+ * selection completion, seller rotation, or shop offers. */
+function dealerPlayers(room: RoomState, dealer: DealerState) {
+  const participantIds = new Set(Object.keys(dealer.balances));
+  return room.players.filter((player) => participantIds.has(player.id));
+}
+
 function handleDealerTimeout(room: RoomState) {
   const game = room.game as GameRound | undefined;
-  return game?.id === "double-dealers" && game.dealer ? tickDealer(game.dealer, room.players) : false;
+  if (game?.id !== "double-dealers" || !game.dealer) return false;
+  const players = dealerPlayers(room, game.dealer);
+  return players.length > 0 ? tickDealer(game.dealer, players) : false;
 }
 
 async function persistAndRespond(room: RoomState, viewerId: string) {
@@ -138,6 +148,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!profile) return Response.json({ error: "이름을 입력해 주세요." }, { status: 400 });
       if (room.players.length >= 12) return Response.json({ error: "방이 가득 찼어요." }, { status: 409 });
       if (room.players.some((item) => item.name.toLowerCase() === profile.name.toLowerCase())) return Response.json({ error: "이미 사용 중인 이름이에요." }, { status: 409 });
+      const activeGame = room.game as GameRound | undefined;
+      if (activeGame?.id === "double-dealers" && ["game", "result"].includes(room.view)) {
+        return Response.json({ error: "게임이 이미 시작되어 늦은 참가자를 받을 수 없습니다.", code: "GAME_IN_PROGRESS" }, { status: 409 });
+      }
       const session = await createSession();
       const now = Date.now();
       const player: Player = { ...profile, id: session.playerId, sessionHash: session.tokenHash, joinedAt: now, lastSeen: now, status: ["lobby", "hub", "briefing"].includes(room.view) ? "active" : "waiting" };
@@ -291,8 +305,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (String(payload.action).startsWith("dealer-")) {
       if (game.id !== "double-dealers" || !game.dealer) return Response.json({ error: "딜러 게임이 진행 중이 아니에요." }, { status: 409 });
+      const participants = dealerPlayers(room, game.dealer);
+      if (!participants.some((player) => player.id === viewer.id)) {
+        return Response.json({ error: "이 방의 딜러 라운드 참가자가 아닙니다.", code: "NOT_DEALER_PLAYER" }, { status: 409 });
+      }
       try {
-        dealerAction(game.dealer, room.players, viewer.id, String(payload.action), payload as Record<string, unknown>);
+        dealerAction(game.dealer, participants, viewer.id, String(payload.action), payload as Record<string, unknown>);
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "요청을 처리하지 못했어요." }, { status: 409 });
       }
