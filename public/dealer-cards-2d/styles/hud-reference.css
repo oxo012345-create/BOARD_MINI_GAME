@@ -224,8 +224,16 @@
   border: 0;
   border-radius: 50%;
   clip-path: none;
-  background: url("../assets/svg/frame-token.svg?v=57") center / 100% 100% no-repeat;
-  box-shadow: 0 0 .34cqw rgba(183,132,57,.2), 0 .18cqw .24cqw rgba(0,0,0,.72);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(204,158,82,.48), transparent 36%),
+    radial-gradient(circle at 50% 46%, #5f3d24 0%, #2a170f 66%, #120a07 100%);
+  border: .16cqw solid #b4813d;
+  box-shadow:
+    0 0 0 .2cqw rgba(45,25,15,.92),
+    0 0 0 .34cqw rgba(133,91,39,.72),
+    inset 0 .16cqw rgba(255,231,169,.3),
+    inset 0 -.3cqw .42cqw rgba(0,0,0,.68),
+    0 .18cqw .24cqw rgba(0,0,0,.72);
 }
 
 .hud-menu::before { display: none; }
@@ -243,7 +251,7 @@
   font: 700 3.2cqw/1 Georgia, "Times New Roman", serif;
   text-shadow: 0 .1cqw .12cqw rgba(0,0,0,.9);
 }
-.hud-menu-lines::before { content: "?"; }
+.hud-menu-lines::before { content: none; }
 
 .player-ribbon {
   position: absolute;
@@ -477,7 +485,10 @@
 
 /* The government control lives in the header; the action banner below is the
    only contextual control strip above the utility dock. */
-.dock { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dock {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.24fr) minmax(0, 1fr);
+  padding-inline: max(3px, env(safe-area-inset-left)) max(3px, env(safe-area-inset-right));
+}
 .dock button[data-tab="rules"] { display: none; }
 
 /* The contextual auction action occupies the thumb-friendly center slot of
@@ -490,7 +501,8 @@
   justify-content: center;
   min-width: 0;
   min-height: 72px;
-  padding: 5px 6px 4px;
+  padding: 2px 3px 0;
+  translate: 0 -3px;
 }
 .dock-action-slot .lot-actions {
   display: grid;
@@ -515,7 +527,9 @@
   min-height: 46px;
   margin: 0;
   padding: 8px 5px;
-  translate: none;
+  translate: 0 -1px;
+  width: calc(100% + 10px);
+  margin-inline: -5px;
   border-radius: 9px;
   font-size: clamp(9px, 2.25vw, 11px);
   line-height: 1.15;
