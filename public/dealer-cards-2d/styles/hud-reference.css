@@ -217,10 +217,10 @@
   left: auto;
   display: grid;
   place-items: center;
-  width: 7.8cqw;
-  height: 7.8cqw;
-  min-width: 29px;
-  min-height: 29px;
+  width: 8.4cqw;
+  height: 8.4cqw;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0;
   color: #5c3a1b;
   border: 0;
@@ -241,8 +241,8 @@
   content: "";
   position: absolute;
   z-index: 1;
-  width: 35%;
-  height: 62%;
+  width: 42%;
+  height: 64%;
   border-radius: .55cqw;
   background: linear-gradient(180deg, #ead7a4 0%, #d1ad6a 48%, #a8793b 100%);
   box-shadow:
@@ -272,7 +272,7 @@
   width: auto;
   height: auto;
   color: #5a391a;
-  font: 800 4.8cqw/1 Georgia, "Times New Roman", serif;
+  font: 900 5.35cqw/1 Arial, Helvetica, sans-serif;
   text-shadow: none;
   transform: translateY(-.02em);
 }
@@ -511,7 +511,7 @@
 /* The government control lives in the header; the action banner below is the
    only contextual control strip above the utility dock. */
 .dock {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.46fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
   padding-inline: max(3px, env(safe-area-inset-left)) max(3px, env(safe-area-inset-right));
 }
 .dock button[data-tab="rules"] { display: none; }
@@ -566,8 +566,8 @@
   margin: 0;
   padding: 8px 5px;
   translate: 0 -2px;
-  width: calc(100% + 18px);
-  margin-inline: -9px;
+  width: calc(100% + 32px);
+  margin-inline: -16px;
   border-radius: 9px;
   font-size: clamp(9px, 2.25vw, 11px);
   line-height: 1.15;
