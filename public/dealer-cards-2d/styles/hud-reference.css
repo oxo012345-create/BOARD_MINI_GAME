@@ -46,7 +46,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: url("../assets/svg/frame-header.svg?v=55") center / 100% 100% no-repeat;
+  background: url("../assets/svg/frame-header.svg?v=56") center / 100% 100% no-repeat;
   filter: drop-shadow(0 .17cqw .13cqw rgba(0,0,0,.92));
 }
 
@@ -77,7 +77,7 @@
   display: block;
   width: 6.615cqw;
   height: 6.615cqw;
-  background: url("../assets/svg/emblem-government.svg?v=55") center / contain no-repeat;
+  background: url("../assets/svg/emblem-government.svg?v=56") center / contain no-repeat;
   filter: drop-shadow(0 .28cqw .22cqw rgba(0,0,0,.88));
 }
 
@@ -90,7 +90,7 @@
   align-items: baseline;
   width: 27cqw;
   height: 6.615cqw;
-  gap: 3.05cqw;
+  gap: 3.25cqw;
   min-width: 0;
   overflow: visible;
 }
@@ -103,7 +103,7 @@
   overflow: hidden;
   color: #ece8df;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: 2.46cqw;
+  font-size: 2.82cqw;
   font-weight: 500;
   letter-spacing: -.055em;
   line-height: 1;
@@ -118,7 +118,7 @@
   flex: none;
   color: #bd7c27;
   font-family: "Roboto Slab", Georgia, serif;
-  font-size: 1.34cqw;
+  font-size: 1.48cqw;
   font-weight: 800;
   letter-spacing: .025em;
   line-height: 1;
@@ -147,7 +147,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: url("../assets/svg/frame-timer.svg?v=55") center / 100% 100% no-repeat;
+  background: url("../assets/svg/frame-timer.svg?v=56") center / 100% 100% no-repeat;
 }
 
 .timer small {
@@ -223,7 +223,7 @@
   border: 0;
   border-radius: 0;
   clip-path: none;
-  background: url("../assets/svg/frame-menu.svg?v=1") center / 100% 100% no-repeat;
+  background: url("../assets/svg/frame-menu.svg?v=56") center / 100% 100% no-repeat;
   box-shadow: none;
 }
 
@@ -300,8 +300,8 @@
   inset: 0;
   pointer-events: none;
   opacity: 1;
-  background: url("../assets/svg/frame-player.svg?v=55") center / 100% 100% no-repeat;
-  filter: none;
+  background: url("../assets/svg/frame-player.svg?v=56") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
 }
 
 .seat b,
@@ -322,7 +322,7 @@
   top: 1.76cqw;
   color: #dedad2;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: 1.55cqw;
+  font-size: 1.72cqw;
   font-weight: 500;
   letter-spacing: -.045em;
   line-height: 1;
@@ -332,7 +332,7 @@
   top: 4.68cqw;
   color: #cfc9bd;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: 1.43cqw;
+  font-size: 1.58cqw;
   font-weight: 400;
   letter-spacing: -.025em;
   line-height: 1;
@@ -347,13 +347,13 @@
 }
 
 .seat.me::after {
-  background-image: url("../assets/svg/frame-player-me.svg?v=1");
-  filter: drop-shadow(0 0 .22cqw rgba(74,204,53,.58));
+  background-image: url("../assets/svg/frame-player-me.svg?v=56");
+  filter: drop-shadow(0 0 .22cqw rgba(74,204,53,.58)) drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
 }
 
 .seat.seller:not(.me)::after {
-  background-image: url("../assets/svg/frame-player-seller.svg?v=1");
-  filter: drop-shadow(0 0 .2cqw rgba(231,91,12,.5));
+  background-image: url("../assets/svg/frame-player-seller.svg?v=56");
+  filter: drop-shadow(0 0 .2cqw rgba(231,91,12,.5)) drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
 }
 
 .seat.me b,
@@ -393,7 +393,7 @@
   border-radius: .35cqw .35cqw 0 .35cqw;
   background: linear-gradient(180deg, #174c18, #062609);
   box-shadow: inset 0 .1cqw rgba(215,255,198,.16), 0 .16cqw .2cqw rgba(0,0,0,.72);
-  font-size: 1.18cqw;
+  font-size: 1.3cqw;
   letter-spacing: .02em;
 }
 
@@ -409,7 +409,7 @@
   border-radius: .55cqw;
   background: linear-gradient(180deg, #70240a, #280a02);
   box-shadow: inset 0 .1cqw rgba(255,203,145,.14), 0 .18cqw .22cqw rgba(0,0,0,.72);
-  font-size: 1.15cqw;
+  font-size: 1.28cqw;
   letter-spacing: .045em;
 }
 

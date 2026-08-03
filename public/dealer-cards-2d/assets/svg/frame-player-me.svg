@@ -1,7 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 86" fill="none">
-  <path d="M9 1h113l9 9v66l-9 9H9L1 77V9L9 1Z" stroke="#071006" stroke-width="3"/>
-  <path d="M10 3h111l8 8v64l-8 8H10l-7-7V10l7-7Z" stroke="#3eaa31" stroke-width="1.8"/>
-  <path d="M14 7h103l7 7v57l-7 7H14l-6-6V13l6-6Z" stroke="#10240d" stroke-width="1.6"/>
-  <path d="M17 10h97l6 6v53l-6 5H17l-5-5V16l5-6Z" stroke="#76d957" stroke-width=".7" opacity=".9"/>
-  <path d="M22 13h87" stroke="#c2f0a6" stroke-width=".45" opacity=".36"/>
+  <defs>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9de873"/><stop offset=".16" stop-color="#267c25"/><stop offset=".44" stop-color="#4db536"/><stop offset=".65" stop-color="#0c2f12"/><stop offset=".86" stop-color="#2d8d2a"/><stop offset="1" stop-color="#8ddd63"/></linearGradient>
+    <linearGradient id="greenShine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#1d5e21"/><stop offset=".18" stop-color="#a7ee83"/><stop offset=".5" stop-color="#3d9d32"/><stop offset=".82" stop-color="#a7ee83"/><stop offset="1" stop-color="#1d5e21"/></linearGradient>
+    <radialGradient id="rivet" cx="30%" cy="22%"><stop stop-color="#ddf7bd"/><stop offset=".35" stop-color="#4da637"/><stop offset="1" stop-color="#061908"/></radialGradient>
+    <pattern id="grain" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M0 11 11 0M5 12 12 5" stroke="#c4f3a5" stroke-width=".28" opacity=".14"/></pattern>
+  </defs>
+  <path d="M9 1h113l9 9v66l-9 9H9L1 77V9L9 1Z" fill="#030602" stroke="#061006" stroke-width="3"/>
+  <path d="M10 3h111l8 8v64l-8 8H10l-7-7V10l7-7Z" stroke="url(#green)" stroke-width="2"/>
+  <path d="M14 6.5h103l7 7v59l-7 7H14l-6-6V13l6-6Z" stroke="#102c11" stroke-width="1.85"/>
+  <path d="M17 9.5h97l6 6v53l-6 6H17l-5-5v-54l5-6Z" stroke="url(#greenShine)" stroke-width=".85"/>
+  <path d="M20 12h92v62H20Z" fill="url(#grain)" opacity=".32"/>
+  <path d="M22 13h87" stroke="#d8f8b4" stroke-width=".5" opacity=".42"/>
+  <path d="M22 73h87" stroke="#58ad40" stroke-width=".45" opacity=".34"/>
+  <g stroke="url(#green)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 13 10 6m-7 14 7-7M129 13l-7-7m7 14-7-7M3 73l7 7m-7-14 7 7M129 73l-7 7m7-14-7 7" stroke-width="1.12"/>
+    <path d="M8 8h8M8 8v8M124 8h-8M124 8v8M8 78h8M8 78v-8M124 78h-8M124 78v-8" stroke-width=".68" opacity=".9"/>
+  </g>
+  <g fill="url(#rivet)" stroke="#071707" stroke-width=".45"><circle cx="9" cy="9" r="1.7"/><circle cx="123" cy="9" r="1.7"/><circle cx="9" cy="77" r="1.7"/><circle cx="123" cy="77" r="1.7"/></g>
 </svg>

@@ -1,12 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
   <defs>
-    <linearGradient id="g" x1="18" y1="10" x2="79" y2="91"><stop stop-color="#d4aa5a"/><stop offset=".25" stop-color="#6e441e"/><stop offset=".55" stop-color="#b77c35"/><stop offset="1" stop-color="#352013"/></linearGradient>
-    <radialGradient id="c"><stop stop-color="#f0dfae"/><stop offset=".72" stop-color="#c4a05a"/><stop offset="1" stop-color="#6f451f"/></radialGradient>
+    <linearGradient id="metal" x1="18" y1="8" x2="79" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0cb79"/><stop offset=".17" stop-color="#8b5720"/><stop offset=".38" stop-color="#d29a43"/>
+      <stop offset=".58" stop-color="#4a2a13"/><stop offset=".78" stop-color="#b4772d"/><stop offset="1" stop-color="#e0b15f"/>
+    </linearGradient>
+    <radialGradient id="face" cx="31%" cy="22%"><stop stop-color="#f1d38a"/><stop offset=".38" stop-color="#c18b3c"/><stop offset=".8" stop-color="#6b421d"/><stop offset="1" stop-color="#251309"/></radialGradient>
+    <radialGradient id="rivet" cx="28%" cy="20%"><stop stop-color="#f5d58e"/><stop offset=".35" stop-color="#b87b30"/><stop offset="1" stop-color="#3c2110"/></radialGradient>
   </defs>
-  <path d="M50 2l6 15 11-11 1 16 15-6-5 15 16-1-11 12 15 5-14 8 13 9-16 3 9 13-16-2 4 16-14-7-2 16-11-12-7 15-7-15-12 12-1-16-14 7 4-16-16 2 9-13-16-3 13-9-14-8 15-5L6 30l16 1-5-15 15 6 1-16 11 11 6-15Z" fill="url(#g)" stroke="#1b0e07" stroke-width="2"/>
-  <circle cx="50" cy="51" r="30" fill="#6a431f" stroke="#d4ad66" stroke-width="1.5"/>
-  <circle cx="50" cy="51" r="24" fill="url(#c)" stroke="#3a2111" stroke-width="2"/>
-  <circle cx="50" cy="51" r="19" stroke="#997036" stroke-width="1"/>
-  <path d="M36 35h7v13h14V35h7v32h-7V54H43v13h-7V35Z" fill="#3b2111"/>
-  <path d="M23 31l9 6m45-6-9 6M23 72l10-7m44 7-10-7" stroke="#e2c27d" stroke-width=".7" opacity=".45"/>
+  <path d="m50 1 6 13 11-9 1 15 15-6-5 14 15-1-10 12 15 5-14 8 13 9-15 3 8 13-15-2 4 16-14-7-2 16-12-12-7 15-7-15-12 12-1-16-15 7 4-16-15 2 8-13-15-3 13-9-14-8 15-5-10-12 15 1-5-14 15 6 1-15 11 9Z" fill="url(#metal)" stroke="#160b05" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="m50 7 5 11 10-7 1 13 13-5-4 13 13-1-9 10 13 4-12 7 11 8-13 2 7 11-13-2 3 13-12-6-2 13-10-10-6 12-6-12-10 10-1-13-12 6 3-13-13 2 7-11-13-2 11-8-12-7 13-4-9-10 13 1-4-13 13 5 1-13 10 7Z" stroke="#f1cc7b" stroke-width=".8" opacity=".62"/>
+  <circle cx="50" cy="51" r="32" fill="#3b2111" stroke="#1a0c06" stroke-width="2"/>
+  <circle cx="50" cy="51" r="29" fill="url(#face)" stroke="#d5a255" stroke-width="1.7"/>
+  <circle cx="50" cy="51" r="23.5" fill="#8c5c25" stroke="#3b2111" stroke-width="1.8"/>
+  <circle cx="50" cy="51" r="19.5" fill="url(#face)" stroke="#e0b96b" stroke-width=".85"/>
+  <path d="M36 34h7v13h14V34h7v34h-7V54H43v14h-7V34Z" fill="#38200f"/>
+  <path d="M38 36h4v12h18V36h3v30h-3V52H42v14h-4V36Z" fill="#2a160b" opacity=".52"/>
+  <g fill="url(#rivet)" stroke="#321b0d" stroke-width=".45"><circle cx="22" cy="27" r="1.5"/><circle cx="78" cy="27" r="1.5"/><circle cx="22" cy="75" r="1.5"/><circle cx="78" cy="75" r="1.5"/></g>
+  <path d="M24 31 34 38m42-7-10 7M24 72l11-7m41 7-10-7" stroke="#f0ca7c" stroke-width=".75" opacity=".55"/>
 </svg>

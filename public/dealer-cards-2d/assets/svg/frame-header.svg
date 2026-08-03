@@ -1,21 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1166 109" fill="none">
   <defs>
     <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
-      <stop stop-color="#b7833e"/><stop offset=".18" stop-color="#3d2515"/><stop offset=".5" stop-color="#805326"/><stop offset=".8" stop-color="#2c190e"/><stop offset="1" stop-color="#a36d32"/>
+      <stop stop-color="#e0ae5c"/><stop offset=".12" stop-color="#6d421d"/>
+      <stop offset=".34" stop-color="#bd8338"/><stop offset=".55" stop-color="#3a2112"/>
+      <stop offset=".78" stop-color="#8b5927"/><stop offset="1" stop-color="#d09a48"/>
     </linearGradient>
-    <linearGradient id="glint" x1="0" y1="0" x2="1" y2="0">
-      <stop stop-color="#5c3519"/><stop offset=".08" stop-color="#b77b35"/><stop offset=".48" stop-color="#67411e"/><stop offset=".92" stop-color="#b77b35"/><stop offset="1" stop-color="#5c3519"/>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#3a2112"/><stop offset=".08" stop-color="#b8792f"/>
+      <stop offset=".28" stop-color="#70451f"/><stop offset=".5" stop-color="#e0b062"/>
+      <stop offset=".72" stop-color="#70451f"/><stop offset=".92" stop-color="#b8792f"/>
+      <stop offset="1" stop-color="#3a2112"/>
     </linearGradient>
+    <radialGradient id="rivet" cx="32%" cy="24%">
+      <stop stop-color="#f2c978"/><stop offset=".3" stop-color="#a76a28"/>
+      <stop offset=".75" stop-color="#4b2b14"/><stop offset="1" stop-color="#160b06"/>
+    </radialGradient>
+    <pattern id="hairline" width="18" height="18" patternUnits="userSpaceOnUse">
+      <path d="M-3 15 15-3M5 21 21 5" stroke="#e6bd76" stroke-width=".35" opacity=".12"/>
+      <circle cx="4" cy="5" r=".4" fill="#f0ca82" opacity=".14"/>
+    </pattern>
   </defs>
-  <path d="M21 1h1124c11 0 20 9 20 20v67c0 11-9 20-20 20H21C10 108 1 99 1 88V21C1 10 10 1 21 1Z" stroke="#070403" stroke-width="3"/>
-  <path d="M22 3h1122c10 0 18 8 18 18v67c0 10-8 18-18 18H22C12 106 4 98 4 88V21C4 11 12 3 22 3Z" stroke="url(#brass)" stroke-width="2"/>
-  <path d="M28 7h1110c10 0 18 8 18 18v59c0 10-8 18-18 18H28c-10 0-18-8-18-18V25C10 15 18 7 28 7Z" stroke="#1a0e08" stroke-width="2"/>
-  <path d="M31 10h1104c9 0 17 7 17 16v57c0 9-8 16-17 16H31c-9 0-17-7-17-16V26c0-9 8-16 17-16Z" stroke="url(#glint)" stroke-width=".85" opacity=".92"/>
-  <path d="M39 14h1088" stroke="#d4a85e" stroke-width=".55" opacity=".35"/>
-  <path d="M36 95h1094" stroke="#b67c37" stroke-width=".55" opacity=".46"/>
+
+  <path d="M22 1h1122q21 0 21 21v65q0 21-21 21H22Q1 108 1 87V22Q1 1 22 1Z" fill="#030201" stroke="#050302" stroke-width="3.4"/>
+  <path d="M22.5 3.3h1121q18.5 0 18.5 18.5v65q0 18.5-18.5 18.5h-1121Q4 105.3 4 86.8v-65Q4 3.3 22.5 3.3Z" stroke="url(#brass)" stroke-width="2.25"/>
+  <path d="M27 6.8h1112q16.8 0 16.8 16.8v58.8q0 16.8-16.8 16.8H27Q10.2 99.2 10.2 82.4V23.6Q10.2 6.8 27 6.8Z" stroke="#29170c" stroke-width="2.2"/>
+  <path d="M31.5 10.1h1103q15.2 0 15.2 15.2v56.2q0 15.2-15.2 15.2h-1103q-15.2 0-15.2-15.2V25.3q0-15.2 15.2-15.2Z" stroke="url(#edge)" stroke-width=".95"/>
+  <path d="M39 13.6h1088" stroke="#f0c77d" stroke-width=".55" opacity=".38"/>
+  <path d="M38 95.3h1090" stroke="#d39a4c" stroke-width=".55" opacity=".42"/>
+  <path d="M30 10h1106v87H30Z" fill="url(#hairline)" opacity=".36"/>
+
   <g stroke="url(#brass)" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M13 31c8-1 13-6 14-14m-10 5c5 3 9 3 14 0M13 78c8 1 13 6 14 14m-10-5c5-3 9-3 14 0" stroke-width="1.35"/>
-    <path d="M1153 31c-8-1-13-6-14-14m10 5c-5 3-9 3-14 0m18 56c-8 1-13 6-14 14m10-5c-5-3-9-3-14 0" stroke-width="1.35"/>
-    <path d="M8 20l6 4-4 7m1148-11-6 4 4 7M8 89l6-4-4-7m1148 11-6-4 4-7" stroke-width="1" opacity=".8"/>
+    <path d="M10 29q10-2 13-15 2 7 9 7M10 80q10 2 13 15 2-7 9-7M1156 29q-10-2-13-15-2 7-9 7M1156 80q-10 2-13 15-2-7-9-7" stroke-width="1.45"/>
+    <path d="M9 22l7 4-4 8m1149-12-7 4 4 8M9 87l7-4-4-8m1149 12-7-4 4-8" stroke-width="1.05" opacity=".9"/>
+    <path d="M17 16l4 4m1128-4-4 4M17 93l4-4m1128 4-4-4" stroke-width=".7" opacity=".75"/>
+  </g>
+  <g fill="url(#rivet)" stroke="#27150b" stroke-width=".65">
+    <circle cx="17" cy="16" r="2.35"/><circle cx="1149" cy="16" r="2.35"/>
+    <circle cx="17" cy="93" r="2.35"/><circle cx="1149" cy="93" r="2.35"/>
+  </g>
+  <g transform="translate(583 104)">
+    <path d="m0-7 7 7-7 7-7-7 7-7Z" fill="#211109" stroke="#69411e" stroke-width="1"/>
+    <path d="m0-4 4 4-4 4-4-4 4-4Z" fill="url(#brass)"/>
   </g>
 </svg>
