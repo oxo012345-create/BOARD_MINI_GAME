@@ -212,19 +212,20 @@
 }
 
 .hud-menu {
-  top: 1.95cqw;
-  left: 90.755cqw;
+  top: 1.5cqw;
+  right: 1.45cqw;
+  left: auto;
   display: grid;
   place-items: center;
-  width: 8.057cqw;
-  height: 6.192cqw;
+  width: 6.25cqw;
+  height: 6.25cqw;
   padding: 0;
   color: #c69a55;
   border: 0;
-  border-radius: 0;
+  border-radius: 50%;
   clip-path: none;
-  background: url("../assets/svg/frame-menu.svg?v=56") center / 100% 100% no-repeat;
-  box-shadow: none;
+  background: url("../assets/svg/frame-token.svg?v=57") center / 100% 100% no-repeat;
+  box-shadow: 0 0 .34cqw rgba(183,132,57,.2), 0 .18cqw .24cqw rgba(0,0,0,.72);
 }
 
 .hud-menu::before { display: none; }
@@ -235,11 +236,11 @@
   position: relative;
   z-index: 1;
   display: block;
-  width: 4.15cqw;
-  height: .17cqw;
-  border-radius: 0;
+  width: 3.1cqw;
+  height: .72cqw;
+  border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 -1.43cqw currentColor, 0 1.43cqw currentColor;
+  box-shadow: 1.2cqw 0 currentColor, 2.4cqw 0 currentColor;
 }
 
 .player-ribbon {
@@ -509,12 +510,13 @@
 }
 .action-banner .lot-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 7px;
   width: 100%;
   margin: 0;
+  justify-items: center;
 }
-.action-banner .lot-action-note { grid-column: 1 / -1; }
+.action-banner .lot-action-note { width: 100%; }
 .action-banner .primary-action,
 .action-banner .secondary-action {
   min-height: 43px;
@@ -522,6 +524,10 @@
   padding: 9px 8px;
   font-size: clamp(9px, 2.45vw, 11px);
   line-height: 1.15;
+}
+.action-banner .primary-action {
+  width: min(82%, 320px);
+  justify-self: center;
 }
 .action-banner .stage-action {
   position: relative;

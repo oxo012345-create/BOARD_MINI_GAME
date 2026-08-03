@@ -583,8 +583,7 @@ function renderLotActions() {
   ui.lotActions.innerHTML = `
     ${seller
       ? `<p class="lot-action-note ${expired ? "is-closed" : ""}">${expired ? "경매가 마감되었습니다. 결과를 기다려 주세요." : "판매 중인 물건입니다. 입찰은 다른 딜러가 진행합니다."}</p>`
-      : `<button class="primary-action" id="lot-bid-button" ${blocked || full || !afford || expired ? "disabled" : ""} aria-disabled="${blocked || full || !afford || expired ? "true" : "false"}" aria-label="${escapeHtml(bidLabel)}">${bidLabel}</button>`}
-    <button class="secondary-action" data-lot-goto-cards aria-label="보유 전략 카드 보기">보유 전략 카드 보기</button>`;
+      : `<button class="primary-action" id="lot-bid-button" ${blocked || full || !afford || expired ? "disabled" : ""} aria-disabled="${blocked || full || !afford || expired ? "true" : "false"}" aria-label="${escapeHtml(bidLabel)}">${bidLabel}</button>`}`;
   const bidButton = $("lot-bid-button");
   if (bidButton) bidButton.onclick = () => {
     bidButton.disabled = true;
@@ -592,7 +591,6 @@ function renderLotActions() {
     bidButton.textContent = "입찰 확인 중…";
     act("dealer-bid");
   };
-  ui.lotActions.querySelector("[data-lot-goto-cards]")?.addEventListener("click", () => setTab("cards"));
   syncActionBanner();
 }
 
