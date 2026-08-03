@@ -1,16 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 88" fill="none" preserveAspectRatio="none">
-  <defs>
-    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-      <stop stop-color="#e2bd70"/>
-      <stop offset=".22" stop-color="#8a5728"/>
-      <stop offset=".58" stop-color="#3d2213"/>
-      <stop offset="1" stop-color="#a46d33"/>
-    </linearGradient>
-  </defs>
-  <path d="M13 3h151l13 13v56l-13 13H13L3 75V13L13 3Z" stroke="#090503" stroke-width="5"/>
-  <path d="M14 5h149l11 12v54l-11 11H14L6 74V14l8-9Z" stroke="url(#edge)" stroke-width="2.5"/>
-  <path d="M19 10h140l9 9v49l-9 9H19l-7-7V18l7-8Z" stroke="#27160d" stroke-width="1.5"/>
-  <path d="M23 13h133l7 8v45l-7 7H23l-6-6V21l6-8Z" stroke="#d7aa60" stroke-width=".8" opacity=".9"/>
-  <path d="M27 17h125" stroke="#f0d28d" stroke-width=".55" opacity=".38"/>
-  <path d="M162 7l11 11-5 5-11-11 5-5ZM13 72l8 8-8 8-8-8 8-8Z" fill="#69411f" stroke="#bd8743" stroke-width=".8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 86" fill="none">
+  <path d="M9 1h113l9 9v66l-9 9H9L1 77V9L9 1Z" stroke="#090504" stroke-width="2.5"/>
+  <path d="M10 3h111l8 8v64l-8 8H10l-7-7V10l7-7Z" stroke="#71471f" stroke-width="1.25"/>
+  <path d="M14 7h103l7 7v57l-7 7H14l-6-6V13l6-6Z" stroke="#1c1009" stroke-width="1.5"/>
+  <path d="M17 10h97l6 6v53l-6 5H17l-5-5V16l5-6Z" stroke="#9f6930" stroke-width=".65"/>
+  <path d="M22 13h87" stroke="#d0a45c" stroke-width=".45" opacity=".35"/>
 </svg>
