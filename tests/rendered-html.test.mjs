@@ -61,12 +61,14 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
     const dealerHtml = await (await fetch(`${baseUrl}/dealer-cards-2d/index.html`)).text();
     const dealerScript = await readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8");
+    const dealerStyles = await readFile(new URL("../public/dealer-cards-2d/styles/states.css", import.meta.url), "utf8");
     assert.match(dealerHtml, /data-menu="closed"/);
     assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
     assert.match(dealerHtml, /id="timer-label"/);
     assert.match(dealerHtml, /id="action-toast"/);
     assert.match(dealerHtml, /viewport-fit=cover/);
+    assert.match(dealerStyles, /parchment-scroll-roll\.webp/);
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
     assert.doesNotMatch(dealerHtml, /data-initial/);

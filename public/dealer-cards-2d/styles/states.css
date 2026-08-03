@@ -54,6 +54,45 @@ body[data-phase="resolution"] .lot-card { filter:drop-shadow(0 7px 10px rgba(0,0
 .private-dossier #clauses div { padding: 5px 7px; }
 .private-dossier[data-mystery="true"] .appraisal-value strong { color: #766040; }
 
+/* User-supplied rolled parchment artwork: keep the paper silhouette visible
+   while leaving the live appraisal copy as selectable HTML. */
+.private-dossier {
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 22px 34px 17px 38px;
+  border: 0;
+  border-radius: 3px;
+  background-color: #caa56b;
+  background-image: linear-gradient(180deg, rgba(255,244,207,.08), rgba(90,46,21,.08)), url("../assets/textures/parchment-scroll-roll.webp?v=1");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: 0 10px 20px rgba(0,0,0,.48), inset 0 1px rgba(255,248,215,.38), inset 0 -10px 18px rgba(75,39,18,.13);
+}
+.private-dossier::before {
+  z-index: 3;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-color: #6f4928;
+  background: radial-gradient(circle at 33% 28%, #e1be7a, #8d5c2e 68%, #4c2b1b);
+  box-shadow: 0 1px 2px rgba(50,25,12,.5), inset 0 1px rgba(255,235,176,.55);
+}
+.private-dossier::after {
+  z-index: 1;
+  inset: 13px 20px 11px;
+  border: 1px solid rgba(99,59,28,.32);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255,247,211,.22), inset 0 -8px 14px rgba(86,48,23,.1);
+}
+.private-dossier .dossier-roll { display: none; }
+.private-dossier > header,
+.private-dossier > .appraisal-value,
+.private-dossier > #clauses { z-index: 4; }
+.private-dossier header { border-bottom-color: rgba(81,48,24,.25); }
+.private-dossier #clauses div { background: rgba(91,54,27,.06); }
+
 .scroll-cue { min-height: 24px; padding: 5px 8px; border: 1px solid rgba(138,99,54,.28); border-radius: 7px; background: rgba(239,222,182,.12); font-size: 9px; }
 .scroll-cue span { font-size: 13px; }
 .section-title span { font-size: 9px; }
@@ -66,7 +105,7 @@ body[data-phase="resolution"] .lot-card { filter:drop-shadow(0 7px 10px rgba(0,0
 .lot-actions .primary-action,.lot-actions .secondary-action { min-height: 44px; font-size: 11px; }
 
 @media (max-width: 370px) {
-  .private-dossier { min-height: 132px; padding-inline: 23px; }
+  .private-dossier { min-height: 140px; padding: 21px 28px 15px 32px; }
   .section-title span { font-size: 8px; }
   .lot-actions .primary-action,.lot-actions .secondary-action { min-height: 44px; padding-block: 10px; font-size: 10px; }
   .dock button em { font-size: 9px; }
