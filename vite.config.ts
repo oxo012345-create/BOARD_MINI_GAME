@@ -13,7 +13,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
+  // Local Vinext/Miniflare still needs the explicit flag. Sites' production
+  // runtime enables it by default as of 2026-08-04 and rejects the duplicate.
+  ...(process.env.SITES_DEPLOY === "1" ? {} : { compatibility_flags: ["nodejs_compat"] }),
   d1_databases: d1
     ? [
         {
