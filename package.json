@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "node scripts/sync-catalog-data.mjs && vinext build",
+    "build": "node scripts/sync-catalog-data.mjs && vinext build && node scripts/normalize-sites-wrangler.mjs",
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "test:gem-logic": "tsx scripts/gem-two-suspect-audit.ts",
