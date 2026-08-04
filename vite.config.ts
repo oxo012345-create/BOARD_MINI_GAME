@@ -8,9 +8,9 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 
 const { d1, r2 } = hostingConfig;
 const nodeCompatFlag = ["nodejs", "_compat"].join("");
-const nodeCompatV2Flag = ["nodejs", "_compat", "_v2"].join("");
 const isLocalDevServer = process.argv.some((value) => value === "dev" || value === "serve");
-const compatibilityDate = isLocalDevServer ? "2026-05-15" : "2026-08-04";
+const useLocalCompatibility = isLocalDevServer && process.env.SITES_LOCAL_DEV === "1";
+const compatibilityDate = useLocalCompatibility ? "2026-05-15" : "2026-08-04";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -20,10 +20,10 @@ const localBindingConfig = {
   // Cloudflare enables Node.js compatibility by default from this date onward.
   // Keeping the date explicit makes local and hosted builds use the same mode.
   compatibility_date: compatibilityDate,
-  // The current hosted Wrangler rejects the legacy nodejs_compat spelling;
-  // use the explicit v2 flag for production while keeping local Miniflare's
-  // supported flag for the dev server.
-  compatibility_flags: [isLocalDevServer ? nodeCompatFlag : nodeCompatV2Flag],
+  // Keep the compatibility flag opt-in for local Miniflare only. Sites' hosted
+  // Wrangler now enables Node compatibility by default and rejects the legacy
+  // flag during its production validation.
+  ...(useLocalCompatibility ? { compatibility_flags: [nodeCompatFlag] } : {}),
   d1_databases: d1
     ? [
         {
