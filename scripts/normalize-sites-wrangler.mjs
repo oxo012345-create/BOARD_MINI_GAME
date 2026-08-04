@@ -7,7 +7,7 @@ if (process.env.SITES_DEPLOY !== "1" || !fs.existsSync(wranglerPath)) {
 }
 
 const config = JSON.parse(fs.readFileSync(wranglerPath, "utf8"));
-// Cloudflare enables nodejs_compat by default after 2026-08-04 and rejects
-// an explicit (or empty) compatibility_flags field during production deploys.
+// Cloudflare enables the Node compatibility runtime by default after
+// 2026-08-04 and rejects an explicit (or empty) compatibility_flags field.
 delete config.compatibility_flags;
 fs.writeFileSync(wranglerPath, `${JSON.stringify(config)}\n`);

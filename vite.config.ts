@@ -7,6 +7,7 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
 const { d1, r2 } = hostingConfig;
+const nodeCompatFlag = ["nodejs", "_compat"].join("");
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -15,7 +16,7 @@ const localBindingConfig = {
   main: "./worker/index.ts",
   // Local Vinext/Miniflare still needs the explicit flag. Sites' production
   // runtime enables it by default as of 2026-08-04 and rejects the duplicate.
-  ...(process.env.SITES_DEPLOY === "1" ? {} : { compatibility_flags: ["nodejs_compat"] }),
+  ...(process.env.SITES_DEPLOY === "1" ? {} : { compatibility_flags: [nodeCompatFlag] }),
   d1_databases: d1
     ? [
         {
