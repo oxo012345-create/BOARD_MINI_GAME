@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=37" />
+  <link rel="stylesheet" href="./styles.css?v=38" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body data-menu="closed" data-app-state="loading">
   <main id="app">
@@ -48,8 +49,9 @@
           <div class="lot-ribbon"><span>AUCTIONEER</span><b id="seller">판매자</b></div>
           <span class="live-chip"><i></i> OPEN</span>
         </div>
-      <div class="item-render-wrap" aria-hidden="true">
+      <div class="item-render-wrap" data-model-state="fallback">
           <img id="item-image" src="" alt="" decoding="async" fetchpriority="high" />
+          <model-viewer id="item-model" aria-label="경매 물건 3D 모델" camera-controls auto-rotate auto-rotate-delay="1200" rotation-per-second="12deg" interaction-prompt="auto" touch-action="pan-y" shadow-intensity="1.05" shadow-softness="0.82" exposure="1.05" environment-image="neutral" loading="eager" reveal="auto"></model-viewer>
           <div class="image-vignette"></div>
         </div>
         <div class="lot-copy">
@@ -94,6 +96,6 @@
       <button data-tab="cards" aria-label="전략패" aria-expanded="false"><span class="dock-icon" aria-hidden="true"></span><em>전략패</em><b id="card-count">0/3</b></button>
     </nav>
   </main>
-  <script type="module" src="./game.js?v=29"></script>
+  <script type="module" src="./game.js?v=30"></script>
 </body>
 </html>

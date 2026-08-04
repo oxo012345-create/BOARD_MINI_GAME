@@ -8,7 +8,7 @@ const roomCode = query.get("room")?.replace(/\D/g, "").slice(0, 4) || "";
 const $ = (id) => document.getElementById(id);
 const ui = {
   round: $("round"), phase: $("phase"), timer: $("timer"), timerLabel: $("timer-label"), cash: $("cash"), seats: $("seats"), hudMenu: $("hud-menu"),
-  lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemName: $("item-name"),
+  lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemModel: $("item-model"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
   itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), actionBanner: $("action-banner"), stageAction: $("stage-action"), actionToast: $("action-toast"),
@@ -41,6 +41,43 @@ let timerExpired = false;
 let toastTimer = null;
 let lastMenuButton = null;
 let preloadedItemId = null;
+let lotModelItemId = null;
+
+function clearLotModel() {
+  if (!ui.itemModel) return;
+  const wrap = ui.itemModel.closest(".item-render-wrap");
+  ui.itemModel.removeAttribute("src");
+  ui.itemModel.removeAttribute("poster");
+  ui.itemModel.alt = "경매 물건 3D 모델";
+  if (wrap) wrap.dataset.modelState = "fallback";
+  lotModelItemId = null;
+}
+
+function renderLotModel(item) {
+  if (!ui.itemModel || !item) return;
+  const wrap = ui.itemModel.closest(".item-render-wrap");
+  const src = lotModelSrc(item.id);
+  if (!wrap || !src) {
+    clearLotModel();
+    return;
+  }
+  const state = wrap.dataset.modelState || "fallback";
+  if (lotModelItemId === item.id && ui.itemModel.getAttribute("src") === src && state !== "error") return;
+  lotModelItemId = item.id;
+  wrap.dataset.modelState = "loading";
+  ui.itemModel.alt = `${itemName(item)} 3D 모델`;
+  ui.itemModel.poster = lotItemSrc(item.id);
+  ui.itemModel.src = src;
+}
+
+ui.itemModel?.addEventListener("load", () => {
+  const wrap = ui.itemModel.closest(".item-render-wrap");
+  if (wrap) wrap.dataset.modelState = "ready";
+});
+ui.itemModel?.addEventListener("error", () => {
+  const wrap = ui.itemModel.closest(".item-render-wrap");
+  if (wrap) wrap.dataset.modelState = "error";
+});
 
 function clearStaleView() {
   if (menuOpen) closeSheet();
@@ -52,6 +89,7 @@ function clearStaleView() {
   ui.seats.innerHTML = "";
   ui.seats.removeAttribute("data-count");
   ui.lotStage.hidden = true;
+  clearLotModel();
   ui.dossier.hidden = true;
   ui.lotActions.hidden = true;
   ui.lotActions.innerHTML = "";
@@ -313,6 +351,14 @@ const itemFiles = [
   "20-hour-glass.webp", "21-katana.webp", "22-sword.webp", "23-sealed-scroll.webp", "24-pistol.webp",
   "25-chariot-wheel.webp", "26-roman-sandals.webp", "27-viking-helmet.webp", "28-vintage-typewriter.webp",
 ];
+const itemModelFiles = [
+  "ornate_gold_cross", "imperial_jeweled_egg", "ceramic_mug", "gold_medal", "silver_medal",
+  "m1_style_helmet", "antique_amphora", "retro_crt_monitor", "acoustic_guitar", "vintage_launcher_prop",
+  "historical_model_ship", "antique_treasure_chest", "potted_plant", "antique_charcoal_iron", "lyre",
+  "royal_crown", "ancient_copper_ingot", "ornate_golden_key", "open_folding_fan", "vintage_geiger_counter",
+  "antique_hourglass", "sheathed_katana", "medieval_sword", "rolled_scroll", "vintage_pistol_prop",
+  "wooden_wagon_wheel", "roman_sandals_pair", "viking_helmet", "vintage_typewriter",
+];
 const itemKoreanNames = [
   "황금 성십자가", "황금 보석 알", "한 잔의 커피", "금성 훈장", "은성 훈장", "M1 철모", "고대 로마 항아리",
   "레트로 모니터", "빈티지 기타", "대전차 로켓 발사기", "빅토리아 범선 모형", "중세 보물 상자", "테라코타 화분",
@@ -354,6 +400,7 @@ const dealerPlayers = () => {
 };
 const itemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
 const lotItemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`;
+const lotModelSrc = (id) => itemModelFiles[id] ? `/dealer-items-3d/${itemModelFiles[id]}_LOD1.glb` : "";
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
 const itemSubtitle = (item) => item?.name || "Private Collection";
 const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!"][id] || "♦";
@@ -528,6 +575,7 @@ function render() {
     ui.seller.textContent = playerName(dealer.sellerId);
     ui.itemImage.src = lotItemSrc(dealer.currentItem.id);
     ui.itemImage.alt = dealer.currentItem.name;
+    renderLotModel(dealer.currentItem);
     ui.itemName.textContent = itemName(dealer.currentItem);
     ui.itemOriginal.textContent = itemSubtitle(dealer.currentItem);
     ui.itemEra.textContent = dealer.currentItem.era;
@@ -535,6 +583,8 @@ function render() {
     ui.lotCard.dataset.item = dealer.currentItem.id;
     ui.bid.textContent = money(dealer.highestBidderId ? dealer.currentBid : 100);
     ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
+  } else {
+    clearLotModel();
   }
   const isAuction = Boolean(dealer.currentItem && dealer.phase === "auction");
   const knowsPrice = Boolean(dealer.knowsPrice);

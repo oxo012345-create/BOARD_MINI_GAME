@@ -1,0 +1,67 @@
+.item-render-wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+.item-render-wrap > img {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity .28s ease, filter .28s ease;
+}
+
+.item-render-wrap > model-viewer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: 0;
+  background: transparent;
+  --poster-color: transparent;
+  --progress-bar-color: #bd8a4a;
+  --progress-mask: #20120c;
+  transition: opacity .32s ease;
+}
+
+.item-render-wrap > model-viewer::part(default-progress-bar) {
+  height: 2px;
+  background: linear-gradient(90deg, #8f5b32, #e0bf7c, #8f5b32);
+}
+
+.item-render-wrap[data-model-state="loading"] > model-viewer {
+  opacity: .26;
+}
+
+.item-render-wrap[data-model-state="ready"] > model-viewer {
+  opacity: 1;
+}
+
+.item-render-wrap[data-model-state="ready"] > img {
+  opacity: 0;
+}
+
+.item-render-wrap[data-model-state="error"] > model-viewer {
+  display: none;
+}
+
+.item-render-wrap[data-model-state="error"] > img,
+.item-render-wrap[data-model-state="fallback"] > img {
+  opacity: 1;
+}
+
+.item-render-wrap > .image-vignette {
+  z-index: 2;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item-render-wrap > model-viewer,
+  .item-render-wrap > img {
+    transition: none;
+  }
+}
