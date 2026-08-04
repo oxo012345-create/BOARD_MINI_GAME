@@ -66,8 +66,10 @@ function renderLotModel(item) {
   lotModelItemId = item.id;
   wrap.dataset.modelState = "loading";
   ui.itemModel.alt = `${itemName(item)} 3D 모델`;
-  ui.itemModel.poster = lotItemSrc(item.id);
-  ui.itemModel.src = src;
+  // Use attributes rather than only the JS properties. This keeps the URL
+  // attached through model-viewer's upgrade/reveal lifecycle on mobile.
+  ui.itemModel.setAttribute("poster", lotItemSrc(item.id));
+  ui.itemModel.setAttribute("src", src);
 }
 
 ui.itemModel?.addEventListener("load", () => {
