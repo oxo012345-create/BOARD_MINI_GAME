@@ -9,14 +9,16 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 const { d1, r2 } = hostingConfig;
 const nodeCompatFlag = ["nodejs", "_compat"].join("");
 const isLocalDevServer = process.argv.some((value) => value === "dev" || value === "serve");
+const compatibilityDate = isLocalDevServer ? "2026-05-15" : "2026-08-04";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  // Local Vinext/Miniflare still needs the explicit flag. Sites' production
-  // runtime enables it by default as of 2026-08-04 and rejects the duplicate.
+  // Cloudflare enables Node.js compatibility by default from this date onward.
+  // Keeping the date explicit makes local and hosted builds use the same mode.
+  compatibility_date: compatibilityDate,
   ...(isLocalDevServer ? { compatibility_flags: [nodeCompatFlag] } : {}),
   d1_databases: d1
     ? [
