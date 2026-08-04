@@ -72,11 +72,15 @@ function renderLotModel(item) {
 
 ui.itemModel?.addEventListener("load", () => {
   const wrap = ui.itemModel.closest(".item-render-wrap");
-  if (wrap) wrap.dataset.modelState = "ready";
+  // model-viewer can emit an initial load event while no source is attached.
+  // Never hide the fallback image for that empty state.
+  if (wrap && ui.itemModel.getAttribute("src") && ui.itemModel.loaded !== false) {
+    wrap.dataset.modelState = "ready";
+  }
 });
 ui.itemModel?.addEventListener("error", () => {
   const wrap = ui.itemModel.closest(".item-render-wrap");
-  if (wrap) wrap.dataset.modelState = "error";
+  if (wrap && ui.itemModel.getAttribute("src")) wrap.dataset.modelState = "error";
 });
 
 function clearStaleView() {

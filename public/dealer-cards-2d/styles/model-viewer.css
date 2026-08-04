@@ -1,5 +1,4 @@
 .item-render-wrap {
-  position: relative;
   isolation: isolate;
 }
 
