@@ -8,6 +8,7 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 
 const { d1, r2 } = hostingConfig;
 const nodeCompatFlag = ["nodejs", "_compat"].join("");
+const nodeCompatV2Flag = ["nodejs", "_compat", "_v2"].join("");
 const isLocalDevServer = process.argv.some((value) => value === "dev" || value === "serve");
 const compatibilityDate = isLocalDevServer ? "2026-05-15" : "2026-08-04";
 
@@ -19,7 +20,10 @@ const localBindingConfig = {
   // Cloudflare enables Node.js compatibility by default from this date onward.
   // Keeping the date explicit makes local and hosted builds use the same mode.
   compatibility_date: compatibilityDate,
-  ...(isLocalDevServer ? { compatibility_flags: [nodeCompatFlag] } : {}),
+  // The current hosted Wrangler rejects the legacy nodejs_compat spelling;
+  // use the explicit v2 flag for production while keeping local Miniflare's
+  // supported flag for the dev server.
+  compatibility_flags: [isLocalDevServer ? nodeCompatFlag : nodeCompatV2Flag],
   d1_databases: d1
     ? [
         {
