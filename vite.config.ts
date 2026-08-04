@@ -9,7 +9,7 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 const { d1, r2 } = hostingConfig;
 const nodeCompatFlag = ["nodejs", "_compat"].join("");
 const isLocalDevServer = process.argv.some((value) => value === "dev" || value === "serve");
-const useLocalCompatibility = isLocalDevServer && process.env.SITES_LOCAL_DEV === "1";
+const useLocalCompatibility = isLocalDevServer;
 const compatibilityDate = useLocalCompatibility ? "2026-05-15" : "2026-08-04";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
