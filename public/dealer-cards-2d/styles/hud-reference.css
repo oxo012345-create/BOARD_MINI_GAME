@@ -238,18 +238,8 @@
 }
 
 .hud-menu::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  width: 42%;
-  height: 64%;
-  border-radius: .55cqw;
-  background: linear-gradient(180deg, #ead7a4 0%, #d1ad6a 48%, #a8793b 100%);
-  box-shadow:
-    inset 0 .12cqw rgba(255,248,217,.58),
-    inset 0 -.14cqw .18cqw rgba(71,39,17,.56),
-    0 .12cqw .2cqw rgba(0,0,0,.58);
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
 .hud-menu::after {
@@ -271,9 +261,9 @@
   place-items: center;
   width: auto;
   height: auto;
-  color: #5a391a;
+  color: #e4ba68;
   font: 900 5.35cqw/1 Arial, Helvetica, sans-serif;
-  text-shadow: none;
+  text-shadow: 0 .1cqw .12cqw rgba(28,14,7,.96), 0 0 .28cqw rgba(218,168,78,.44);
   transform: translateY(-.02em);
   background: none;
   box-shadow: none;
@@ -575,6 +565,21 @@
   font-size: clamp(9px, 2.25vw, 11px);
   line-height: 1.15;
   white-space: normal;
+}
+
+/* Keep the live bid control on the original burgundy auction-button palette. */
+.dock-action-slot .primary-action {
+  color: #ead7ae;
+  border: 1px solid #ad7a3d;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.2), transparent 12%, transparent 88%, rgba(0,0,0,.22)),
+    linear-gradient(180deg, #84323f, #4a1822);
+  box-shadow:
+    0 3px 0 #1b0b09,
+    0 5px 10px rgba(0,0,0,.32),
+    0 0 0 2px #2c1914,
+    inset 0 2px rgba(255,228,174,.1),
+    inset 0 -6px 9px rgba(0,0,0,.26);
 }
 .dock-action-slot .stage-action:active { translate: 0 1px; }
 
