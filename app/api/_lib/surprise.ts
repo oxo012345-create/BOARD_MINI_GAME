@@ -22,6 +22,10 @@ const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)]
 const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
 const getList = (key: string, fallback: string[]) => Array.isArray(CONTENT[key]) ? CONTENT[key] as string[] : fallback;
 
+export function waitingSurpriseState(now = Date.now()): SurpriseState {
+  return { phase: "waiting", startedAt: now, endsAt: now + FIRST_RULE_DELAY_MS };
+}
+
 const animals = ["강아지 멍멍", "고양이 야옹", "오리 꽥꽥", "소 음메", "돼지 꿀꿀", "닭 꼬끼오", "개구리 개굴", "사자 어흥", "염소 메에", "비둘기 구구", "말 히이잉", "까마귀 까악"];
 
 function assignments(players: Player[], values: string[]) {
@@ -51,10 +55,17 @@ function newRule(players: Player[], previousId?: string): SurpriseState {
 }
 
 export function tickSurprise(room: RoomState) {
+  if (room.surpriseEnabled === false) {
+    if (room.surprise) {
+      room.surprise = undefined;
+      return true;
+    }
+    return false;
+  }
   if (room.view === "game") return false;
   const now = Date.now();
   if (!room.surprise) {
-    room.surprise = { phase: "waiting", startedAt: now, endsAt: now + FIRST_RULE_DELAY_MS };
+    room.surprise = waitingSurpriseState(now);
     return true;
   }
   if (room.surprise.phase === "waiting" && now >= room.surprise.endsAt) {

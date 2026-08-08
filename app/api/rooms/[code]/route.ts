@@ -1,7 +1,7 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
 import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
-import { tickSurprise } from "../../_lib/surprise";
+import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, tickDealer, type DealerState } from "../../_lib/dealer";
 
@@ -137,6 +137,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
       itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean;
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
+      enabled?: boolean;
     };
 
     if (payload.action === "join") {
@@ -166,6 +167,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!viewer) return Response.json({ error: "참가 인증이 만료됐어요. 방에 다시 참가해 주세요." }, { status: 401 });
     viewer.lastSeen = Date.now();
     const isHost = viewer.id === room.hostId;
+
+    if (payload.action === "set-surprise") {
+      if (!isHost || room.view !== "lobby") return Response.json({ error: "대기실에서 방장만 깜짝 룰을 바꿀 수 있어요." }, { status: 403 });
+      const enabled = payload.enabled === true;
+      room.surpriseEnabled = enabled;
+      room.surprise = enabled ? waitingSurpriseState() : undefined;
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (payload.action === "prepare-game") {
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });

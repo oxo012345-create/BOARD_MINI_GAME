@@ -29,6 +29,7 @@ export async function POST(request: Request) {
         players: [player],
         view: "lobby",
         roundNumber: 0,
+        surpriseEnabled: true,
       };
       if (await createRoom(room)) return Response.json({ room: toClientRoom(room, player.id) }, { status: 201, headers: { "Set-Cookie": sessionCookie(code, session.token) } });
     }

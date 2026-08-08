@@ -21,6 +21,7 @@ export type RoomState = {
   roundNumber: number;
   revision?: number;
   game?: Record<string, unknown>;
+  surpriseEnabled?: boolean;
   surprise?: SurpriseState;
 };
 
@@ -186,6 +187,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     roundNumber: room.roundNumber,
     revision: room.revision ?? 0,
     game,
+    surpriseEnabled: room.surpriseEnabled !== false,
     surprise: clientSurprise(room.surprise, room.players, viewerId),
     meId: viewerId,
     authenticated: Boolean(viewerId),

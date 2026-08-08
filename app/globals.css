@@ -119,6 +119,16 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .room-code-card div { display: flex; align-items: baseline; gap: 16px; }
 .room-code-card span { color: var(--muted); font-size: 12px; }
 .room-code-card strong { color: var(--accent); font-size: 34px; letter-spacing: .12em; }
+.surprise-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; padding: 15px 16px; border: 1px solid rgba(217, 255, 87, .18); border-radius: var(--radius); background: linear-gradient(135deg, rgba(217, 255, 87, .08), rgba(255, 255, 255, .025)); }
+.surprise-setting > div { min-width: 0; }
+.surprise-setting strong, .surprise-setting small { display: block; }
+.surprise-setting strong { font-size: 14px; }
+.surprise-setting small { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.setting-toggle, .setting-status { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; min-width: 78px; min-height: 38px; padding: 0 11px; border: 1px solid rgba(217, 255, 87, .45); border-radius: 999px; background: rgba(217, 255, 87, .14); color: var(--accent); font-size: 11px; font-weight: 900; cursor: pointer; }
+.setting-toggle.off, .setting-status.off { border-color: rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .05); color: var(--muted); }
+.setting-status { cursor: default; }
+.toggle-knob { width: 13px; height: 13px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(217, 255, 87, .12); }
+.setting-toggle:focus-visible { outline: 3px solid rgba(217, 255, 87, .55); outline-offset: 3px; }
 .share-button { min-height: 44px; padding: 0 17px; border: 1px solid rgba(217, 255, 87, .25); border-radius: 14px; background: rgba(217, 255, 87, .1); color: var(--accent); font-weight: 800; cursor: pointer; }
 .qr-card { display: flex; flex-direction: column; align-items: center; margin: 14px 0 28px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .qr-card img { width: min(190px, 52vw); height: auto; padding: 8px; border-radius: 16px; background: #fff; }
