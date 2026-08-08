@@ -2,7 +2,6 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gemAsset } from "./gem-heist-assets";
 
@@ -791,8 +790,13 @@ export default function Home() {
   }, [room?.roundNumber, room?.view, currentGame?.id]);
   useEffect(() => {
     if (!roomCode) return;
+    let active = true;
     const url = `${location.origin}${location.pathname}?room=${roomCode}`;
-    QRCode.toDataURL(url, { width: 240, margin: 1, color: { dark: "#0d0f12", light: "#ffffff" } }).then(setQr).catch(() => setQr(""));
+    // qrcode's package entry includes Node's fs-based renderers. Load its browser
+    // entry only after hydration so the Cloudflare Worker never evaluates them.
+    // @ts-expect-error qrcode ships runtime browser entry without a declaration file.
+    import("qrcode/lib/browser.js").then(({ default: QRCode }) => QRCode.toDataURL(url, { width: 240, margin: 1, color: { dark: "#0d0f12", light: "#ffffff" } })).then((dataUrl) => { if (active) setQr(dataUrl); }).catch(() => { if (active) setQr(""); });
+    return () => { active = false; };
   }, [roomCode]);
   useEffect(() => {
     const surprise = room?.surprise;
