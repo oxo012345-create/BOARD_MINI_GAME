@@ -29,8 +29,13 @@ export type DealerState = {
   rerolls: Record<string, number>;
   currentItem?: DealerItem;
   sellerId?: string;
-  highestBidderId?: string;
-  currentBid: number;
+  highestBidderId?: string | null;
+  /** The minimum amount shown before the first accepted bid. */
+  startingBid: number;
+  /** Null means that nobody has accepted the starting bid yet. */
+  currentBid: number | null;
+  /** Server-ordered bid history. It lets us recover cleanly if a bidder leaves. */
+  bidHistory: Array<{ playerId: string; amount: number }>;
   bidCounts: Record<string, number>;
   blockedBidders: string[];
   protectedPlayers: string[];
@@ -42,6 +47,8 @@ export type DealerState = {
   speechLocked: string[];
   nextSpeechLocked: string[];
   intel: Record<string, { price?: boolean; clauses?: boolean }>;
+  /** Last request nonce per player. Prevents a retried tap from applying twice. */
+  lastActionIds: Record<string, string>;
   lastResult?: { sold: boolean; sellerId: string; buyerId?: string; bid?: number; item: DealerItem; message: string };
   log: string[];
 };
@@ -122,6 +129,10 @@ function beginSelection(state: DealerState, players: Player[]) {
   state.selected = {};
   state.currentItem = undefined;
   state.sellerId = undefined;
+  state.startingBid = 100;
+  state.currentBid = null;
+  state.highestBidderId = null;
+  state.bidHistory = [];
   state.lastResult = undefined;
   for (const player of players) state.candidates[player.id] = [makeItem(state.round), makeItem(state.round), makeItem(state.round)];
   state.log.unshift(`${state.round}라운드 판매품 선택 시작`);
@@ -162,8 +173,10 @@ function beginAuction(state: DealerState, players: Player[]) {
   state.deadline = Date.now() + 50_000;
   state.sellerId = sellerId;
   state.currentItem = state.candidates[sellerId]?.[chosen] ?? makeItem(state.round);
-  state.currentBid = 50;
-  state.highestBidderId = undefined;
+  state.startingBid = 100;
+  state.currentBid = null;
+  state.bidHistory = [];
+  state.highestBidderId = null;
   state.bidCounts = {};
   state.blockedBidders = [];
   state.protectedPlayers = [];
@@ -185,8 +198,8 @@ function resolveAuction(state: DealerState, players: Player[]) {
   const seller = state.sellerId!;
   const buyer = state.highestBidderId;
   const bid = state.currentBid;
-  let sold = Boolean(buyer && (state.balances[buyer] ?? 0) >= bid && (state.inventories[buyer]?.length ?? 0) < 4);
-  if (sold && buyer) {
+  const sold = Boolean(buyer && bid !== null && (state.balances[buyer] ?? 0) >= bid && (state.inventories[buyer]?.length ?? 0) < 4);
+  if (sold && buyer && bid !== null) {
     state.balances[buyer] -= bid;
     state.balances[seller] += bid;
     if (item.clauses.includes(12)) removeRandomCard(state, buyer);
@@ -205,7 +218,7 @@ function resolveAuction(state: DealerState, players: Player[]) {
     else state.balances[ownerId] = Math.max(0, state.balances[ownerId] - 300);
   }
   const message = sold && buyer ? `${playerName(players, buyer)} 낙찰 · $${bid}` : "유찰";
-  state.lastResult = { sold, sellerId: seller, buyerId: sold ? buyer : undefined, bid: sold ? bid : undefined, item, message };
+  state.lastResult = { sold, sellerId: seller, buyerId: sold && buyer ? buyer : undefined, bid: sold && bid !== null ? bid : undefined, item, message };
   state.phase = "resolution";
   state.deadline = Date.now() + 10_000;
   state.log.unshift(`${item.name} ${message}`);
@@ -243,15 +256,30 @@ export function createDealerState(players: Player[]): DealerState {
   const state: DealerState = {
     phase: "select", round: 1, totalRounds: 5, deadline: 0, sellerOrder: [], sellerIndex: 0,
     balances: {}, inventories: {}, cards: {}, candidates: {}, selected: {}, shopOffers: {}, previousOffers: {}, rerolls: {},
-    currentBid: 50, bidCounts: {}, blockedBidders: [], protectedPlayers: [], overbidTraps: {}, auctionCount: 0,
+    startingBid: 100, currentBid: null, bidHistory: [], bidCounts: {}, blockedBidders: [], protectedPlayers: [], overbidTraps: {}, auctionCount: 0,
     pendingLoans: [], pendingInvestments: [], delayedItems: [], speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
+    lastActionIds: {},
   };
   for (const p of players) { state.balances[p.id] = 2000; state.inventories[p.id] = []; state.cards[p.id] = []; state.previousOffers[p.id] = []; }
   beginSelection(state, players);
   return state;
 }
 
+function normalizeAuctionState(state: DealerState) {
+  // Rooms created before the startingBid/currentBid split may still be in D1.
+  if (!Number.isFinite(state.startingBid)) state.startingBid = 100;
+  if (!Array.isArray(state.bidHistory)) state.bidHistory = [];
+  if (!state.lastActionIds || typeof state.lastActionIds !== "object") state.lastActionIds = {};
+  if (!state.highestBidderId) {
+    state.currentBid = null;
+    state.bidHistory = [];
+  } else if (!Number.isFinite(state.currentBid)) {
+    state.currentBid = state.startingBid;
+  }
+}
+
 export function tickDealer(state: DealerState, players: Player[]) {
+  normalizeAuctionState(state);
   let changed = false;
   for (let guard = 0; guard < 8 && state.phase !== "finished" && Date.now() >= state.deadline; guard += 1) {
     changed = true;
@@ -297,11 +325,16 @@ function checkoutValue(state: DealerState, playerId: string) {
 }
 
 export function dealerAction(state: DealerState, players: Player[], actorId: string, action: string, payload: Record<string, unknown>) {
+  normalizeAuctionState(state);
   tickDealer(state, players);
+  const requestId = String(payload.requestId ?? "").trim().slice(0, 80);
+  if (requestId && state.lastActionIds[actorId] === requestId) return;
+  const rememberRequest = () => { if (requestId) state.lastActionIds[actorId] = requestId; };
   if (action === "dealer-select") {
     if (state.phase !== "select") throw new Error("지금은 판매품을 고를 수 없어요.");
     const index = Math.max(0, Math.min(2, Number(payload.itemIndex) || 0));
     state.selected[actorId] = index;
+    rememberRequest();
     if (players.every((p) => state.selected[p.id] !== undefined)) beginAuction(state, players);
     return;
   }
@@ -309,13 +342,15 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     if (state.phase !== "auction" || actorId === state.sellerId) throw new Error("지금은 입찰할 수 없어요.");
     if (state.blockedBidders.includes(actorId)) throw new Error("Hammer Lock으로 입찰이 막혔어요.");
     if ((state.inventories[actorId]?.length ?? 0) >= 4) throw new Error("아이템 인벤토리가 가득 찼어요.");
-    const next = state.currentBid + 50;
+    const next = state.currentBid === null ? state.startingBid : state.currentBid + 50;
     if ((state.balances[actorId] ?? 0) < next) throw new Error("현금이 부족해요.");
     state.currentBid = next;
     state.highestBidderId = actorId;
+    state.bidHistory.push({ playerId: actorId, amount: next });
     state.bidCounts[actorId] = (state.bidCounts[actorId] ?? 0) + 1;
     if (state.deadline - Date.now() <= 3000) state.deadline += 5000;
     for (const item of state.inventories[actorId] ?? []) if (item.clauses.includes(15)) item.value += 50;
+    rememberRequest();
     return;
   }
   if (action === "dealer-reroll") {
@@ -328,6 +363,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     const next = offersFor(state, actorId);
     state.shopOffers[actorId] = next;
     state.previousOffers[actorId] = next;
+    rememberRequest();
     return;
   }
   if (action === "dealer-buy-card") {
@@ -340,6 +376,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     state.balances[actorId] -= card.price;
     state.cards[actorId].push(cardId);
     state.shopOffers[actorId] = state.shopOffers[actorId].filter((id) => id !== cardId);
+    rememberRequest();
     return;
   }
   if (action === "dealer-checkout") {
@@ -353,6 +390,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     } else state.balances[actorId] += total;
     state.inventories[actorId] = [];
     state.log.unshift(`${playerName(players, actorId)} 시장 정산 +$${total}`);
+    rememberRequest();
     return;
   }
   if (action === "dealer-use-card") {
@@ -387,14 +425,75 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     }
     else if (cardId === 21 && targetId) state.overbidTraps[targetId]=actorId;
     state.cards[actorId].splice(index, 1);
+    rememberRequest();
     return;
   }
   throw new Error("지원하지 않는 딜러 게임 요청이에요.");
 }
 
+/** Remove a departed participant from every dealer-owned collection. */
+export function removeDealerPlayer(state: DealerState, playerId: string, remainingPlayers: Player[]) {
+  normalizeAuctionState(state);
+  const removedIndex = state.sellerOrder.indexOf(playerId);
+  // Removing a player before the active seller shifts the index. Removing
+  // the active seller itself must keep the index so the next tick advances
+  // to the following seller rather than skipping one (or becoming -1).
+  if (removedIndex >= 0 && removedIndex < state.sellerIndex) state.sellerIndex -= 1;
+  state.sellerIndex = Math.max(0, state.sellerIndex);
+  state.sellerOrder = state.sellerOrder.filter((id) => id !== playerId);
+  for (const record of [state.balances, state.inventories, state.cards, state.candidates, state.selected, state.shopOffers, state.previousOffers, state.rerolls, state.bidCounts, state.intel, state.lastActionIds]) delete record[playerId];
+  state.pendingLoans = state.pendingLoans.filter((entry) => entry.playerId !== playerId);
+  state.pendingInvestments = state.pendingInvestments.filter((entry) => entry.playerId !== playerId);
+  state.delayedItems = state.delayedItems.filter((entry) => entry.playerId !== playerId);
+  state.blockedBidders = state.blockedBidders.filter((id) => id !== playerId);
+  state.protectedPlayers = state.protectedPlayers.filter((id) => id !== playerId);
+  state.speechLocked = state.speechLocked.filter((id) => id !== playerId);
+  state.nextSpeechLocked = state.nextSpeechLocked.filter((id) => id !== playerId);
+  for (const [targetId, ownerId] of Object.entries(state.overbidTraps)) {
+    if (targetId === playerId || ownerId === playerId) delete state.overbidTraps[targetId];
+  }
+  state.bidHistory = state.bidHistory.filter((bid) => bid.playerId !== playerId);
+  const latestBid = state.bidHistory[state.bidHistory.length - 1];
+  if (state.phase === "auction" && state.sellerId === playerId) {
+    const item = state.currentItem;
+    state.sellerId = undefined;
+    state.highestBidderId = latestBid?.playerId ?? null;
+    state.currentBid = latestBid?.amount ?? null;
+    state.lastResult = item ? { sold: false, sellerId: playerId, item, message: "판매자가 나가 경매가 유찰되었습니다." } : undefined;
+    state.phase = "resolution";
+    state.deadline = Date.now();
+  } else if (state.highestBidderId === playerId) {
+    state.highestBidderId = latestBid?.playerId ?? null;
+    state.currentBid = latestBid?.amount ?? null;
+  }
+  if (state.phase === "select" && remainingPlayers.length && remainingPlayers.every((player) => state.selected[player.id] !== undefined)) {
+    beginAuction(state, remainingPlayers);
+  }
+}
+
 export function dealerClientState(state: DealerState, viewerId?: string) {
   const copy = JSON.parse(JSON.stringify(state)) as DealerState & Record<string, unknown>;
-  if (!viewerId) return copy;
+  // The room route rejects unauthenticated game reads. Keep this guard as a
+  // second line of defence so a future caller cannot accidentally expose the
+  // private dealer state.
+  if (!viewerId) return {
+    ...copy,
+    balances: {},
+    candidates: {},
+    shopOffers: {},
+    previousOffers: {},
+    cards: {},
+    inventories: {},
+    pendingLoans: [],
+    pendingInvestments: [],
+    delayedItems: [],
+    intel: {},
+    overbidTraps: {},
+    lastActionIds: {},
+    currentItem: copy.currentItem ? { ...copy.currentItem, value: null, clauses: [] } : undefined,
+    knowsPrice: false,
+    knowsClauses: false,
+  };
   for (const id of Object.keys(copy.candidates)) if (id !== viewerId) delete copy.candidates[id];
   for (const id of Object.keys(copy.shopOffers)) if (id !== viewerId) delete copy.shopOffers[id];
   for (const id of Object.keys(copy.previousOffers)) if (id !== viewerId) delete copy.previousOffers[id];
@@ -403,13 +502,13 @@ export function dealerClientState(state: DealerState, viewerId?: string) {
   copy.pendingLoans = copy.pendingLoans.filter((entry) => entry.playerId === viewerId);
   copy.pendingInvestments = copy.pendingInvestments.filter((entry) => entry.playerId === viewerId);
   copy.delayedItems = copy.delayedItems.filter((entry) => entry.playerId === viewerId);
-  for (const [id, items] of Object.entries(copy.inventories)) if (id !== viewerId) copy.inventories[id] = items.map((item) => ({ ...item, value: 0, clauses: [] }));
+  for (const [id, items] of Object.entries(copy.inventories)) if (id !== viewerId) copy.inventories[id] = items.map((item) => ({ ...item, value: null as unknown as number, clauses: [] }));
   const mayKnow = viewerId === state.sellerId || state.intel[viewerId]?.price || state.phase === "resolution";
   const mayKnowClauses = viewerId === state.sellerId || state.intel[viewerId]?.clauses || state.phase === "resolution";
   copy.knowsPrice = Boolean(mayKnow);
   copy.knowsClauses = Boolean(mayKnowClauses);
   if (copy.currentItem) {
-    if (!mayKnow) copy.currentItem.value = 0;
+    if (!mayKnow) (copy.currentItem as unknown as { value: number | null }).value = null;
     if (!mayKnowClauses) copy.currentItem.clauses = [];
   }
   return copy;

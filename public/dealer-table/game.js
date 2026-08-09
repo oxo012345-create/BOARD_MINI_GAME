@@ -16,6 +16,9 @@ let lastRevision = -1;
 let serverOffset = 0;
 
 const money = (value) => `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
+const knownMoney = (value, fallback = "확인 중") => (value !== null && value !== undefined && Number.isFinite(Number(value)) ? money(value) : fallback);
+const startingBidAmount = () => (dealer && Number.isFinite(Number(dealer.startingBid)) ? Number(dealer.startingBid) : 100);
+const currentBidAmount = () => (dealer && dealer.highestBidderId && dealer.currentBid !== null && Number.isFinite(Number(dealer.currentBid)) ? Number(dealer.currentBid) : null);
 const phaseNames = { select: "판매품 선택", auction: "실시간 경매", resolution: "낙찰 정산", shop: "카드 상점", finished: "최종 순위" };
 const playerColors = ["#38cdb1", "#ff5a7f", "#f1c53c", "#4a8fff", "#9861e9", "#f47b2b", "#75d748", "#9aa9bd"];
 const itemFiles = [
@@ -98,12 +101,12 @@ function render() {
   const inventory = dealer.inventories[mine] || [];
   ui.round.textContent = `ROUND ${dealer.round}/${dealer.totalRounds}`;
   ui.phase.textContent = phaseNames[dealer.phase];
-  ui.cash.textContent = money(dealer.balances[mine]);
+  ui.cash.textContent = knownMoney(dealer.balances[mine]);
   ui.itemCount.textContent = `${inventory.length}/4`;
   ui.cardCount.textContent = `${myCards().length}/3`;
   ui.seats.innerHTML = room.players.map((player, index) => `
     <div class="seat ${player.id === mine ? "me" : ""} ${player.id === dealer.sellerId ? "seller" : ""}" style="--seat:${playerColors[index % playerColors.length]}">
-      <i></i><b>${escapeHtml(player.name)}</b><span>${money(dealer.balances[player.id])}</span>
+      <i></i><b>${escapeHtml(player.name)}</b><span>${knownMoney(dealer.balances[player.id])}</span>
     </div>`).join("");
 
   const showLot = dealer.currentItem && !["select", "shop", "finished"].includes(dealer.phase);
@@ -114,13 +117,14 @@ function render() {
     ui.itemImage.alt = dealer.currentItem.name;
     ui.itemName.textContent = dealer.currentItem.name;
     ui.itemEra.textContent = dealer.currentItem.era;
-    ui.bid.textContent = money(dealer.highestBidderId ? dealer.currentBid : 100);
-    ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
+    const currentBid = currentBidAmount();
+    ui.bid.textContent = currentBid === null ? `시작가 ${money(startingBidAmount())}` : money(currentBid);
+    ui.highest.textContent = currentBid === null ? "아직 입찰 없음" : `현재 최고 입찰가 · ${playerName(dealer.highestBidderId)} · 최고 입찰자`;
   }
   const knows = dealer.currentItem && (dealer.knowsPrice || dealer.knowsClauses);
   ui.dossier.hidden = !knows;
   if (knows) {
-    ui.value.textContent = dealer.knowsPrice ? money(dealer.currentItem.value) : "가격 미확인";
+    ui.value.textContent = dealer.knowsPrice ? knownMoney(dealer.currentItem.value) : "$?";
     ui.clauses.innerHTML = dealer.knowsClauses
       ? dealer.currentItem.clauses.map((id) => `<div>§${id} ${escapeHtml(clauseText[id])}</div>`).join("")
       : "<div>조항 미확인</div>";
@@ -156,7 +160,7 @@ function renderGame() {
     const blocked = dealer.blockedBidders.includes(mine);
     const speechLocked = dealer.speechLocked.includes(mine);
     const full = (dealer.inventories[mine]?.length || 0) >= 4;
-    const next = dealer.currentBid + 50;
+    const next = (currentBidAmount() ?? startingBidAmount());
     const afford = dealer.balances[mine] >= next;
     ui.content.innerHTML = `
       <div class="section-title"><h2>${seller ? "감정서를 보고 설득하세요" : "말로 협상하고 입찰하세요"}</h2><span>마지막 3초 입찰 시 +5초</span></div>

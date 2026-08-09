@@ -1,5 +1,5 @@
 import { createGameBoard } from "./game-board.js?v=2";
-import { applyDebugAction, createDebugState, DEBUG_PHASES, DEBUG_SCENARIOS, transitionDebugPhase } from "./debug-fixtures.js?v=2";
+import { applyDebugAction, createDebugState, DEBUG_PHASES, DEBUG_SCENARIOS, transitionDebugPhase } from "./debug-fixtures.js?v=3";
 import { mountDebugPanel } from "./debug-panel.js?v=1";
 
 const query = new URLSearchParams(location.search);
@@ -33,6 +33,7 @@ let lastRenderedPhase = null;
 let syncTimer = null;
 let syncInFlight = false;
 let nextSyncDelay = 1800;
+let syncGeneration = 0;
 let debugState = null;
 let debugScenario = DEBUG_SCENARIOS.some((item) => item.id === query.get("case")) ? query.get("case") : "select";
 let debugPlayerCount = Math.min(8, Math.max(1, Number(query.get("players")) || 4));
@@ -168,7 +169,7 @@ function showToast(message, tone = "info") {
 
 function actionSuccessMessage(action) {
   if (action === "dealer-select") return "출품 선택 완료 · 다른 딜러의 선택을 기다립니다.";
-  if (action === "dealer-bid") return `입찰 완료 · 현재 ${money(dealer?.currentBid)}${dealer?.highestBidderId === me() ? " · 최고 입찰" : ""}`;
+  if (action === "dealer-bid") return `입찰 완료 · 현재 ${knownMoney(dealer?.currentBid, money(startingBidAmount()))}${dealer?.highestBidderId === me() ? " · 최고 입찰" : ""}`;
   if (action === "dealer-use-card") return "전략패 사용 완료 · 효과가 적용되었습니다.";
   if (action === "dealer-reroll") return "상점 목록을 새로 고쳤습니다.";
   if (action === "dealer-buy-card") return "전략패를 소장품에 추가했습니다.";
@@ -194,6 +195,32 @@ function actionBlockedByDeadline(action) {
   if (["dealer-bid", "dealer-use-card"].includes(action)) return phaseExpired("auction");
   if (["dealer-reroll", "dealer-buy-card", "dealer-checkout"].includes(action)) return phaseExpired("shop");
   return false;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8_000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function makeRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function applyRoomSnapshot(nextRoom, { force = false } = {}) {
+  if (!nextRoom) return false;
+  const incomingRevision = Number(nextRoom.revision ?? -1);
+  if (!force && incomingRevision < lastRevision) return false;
+  room = nextRoom;
+  serverOffset = Number(room.serverNow || Date.now()) - Date.now();
+  dealer = room.game?.dealer;
+  if (incomingRevision >= lastRevision) lastRevision = incomingRevision;
+  return true;
 }
 
 function updateDebugUrl() {
@@ -395,6 +422,15 @@ const cardKoreanNames = [
   "날카로운 추측", "소매치기", "올인 I", "올인 II", "올인 III", "의적", "셧다운", "은행 강도", "과입찰 함정",
 ];
 
+const isFiniteNumber = (value) => typeof value === "number" && Number.isFinite(value);
+const knownMoney = (value, fallback = "확인 중") => isFiniteNumber(value) ? money(value) : fallback;
+const startingBidAmount = () => isFiniteNumber(dealer?.startingBid) ? dealer.startingBid : 100;
+const currentBidAmount = () => isFiniteNumber(dealer?.currentBid) && dealer?.highestBidderId ? dealer.currentBid : null;
+const nextBidAmount = () => {
+  const current = currentBidAmount();
+  return current === null ? startingBidAmount() : current + 50;
+};
+
 const me = () => room?.meId;
 const myCards = () => dealer?.cards?.[me()] || [];
 const playerName = (id) => room?.players.find((player) => player.id === id)?.name || "참가자";
@@ -422,6 +458,8 @@ async function act(action, extra = {}) {
     return;
   }
   busy = true;
+  const requestId = makeRequestId();
+  syncGeneration += 1;
   document.body.dataset.busy = action;
   ui.notice.textContent = "처리 중…";
   if (debugMode) {
@@ -441,23 +479,20 @@ async function act(action, extra = {}) {
     return;
   }
   try {
-    const response = await fetch(`/api/rooms/${roomCode}`, {
+    const response = await fetchWithTimeout(`/api/rooms/${roomCode}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...extra }),
+      body: JSON.stringify({ action, ...extra, requestId }),
     });
     const body = await response.json();
-    const conflict = response.status === 409 && (body?.code === "ROOM_CONFLICT" || String(action).startsWith("dealer-"));
+    const conflict = response.status === 409 && body?.code === "ROOM_CONFLICT";
     if (conflict) {
       const error = new Error("다른 플레이어의 행동을 먼저 반영했습니다.");
       error.name = "ROOM_CONFLICT";
       throw error;
     }
     if (!response.ok) throw new Error(body.error || "요청 실패");
-    room = body.room;
-    serverOffset = room.serverNow - Date.now();
-    dealer = room.game?.dealer;
-    lastRevision = room.revision ?? lastRevision;
+    applyRoomSnapshot(body.room, { force: true });
     render();
     showToast(actionSuccessMessage(action));
   } catch (error) {
@@ -468,7 +503,9 @@ async function act(action, extra = {}) {
       await sync();
       return;
     }
-    const message = error.message || "다시 시도해 주세요.";
+    const message = error?.name === "AbortError"
+      ? "서버 응답이 늦어요. 최신 상태를 다시 확인합니다."
+      : error.message || "다시 시도해 주세요.";
     ui.notice.textContent = message;
     showToast(message, "error");
   } finally {
@@ -484,8 +521,9 @@ async function sync() {
   }
   if (syncInFlight) return;
   syncInFlight = true;
+  const requestGeneration = syncGeneration;
   try {
-    const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`/api/rooms/${roomCode}`, { cache: "no-store" });
     if (!response.ok) {
       if (response.status === 404) showLoading("방을 찾을 수 없습니다", "방 코드가 만료되었거나 잘못되었습니다.", "error");
       else if (response.status === 401) showLoading("참가 인증이 필요합니다", "방에 다시 참가한 뒤 게임을 열어 주세요.", "error");
@@ -497,9 +535,8 @@ async function sync() {
       return;
     }
     const body = await response.json();
-    room = body.room;
-    serverOffset = room.serverNow - Date.now();
-    dealer = room?.game?.dealer;
+    const applied = applyRoomSnapshot(body.room);
+    if (!applied && requestGeneration < syncGeneration) return;
     nextSyncDelay = dealer?.phase === "auction" ? 1600 : 2200;
     if (!dealer || room?.view !== "game") {
       const waitingTitle = room?.view === "briefing" ? "게임 시작을 기다리는 중…" : "게임 정보를 불러오는 중…";
@@ -514,8 +551,11 @@ async function sync() {
       lastRevision = room.revision;
       render();
     }
-  } catch {
+  } catch (error) {
     if (!room || !dealer) showLoading("게임 정보를 불러오는 중…", "연결이 안정되면 자동으로 다시 시도합니다.");
+    else if (error?.name === "AbortError") {
+      ui.notice.textContent = "연결이 잠시 지연되고 있어요. 최신 경매 상태를 다시 확인 중입니다.";
+    }
   } finally {
     syncInFlight = false;
     if (syncTimer) window.clearTimeout(syncTimer);
@@ -552,7 +592,7 @@ function render() {
   updatePhaseMeta();
   ui.round.textContent = `ROUND ${dealer.round}/${dealer.totalRounds}`;
   ui.phase.textContent = phaseNames[dealer.phase];
-  ui.cash.textContent = money(dealer.balances[mine]);
+  ui.cash.textContent = knownMoney(dealer.balances[mine], "확인 중");
   ui.itemCount.textContent = `${inventory.length}/4`;
   ui.cardCount.textContent = `${myCards().length}/3`;
   const players = dealerPlayers();
@@ -563,14 +603,14 @@ function render() {
     const isHighest = dealer.phase === "auction" && player.id === dealer.highestBidderId;
     const displayName = player.name || `플레이어${index + 1}`;
     const roleText = [isMe ? "본인" : "", isSeller ? "판매자" : "", isHighest ? "최고 입찰" : ""].filter(Boolean).join(" · ");
-    const label = `${displayName} ${money(dealer.balances[player.id])}${roleText ? ` · ${roleText}` : ""}`;
+    const label = `${displayName} ${knownMoney(dealer.balances[player.id], "확인 중")}${roleText ? ` · ${roleText}` : ""}`;
     const badges = [
       isMe ? '<em class="seat-role seat-role-me" aria-hidden="true">ME</em>' : "",
       isSeller ? '<em class="seat-role seat-role-seller" aria-hidden="true">SELLER</em>' : "",
     ].join("");
     return `
     <div class="seat-shell" aria-label="${escapeHtml(label)}">
-      ${badges}<div class="seat ${isMe ? "me" : ""} ${isSeller ? "seller" : ""} ${isHighest ? "highest" : ""}" style="--seat:${playerColors[index % playerColors.length]}"><b>${escapeHtml(displayName)}</b><span>${money(dealer.balances[player.id])}</span></div>
+      ${badges}<div class="seat ${isMe ? "me" : ""} ${isSeller ? "seller" : ""} ${isHighest ? "highest" : ""}" style="--seat:${playerColors[index % playerColors.length]}"><b>${escapeHtml(displayName)}</b><span>${knownMoney(dealer.balances[player.id], "확인 중")}</span></div>
     </div>`;
   }).join("");
 
@@ -587,8 +627,11 @@ function render() {
     ui.itemEra.textContent = dealer.currentItem.era;
     ui.lotNumber.textContent = `출품 ${String(dealer.auctionCount + 1).padStart(2, "0")}`;
     ui.lotCard.dataset.item = dealer.currentItem.id;
-    ui.bid.textContent = money(dealer.highestBidderId ? dealer.currentBid : 100);
-    ui.highest.textContent = dealer.highestBidderId ? `${playerName(dealer.highestBidderId)} 최고 입찰` : "첫 입찰을 기다리는 중";
+    const currentBid = currentBidAmount();
+    ui.bid.textContent = currentBid === null ? `시작가 ${money(startingBidAmount())}` : money(currentBid);
+    ui.highest.textContent = currentBid === null
+      ? "아직 입찰 없음"
+      : `현재 최고 입찰가 · ${playerName(dealer.highestBidderId)} · 최고 입찰자`;
   } else {
     clearLotModel();
   }
@@ -600,7 +643,7 @@ function render() {
   ui.dossier.hidden = !isAuction;
   ui.dossier.dataset.mystery = isAuction && !knows ? "true" : "false";
   if (isAuction) {
-    ui.value.textContent = knowsPrice ? money(dealer.currentItem.value) : "$?";
+    ui.value.textContent = knowsPrice ? knownMoney(dealer.currentItem.value) : "$?";
     ui.clauses.innerHTML = knowsClauses && dealer.currentItem.clauses.length
       ? dealer.currentItem.clauses.map((id) => `<div>§${id} ${escapeHtml(clauseText[id])}</div>`).join("")
       : "<div>§? 조항 비공개</div><div>§? 감정 정보 비공개</div>";
@@ -624,7 +667,7 @@ function renderLotActions() {
   const seller = dealer.sellerId === mine;
   const blocked = dealer.blockedBidders.includes(mine);
   const full = (dealer.inventories[mine]?.length || 0) >= 4;
-  const next = dealer.currentBid + 50;
+  const next = nextBidAmount();
   const afford = dealer.balances[mine] >= next;
   const expired = phaseExpired("auction");
   const bidLabel = blocked

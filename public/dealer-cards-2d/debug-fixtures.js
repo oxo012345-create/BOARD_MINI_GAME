@@ -82,7 +82,9 @@ function makeState(scenario, playerCount) {
     shopOffers,
     rerolls: Object.fromEntries(players.map((player) => [player.id, 0])),
     auctionCount: 1,
-    currentBid: scenario === "auction-known" ? 350 : 100,
+    startingBid: 100,
+    currentBid: scenario === "auction-known" ? 350 : null,
+    bidHistory: scenario === "auction-known" ? [{ playerId: otherBidderId, amount: 350 }] : [],
     highestBidderId: scenario === "auction-known" ? otherBidderId : null,
     blockedBidders: [],
     protectedPlayers: [],
@@ -127,7 +129,9 @@ function transition(state, nextPhase) {
   } else if (phase === "auction") {
     next.dealer.currentItem = clone(next.dealer.currentItem || ITEM_FIXTURES[1]);
     next.dealer.sellerId = next.room.players[1]?.id || next.room.meId;
-    next.dealer.currentBid = 100;
+    next.dealer.startingBid = 100;
+    next.dealer.currentBid = null;
+    next.dealer.bidHistory = [];
     next.dealer.highestBidderId = null;
     next.dealer.knowsPrice = next.dealer.sellerId === next.room.meId;
     next.dealer.knowsClauses = next.dealer.sellerId === next.room.meId;
@@ -175,13 +179,16 @@ export function applyDebugAction(state, action, payload = {}) {
     next.dealer.sellerId = mine;
     next.dealer.knowsPrice = true;
     next.dealer.knowsClauses = true;
+    next.dealer.startingBid = 100;
+    next.dealer.currentBid = null;
+    next.dealer.bidHistory = [];
     next.dealer.deadline = Date.now() + phaseDuration.auction;
   } else if (action === "dealer-bid") {
-    const bid = next.dealer.currentBid + 50;
+    const bid = next.dealer.currentBid === null ? next.dealer.startingBid : next.dealer.currentBid + 50;
     if ((next.dealer.balances[mine] || 0) >= bid) {
-      next.dealer.balances[mine] -= 50;
       next.dealer.currentBid = bid;
       next.dealer.highestBidderId = mine;
+      next.dealer.bidHistory = [...(next.dealer.bidHistory || []), { playerId: mine, amount: bid }];
     }
   } else if (action === "dealer-reroll") {
     next.dealer.rerolls[mine] = (next.dealer.rerolls[mine] || 0) + 1;

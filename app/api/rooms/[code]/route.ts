@@ -3,7 +3,7 @@ import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceT
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
-import { createDealerState, dealerAction, tickDealer, type DealerState } from "../../_lib/dealer";
+import { createDealerState, dealerAction, removeDealerPlayer, tickDealer, type DealerState } from "../../_lib/dealer";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -105,9 +105,24 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     if (!viewer) {
       const rate = await checkRateLimit(request, "lookup", 40, 60);
       if (!rate.allowed) return Response.json({ error: "조회가 너무 많아요. 잠시 후 다시 시도해 주세요." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
+      // Dealer state contains private appraisals, clauses, cards and balances.
+      // A room code alone must never be enough to read an active game.
+      const activeGame = room.game as GameRound | undefined;
+      if (activeGame?.id === "double-dealers" && ["game", "result"].includes(room.view)) {
+        return Response.json({ error: "게임 참가 인증이 필요해요.", code: "AUTH_REQUIRED" }, { status: 401 });
+      }
     }
     const expectedRevision = room.revision ?? 0;
+    const playerIdsBeforePrune = new Set(room.players.map((player) => player.id));
     const playersChanged = touchAndPrunePlayers(room, viewer?.id);
+    const activeDealerGame = room.game as GameRound | undefined;
+    if (activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && playersChanged) {
+      for (const playerId of playerIdsBeforePrune) {
+        if (!room.players.some((player) => player.id === playerId)) {
+          removeDealerPlayer(activeDealerGame.dealer, playerId, dealerPlayers(room, activeDealerGame.dealer));
+        }
+      }
+    }
     const surpriseChanged = tickSurprise(room);
     const telestrationChanged = handleTelestrationTimeout(room);
     const gemChanged = handleGemInvestigationTimeout(room);
@@ -135,7 +150,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
-      itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean;
+      itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean; requestId?: string;
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
       enabled?: boolean;
     };
@@ -294,6 +309,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       const activeGame = room.game as GameRound | undefined;
       removePlayerFromRound(activeGame, viewer.id);
       room.players = room.players.filter((item) => item.id !== viewer.id);
+      if (activeGame?.id === "double-dealers" && activeGame.dealer) {
+        removeDealerPlayer(activeGame.dealer, viewer.id, dealerPlayers(room, activeGame.dealer));
+      }
       if (room.players.length === 0) {
         await deleteRoom(room.code);
         return Response.json({ room: null }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
@@ -321,7 +339,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       try {
         dealerAction(game.dealer, participants, viewer.id, String(payload.action), payload as Record<string, unknown>);
       } catch (error) {
-        return Response.json({ error: error instanceof Error ? error.message : "요청을 처리하지 못했어요." }, { status: 409 });
+        return Response.json({ error: error instanceof Error ? error.message : "요청을 처리하지 못했어요.", code: "DEALER_RULE" }, { status: 422 });
       }
       return persistAndRespond(room, viewer.id);
     }
