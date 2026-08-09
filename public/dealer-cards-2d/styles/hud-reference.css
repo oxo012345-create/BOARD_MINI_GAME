@@ -361,7 +361,10 @@
   top: 4.68cqw;
   color: #cfc9bd;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: 1.72cqw;
+  /* Keep the purse amount as legible as the player name. The eight-slot
+     ribbon stays the same width; only the amount type is brought up to the
+     name's size so the two lines read as one balanced label. */
+  font-size: 1.9cqw;
   font-weight: 400;
   letter-spacing: -.025em;
   line-height: 1;
