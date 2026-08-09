@@ -8,7 +8,7 @@
   --hud-height: 9.245cqw;
   /* The lot always starts after the first player row. When players 5-8 are
      present, their second row overlays the table's decorative upper arc. */
-  --table-top: calc(var(--hud-y) + 22.562cqw);
+  --table-top: calc(var(--hud-y) + 26cqw);
 }
 
 #app::before {
@@ -16,7 +16,7 @@
   position: absolute;
   z-index: 1;
   inset: 0 0 auto;
-  height: calc(var(--hud-y) + 23.8cqw);
+  height: calc(var(--hud-y) + 27.2cqw);
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(0,0,0,.96), rgba(2,2,1,.95) 54%, rgba(5,3,2,.82) 88%, transparent),
@@ -280,14 +280,14 @@
   left: 0;
   right: auto;
   display: grid;
-  grid-template-columns: repeat(4, 22.8cqw);
+  grid-template-columns: repeat(4, 23.8cqw);
   grid-template-rows: 10.65cqw;
   justify-content: start;
   align-content: start;
-  gap: 1.1cqw 1.1cqw;
+  gap: 1.1cqw .35cqw;
   width: 100cqw;
   height: 10.65cqw;
-  padding: 0 2.2cqw 0 2.2cqw;
+  padding: 0 1.975cqw;
   overflow: visible;
   background: transparent;
   scrollbar-width: none;
@@ -297,8 +297,8 @@
 
 .seat-shell {
   position: relative;
-  width: 22.8cqw;
-  min-width: 22.8cqw;
+  width: 23.8cqw;
+  min-width: 23.8cqw;
   height: 10.65cqw;
   padding: 0;
 }
@@ -308,7 +308,7 @@
   top: .65cqw;
   left: 0;
   display: block;
-  width: 22.8cqw;
+  width: 23.8cqw;
   height: 8.9cqw;
   min-height: 0;
   margin: 0;
@@ -318,10 +318,8 @@
   border: 0;
   border-radius: 0;
   clip-path: none;
-  background:
-    radial-gradient(ellipse at 42% 12%, rgba(91,56,30,.12), transparent 54%),
-    linear-gradient(180deg, rgba(12,8,5,.99), rgba(2,2,1,.995));
-  box-shadow: 0 .32cqw .35cqw rgba(0,0,0,.76);
+  background: transparent;
+  box-shadow: none;
 }
 
 .seat::after {
@@ -353,7 +351,7 @@
   top: 1.72cqw;
   color: #f1eadb;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: clamp(11px, 3.05cqw, 13px);
+  font-size: clamp(11px, 2.86cqw, 12.5px);
   font-weight: 700;
   letter-spacing: -.045em;
   line-height: 1;
@@ -374,10 +372,8 @@
 
 .seat.me,
 .seat.seller:not(.me) {
-  background:
-    radial-gradient(ellipse at 42% 12%, rgba(91,56,30,.12), transparent 54%),
-    linear-gradient(180deg, rgba(12,8,5,.99), rgba(2,2,1,.995));
-  box-shadow: 0 .32cqw .35cqw rgba(0,0,0,.76);
+  background: transparent;
+  box-shadow: none;
 }
 
 .seat.me::after {
@@ -390,12 +386,15 @@
   filter: drop-shadow(0 0 .2cqw rgba(231,91,12,.5)) drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
 }
 
+/* The dedicated badge below the frame is the only seller label. */
+.seat.seller:not(.me)::before { content: none; }
+
 .seat.me b,
 .seat.me span,
 .seat.seller b { color: #e5e1d8; }
 
 .seat.highest:not(.me):not(.seller) {
-  box-shadow: 0 0 .28cqw rgba(189,139,62,.28), 0 .32cqw .35cqw rgba(0,0,0,.76);
+  filter: drop-shadow(0 0 .28cqw rgba(189,139,62,.42));
 }
 
 .seat-role {
@@ -461,7 +460,7 @@
 /* Four players use one compact row. Players 5-8 add a second row without
    moving the table, item or appraisal certificate. */
 .player-ribbon[data-count] {
-  grid-template-columns: repeat(4, 22.8cqw);
+  grid-template-columns: repeat(4, 23.8cqw);
   grid-template-rows: 10.65cqw;
   height: 10.65cqw;
 }
@@ -474,6 +473,15 @@
   height: 22.4cqw;
 }
 
+/* With a second player row, move only the decorative status plaques below
+   the row. The item and dossier retain the same coordinates for every count. */
+.player-ribbon[data-count="5"] ~ .lot-stage .lot-card-topline,
+.player-ribbon[data-count="6"] ~ .lot-stage .lot-card-topline,
+.player-ribbon[data-count="7"] ~ .lot-stage .lot-card-topline,
+.player-ribbon[data-count="8"] ~ .lot-stage .lot-card-topline {
+  top: 10%;
+}
+
 /* The auction object and its appraisal are a fixed game surface, not a page
    scroller. This also prevents an iPhone swipe from shifting their alignment. */
 .lot-stage {
@@ -482,6 +490,19 @@
   overscroll-behavior: none;
   touch-action: manipulation;
 }
+
+/* Treat the live auction result as one readable information group. */
+.bid-panel {
+  width: 84%;
+  margin-inline: auto;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+.bid-panel > div { flex: 1 1 auto; min-width: 0; }
+.bid-panel span,
+.highest { font-size: clamp(7px, 1.8cqw, 9px); }
+.bid-panel > b { flex: none; font-size: clamp(20px, 5.3cqw, 25px); }
 
 /* Phase feedback keeps the server-driven selection step obvious after a
    delayed load or a fast automatic transition. This is intentionally a
