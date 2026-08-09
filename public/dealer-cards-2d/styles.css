@@ -5,5 +5,5 @@
 @import url("./styles/materials.css") layer(materials);
 @import url("./styles/states.css") layer(states);
 @import url("./styles/debug.css?v=5") layer(components);
-@import url("./styles/hud-reference.css?v=14") layer(states);
+@import url("./styles/hud-reference.css?v=15") layer(states);
 @import url("./styles/model-viewer.css?v=2") layer(components);
