@@ -280,14 +280,14 @@
   left: 0;
   right: auto;
   display: grid;
-  grid-template-columns: repeat(4, 23.8cqw);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: 10.65cqw;
   justify-content: start;
   align-content: start;
-  gap: 1.1cqw .35cqw;
+  gap: 1cqw .45cqw;
   width: 100cqw;
   height: 10.65cqw;
-  padding: 0 1.975cqw;
+  padding: 0 1.2cqw;
   overflow: visible;
   background: transparent;
   scrollbar-width: none;
@@ -297,8 +297,8 @@
 
 .seat-shell {
   position: relative;
-  width: 23.8cqw;
-  min-width: 23.8cqw;
+  width: 100%;
+  min-width: 0;
   height: 10.65cqw;
   padding: 0;
 }
@@ -308,8 +308,8 @@
   top: .65cqw;
   left: 0;
   display: block;
-  width: 23.8cqw;
-  height: 8.9cqw;
+  width: 100%;
+  height: 8.45cqw;
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -328,9 +328,9 @@
   z-index: 2;
   inset: 0;
   pointer-events: none;
-  opacity: 1;
+  opacity: .94;
   background: url("../assets/svg/frame-player.svg?v=56") center / 100% 100% no-repeat;
-  filter: drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
+  filter: drop-shadow(0 .16cqw .16cqw rgba(0,0,0,.7));
 }
 
 .seat b,
@@ -348,23 +348,23 @@
 }
 
 .seat b {
-  top: 1.72cqw;
+  top: 1.62cqw;
   color: #f1eadb;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: clamp(11px, 2.86cqw, 12.5px);
-  font-weight: 700;
+  font-size: clamp(10px, 2.65cqw, 11.5px);
+  font-weight: 650;
   letter-spacing: -.045em;
   line-height: 1;
   text-shadow: 0 1px 1px rgba(0, 0, 0, .9);
 }
 
 .seat span {
-  top: 5.02cqw;
+  top: 4.72cqw;
   color: #e3c98f;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   /* Keep the purse amount exactly as legible as the player name. */
-  font-size: clamp(11px, 3.05cqw, 13px);
-  font-weight: 700;
+  font-size: clamp(11px, 2.9cqw, 12.5px);
+  font-weight: 650;
   letter-spacing: -.025em;
   line-height: 1;
   text-shadow: 0 1px 1px rgba(0, 0, 0, .9);
@@ -378,12 +378,12 @@
 
 .seat.me::after {
   background-image: url("../assets/svg/frame-player-me.svg?v=56");
-  filter: drop-shadow(0 0 .22cqw rgba(74,204,53,.58)) drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
+  filter: drop-shadow(0 0 .16cqw rgba(74,204,53,.42)) drop-shadow(0 .16cqw .16cqw rgba(0,0,0,.7));
 }
 
 .seat.seller:not(.me)::after {
   background-image: url("../assets/svg/frame-player-seller.svg?v=56");
-  filter: drop-shadow(0 0 .2cqw rgba(231,91,12,.5)) drop-shadow(0 .22cqw .2cqw rgba(0,0,0,.82));
+  filter: drop-shadow(0 0 .15cqw rgba(231,91,12,.36)) drop-shadow(0 .16cqw .16cqw rgba(0,0,0,.7));
 }
 
 /* The dedicated badge below the frame is the only seller label. */
@@ -394,8 +394,15 @@
 .seat.seller b { color: #e5e1d8; }
 
 .seat.highest:not(.me):not(.seller) {
-  filter: drop-shadow(0 0 .28cqw rgba(189,139,62,.42));
+  box-shadow: none !important;
+  filter: none;
 }
+
+.seat.highest:not(.me):not(.seller)::after {
+  filter: drop-shadow(0 0 .2cqw rgba(220,174,93,.56)) drop-shadow(0 .16cqw .16cqw rgba(0,0,0,.7));
+}
+
+.seat.highest:not(.me):not(.seller) span { color: #f1d493; }
 
 .seat-role {
   position: absolute;
@@ -417,32 +424,32 @@
 }
 
 .seat-role-me {
-  top: 0;
+  top: -.05cqw;
   right: .35cqw;
-  width: 6.1cqw;
-  height: 2.65cqw;
+  width: 5.55cqw;
+  height: 2.2cqw;
   color: #e8f3dd;
   border: .12cqw solid rgba(60,177,47,.86);
   border-radius: .35cqw .35cqw 0 .35cqw;
   background: linear-gradient(180deg, #174c18, #062609);
   box-shadow: inset 0 .1cqw rgba(215,255,198,.16), 0 .16cqw .2cqw rgba(0,0,0,.72);
-  font-size: 1.45cqw;
+  font-size: 1.25cqw;
   letter-spacing: .02em;
 }
 
 .seat-role-seller {
-  top: 8.75cqw;
+  top: 8.05cqw;
   bottom: auto;
   left: 50%;
-  width: 10.3cqw;
-  height: 2.6cqw;
+  width: 9.2cqw;
+  height: 2.3cqw;
   translate: -50% 0;
   color: #f5d1ac;
   border: .12cqw solid rgba(209,74,10,.9);
-  border-radius: .55cqw;
+  border-radius: .45cqw;
   background: linear-gradient(180deg, #70240a, #280a02);
   box-shadow: inset 0 .1cqw rgba(255,203,145,.14), 0 .18cqw .22cqw rgba(0,0,0,.72);
-  font-size: 1.35cqw;
+  font-size: 1.2cqw;
   letter-spacing: .045em;
 }
 
@@ -460,7 +467,7 @@
 /* Four players use one compact row. Players 5-8 add a second row without
    moving the table, item or appraisal certificate. */
 .player-ribbon[data-count] {
-  grid-template-columns: repeat(4, 23.8cqw);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: 10.65cqw;
   height: 10.65cqw;
 }

@@ -94,8 +94,9 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHudStyles, /\.player-ribbon\[data-count="5"\][\s\S]*grid-template-rows:\s*repeat\(2,/);
     assert.match(dealerHudStyles, /\.player-ribbon\[data-count\][\s\S]*grid-template-rows:\s*10\.65cqw/);
     assert.match(dealerHudStyles, /\.lot-stage\s*\{[\s\S]*overflow-y:\s*hidden/);
-    assert.match(dealerHudStyles, /grid-template-columns:\s*repeat\(4,\s*23\.8cqw\)/);
-    assert.match(dealerHudStyles, /gap:\s*1\.1cqw\s+\.35cqw/);
+    assert.match(dealerHudStyles, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(dealerHudStyles, /gap:\s*1cqw\s+\.45cqw/);
+    assert.match(dealerHudStyles, /\.seat\.highest:not\(\.me\):not\(\.seller\)\s*\{[\s\S]*box-shadow:\s*none\s*!important/);
     assert.match(dealerHudStyles, /flex-direction:\s*row;/);
     assert.match(dealerHudStyles, /\.seat-role-seller/);
     assert.doesNotMatch(dealerHudStyles, /data-count="8"[^}]+grid-template-columns/);
