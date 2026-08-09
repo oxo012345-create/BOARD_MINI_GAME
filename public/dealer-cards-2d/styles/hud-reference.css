@@ -6,8 +6,9 @@
   container-type: inline-size;
   --hud-y: max(1.187cqw, env(safe-area-inset-top));
   --hud-height: 9.245cqw;
-  /* Reserve a full 4x2 player ribbon before the table and lot content. */
-  --table-top: calc(var(--hud-y) + 34.4cqw);
+  /* The lot always starts after the first player row. When players 5-8 are
+     present, their second row overlays the table's decorative upper arc. */
+  --table-top: calc(var(--hud-y) + 22.562cqw);
 }
 
 #app::before {
@@ -15,7 +16,7 @@
   position: absolute;
   z-index: 1;
   inset: 0 0 auto;
-  height: calc(var(--hud-y) + 35.5cqw);
+  height: calc(var(--hud-y) + 23.8cqw);
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(0,0,0,.96), rgba(2,2,1,.95) 54%, rgba(5,3,2,.82) 88%, transparent),
@@ -280,18 +281,18 @@
   right: auto;
   display: grid;
   grid-template-columns: repeat(4, 22.8cqw);
-  grid-template-rows: repeat(2, 10.65cqw);
+  grid-template-rows: 10.65cqw;
   justify-content: start;
   align-content: start;
   gap: 1.1cqw 1.1cqw;
   width: 100cqw;
-  height: 22.4cqw;
+  height: 10.65cqw;
   padding: 0 2.2cqw 0 2.2cqw;
   overflow: visible;
   background: transparent;
   scrollbar-width: none;
   overscroll-behavior: none;
-  touch-action: pan-y;
+  touch-action: manipulation;
 }
 
 .seat-shell {
@@ -349,24 +350,26 @@
 }
 
 .seat b {
-  top: 2.05cqw;
-  color: #dedad2;
+  top: 1.72cqw;
+  color: #f1eadb;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  font-size: 2.45cqw;
-  font-weight: 500;
+  font-size: clamp(11px, 3.05cqw, 13px);
+  font-weight: 700;
   letter-spacing: -.045em;
   line-height: 1;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .9);
 }
 
 .seat span {
-  top: 5.28cqw;
-  color: #cfc9bd;
+  top: 5.02cqw;
+  color: #e3c98f;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   /* Keep the purse amount exactly as legible as the player name. */
-  font-size: 2.45cqw;
-  font-weight: 400;
+  font-size: clamp(11px, 3.05cqw, 13px);
+  font-weight: 700;
   letter-spacing: -.025em;
   line-height: 1;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .9);
 }
 
 .seat.me,
@@ -455,13 +458,29 @@
 .player-ribbon[data-count="7"] ~ .lot-stage,
 .player-ribbon[data-count="8"] ~ .lot-stage { top: var(--table-top); }
 
-/* Count never changes geometry: players fill a fixed four-column by two-row
-   ribbon. With four players the second row stays reserved so the table and
-   lot content never jump upward. */
+/* Four players use one compact row. Players 5-8 add a second row without
+   moving the table, item or appraisal certificate. */
 .player-ribbon[data-count] {
   grid-template-columns: repeat(4, 22.8cqw);
+  grid-template-rows: 10.65cqw;
+  height: 10.65cqw;
+}
+
+.player-ribbon[data-count="5"],
+.player-ribbon[data-count="6"],
+.player-ribbon[data-count="7"],
+.player-ribbon[data-count="8"] {
   grid-template-rows: repeat(2, 10.65cqw);
   height: 22.4cqw;
+}
+
+/* The auction object and its appraisal are a fixed game surface, not a page
+   scroller. This also prevents an iPhone swipe from shifting their alignment. */
+.lot-stage {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 /* Phase feedback keeps the server-driven selection step obvious after a
