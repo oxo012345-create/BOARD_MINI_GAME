@@ -508,7 +508,7 @@
   z-index: 1;
   top: 1cqw;
   bottom: 1cqw;
-  left: 74.2cqw;
+  left: 76.4cqw;
   display: block;
   width: .12cqw;
   pointer-events: none;
@@ -517,10 +517,24 @@
   opacity: .76;
 }
 
+.hud-ornament {
+  position: absolute;
+  z-index: 1;
+  top: 1cqw;
+  bottom: 1cqw;
+  left: 52.8cqw;
+  display: block;
+  width: .12cqw;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, #70451e 12%, #c48c43 48%, #70451e 88%, transparent);
+  box-shadow: .18cqw 0 .32cqw rgba(0, 0, 0, .52);
+  opacity: .72;
+}
+
 .brand-lockup {
   top: .82cqw;
   left: 1.45cqw;
-  width: 70.5cqw;
+  width: 50.6cqw;
   height: 6.8cqw;
 }
 
@@ -532,33 +546,33 @@
 .brand-lockup > .brand-copy,
 .brand-copy {
   left: 7.7cqw;
-  width: 61cqw;
+  width: 42cqw;
   height: 6.25cqw;
-  gap: 2cqw;
+  gap: 1.15cqw;
 }
 
 .brand-copy strong {
-  max-width: 42cqw;
-  font-size: 2.72cqw;
+  max-width: 29cqw;
+  font-size: 2.45cqw;
 }
 
-.brand-copy small { font-size: 1.35cqw; }
+.brand-copy small { font-size: 1.12cqw; }
 
 .timer {
-  top: 8.15cqw;
-  left: 76.35cqw;
-  width: 18.8cqw;
-  height: 6.8cqw;
-  gap: .25cqw;
+  top: 9.05cqw;
+  left: 54.25cqw;
+  width: 20.6cqw;
+  height: 9.15cqw;
+  gap: .4cqw;
 }
 
-.timer small { font-size: .95cqw; }
-.timer strong { font-size: 3.05cqw; }
+.timer small { font-size: 1.05cqw; }
+.timer strong { font-size: 3.75cqw; }
 
 .cash {
-  top: 1.65cqw;
-  left: 76.4cqw;
-  width: 18.7cqw;
+  top: 2.05cqw;
+  left: 78cqw;
+  width: 17.2cqw;
   text-align: center;
 }
 
@@ -575,8 +589,8 @@
 .cash strong { font-size: 2.8cqw; }
 
 .hud-menu {
-  top: 16.25cqw;
-  right: 7.15cqw;
+  top: 15.25cqw;
+  right: 6.7cqw;
   width: 7.8cqw;
   height: 7.8cqw;
   min-width: 30px;
@@ -589,11 +603,11 @@
 .player-ribbon[data-count] {
   z-index: calc(var(--z-hud) + 1);
   top: calc(var(--hud-y) + 7.65cqw);
-  left: .55cqw;
+  left: .4cqw;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: 8.3cqw;
-  gap: .35cqw .5cqw;
-  width: 72.9cqw;
+  gap: .35cqw .3cqw;
+  width: 51.65cqw;
   height: 8.3cqw;
   padding: 0;
 }
@@ -622,28 +636,28 @@
   top: 1.28cqw;
   left: .4cqw;
   width: calc(100% - .8cqw);
-  font-size: clamp(9px, 2.28cqw, 10.5px);
+  font-size: clamp(8px, 2cqw, 9.5px);
 }
 
 .seat span {
   top: 4.12cqw;
   left: .4cqw;
   width: calc(100% - .8cqw);
-  font-size: clamp(10px, 2.55cqw, 11.5px);
+  font-size: clamp(9px, 2.2cqw, 10.5px);
 }
 
 .seat-role-me {
   right: .2cqw;
-  width: 4.4cqw;
-  height: 1.75cqw;
-  font-size: 1cqw;
+  width: 3.6cqw;
+  height: 1.55cqw;
+  font-size: .85cqw;
 }
 
 .seat-role-seller {
   top: 6.85cqw;
-  width: 7.5cqw;
-  height: 1.7cqw;
-  font-size: .95cqw;
+  width: 6.4cqw;
+  height: 1.55cqw;
+  font-size: .8cqw;
 }
 
 /* With a second player row, move only the decorative status plaques below

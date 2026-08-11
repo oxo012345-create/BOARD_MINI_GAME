@@ -97,10 +97,11 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHudStyles, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(dealerHudStyles, /gap:\s*1cqw\s+\.45cqw/);
     assert.match(dealerHudStyles, /\.seat\.highest:not\(\.me\):not\(\.seller\)\s*\{[\s\S]*box-shadow:\s*none\s*!important/);
-    assert.match(dealerHudStyles, /left:\s*74\.2cqw/);
-    assert.match(dealerHudStyles, /width:\s*72\.9cqw/);
-    assert.match(dealerHudStyles, /top:\s*8\.15cqw/);
-    assert.match(dealerHudStyles, /left:\s*\.55cqw/);
+    assert.match(dealerHudStyles, /left:\s*76\.4cqw/);
+    assert.match(dealerHudStyles, /width:\s*51\.65cqw/);
+    assert.match(dealerHudStyles, /top:\s*9\.05cqw/);
+    assert.match(dealerHudStyles, /left:\s*\.4cqw/);
+    assert.match(dealerHudStyles, /left:\s*52\.8cqw/);
     assert.match(dealerHudStyles, /z-index:\s*calc\(var\(--z-hud\) \+ 1\)/);
     assert.match(dealerHudStyles, /grid-template-rows:\s*repeat\(2,\s*8\.3cqw\)/);
     assert.match(dealerHudStyles, /flex-direction:\s*row;/);
