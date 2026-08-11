@@ -4,8 +4,14 @@
 #app {
   --hud-y: max(5px, env(safe-area-inset-top));
   --hud-height: 101px;
-  --table-top: calc(var(--hud-y) + 92px);
+  --table-top: calc(var(--hud-y) + 104px);
   --table-diameter: min(86vw, 338px, 43dvh);
+}
+
+/* Lift only the faint top-deck fade boundary; the game board itself keeps its
+   established vertical position. */
+#app::before {
+  height: calc(var(--hud-y) + 66px);
 }
 
 .sr-only {
