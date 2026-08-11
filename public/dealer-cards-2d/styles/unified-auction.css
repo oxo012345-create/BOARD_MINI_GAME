@@ -256,7 +256,7 @@
 .lot-stack {
   width: min(81vw, 318px);
   margin-inline: auto;
-  translate: 0 -10px;
+  translate: 0 -18px;
   gap: 4px;
 }
 .lot-card {
