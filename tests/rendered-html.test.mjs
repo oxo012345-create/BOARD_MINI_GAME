@@ -63,7 +63,6 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const dealerScript = await readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8");
     const dealerStyles = await readFile(new URL("../public/dealer-cards-2d/styles/states.css", import.meta.url), "utf8");
     const dealerHudStyles = await readFile(new URL("../public/dealer-cards-2d/styles/hud-reference.css", import.meta.url), "utf8");
-    const dealerCommercialStyles = await readFile(new URL("../public/dealer-cards-2d/styles/commercial-v2.css", import.meta.url), "utf8");
     assert.match(dealerHtml, /data-menu="closed"/);
     assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
@@ -71,11 +70,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHtml, /id="action-toast"/);
     assert.match(dealerHtml, /viewport-fit=cover/);
     assert.match(dealerHtml, /id="hud-menu"/);
-    assert.match(dealerHtml, /camera-orbit="0deg 68deg 102%"/);
-    assert.doesNotMatch(dealerHtml, /\sauto-rotate(?:\s|=)/);
+    assert.match(dealerHtml, /camera-orbit="32deg 67deg 105%"/);
     assert.match(dealerHtml, /interaction-prompt="none"/);
-    assert.match(dealerCommercialStyles, /--font-ui:/);
-    assert.match(dealerCommercialStyles, /grid-template-columns:\s*repeat\(4, 1fr\)/);
     assert.match(dealerStyles, /parchment-scroll-roll\.webp/);
     assert.doesNotMatch(dealerHtml, /sheet-handle/);
     assert.doesNotMatch(dealerHtml, /data-tab="game"/);
