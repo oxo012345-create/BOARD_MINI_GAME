@@ -7,4 +7,4 @@
 @import url("./styles/debug.css?v=5") layer(components);
 @import url("./styles/hud-reference.css?v=24") layer(states);
 @import url("./styles/model-viewer.css?v=2") layer(components);
-@import url("./styles/commercial-v2.css?v=1") layer(states);
+@import url("./styles/commercial-v2.css?v=2") layer(states);
