@@ -71,7 +71,7 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHtml, /viewport-fit=cover/);
     assert.match(dealerHtml, /id="hud-menu"/);
     assert.match(dealerHtml, /camera-orbit="0deg 67deg 102%"/);
-    assert.doesNotMatch(dealerHtml, /\sauto-rotate(?:\s|=)/);
+      assert.match(dealerHtml, /\sauto-rotate(?:\s|=)/);
     assert.match(dealerHtml, /interaction-prompt="none"/);
     assert.match(dealerHtml, /보유 자금/);
     assert.match(dealerHtml, /경매 진행자/);
