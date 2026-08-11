@@ -1116,3 +1116,272 @@ body[data-app-state="error"] .action-banner { opacity: 0; visibility: hidden; po
 }
 .dock-action-slot .primary-action:disabled,
 .dock-action-slot .stage-action:disabled { opacity: .58; }
+
+/* Mobile command-deck alignment pass. The header plaque ends before the
+   first seat row; the lower right rail shares one vertical center. */
+.hud::before {
+  background-position: center top;
+  background-size: 100% 6.75cqw;
+}
+
+.brand-lockup {
+  top: .5cqw;
+  left: 1.35cqw;
+  width: 51cqw;
+  height: 5.75cqw;
+}
+
+.brand-mark { width: 5.55cqw; height: 5.55cqw; }
+
+.brand-lockup > .brand-copy,
+.brand-copy {
+  top: 0;
+  left: 6.85cqw;
+  width: 43.2cqw;
+  height: 5.55cqw;
+  align-items: center;
+  gap: 1.65cqw;
+}
+
+.brand-copy strong {
+  align-self: center;
+  max-width: 31.5cqw;
+  font-size: clamp(12px, 3cqw, 14px);
+  line-height: 1;
+}
+
+.brand-copy small {
+  align-self: center;
+  font-size: clamp(8px, 1.72cqw, 10px);
+  line-height: 1;
+}
+
+.player-ribbon,
+.player-ribbon[data-count] { top: calc(var(--hud-y) + 6.85cqw); }
+
+.timer {
+  top: 10.2cqw;
+  left: 55.15cqw;
+  width: 20.45cqw;
+  height: 9.2cqw;
+}
+
+.cash {
+  top: .72cqw;
+  left: 74.2cqw;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 22.5cqw;
+  height: 5.55cqw;
+  gap: .7cqw;
+  padding: 0;
+  text-align: center;
+}
+
+.cash > small {
+  display: block;
+  flex: none;
+  margin: 0;
+  font-size: clamp(6px, 1.25cqw, 8px);
+  line-height: 1;
+}
+
+.cash-value { flex: none; justify-content: center; gap: .5cqw; }
+.cash-value i { width: 2cqw; height: 2cqw; }
+.cash strong { font-size: clamp(14px, 3.15cqw, 17px); }
+
+.hud-menu {
+  top: 10.65cqw;
+  right: 1.55cqw;
+  width: 8.3cqw;
+  height: 8.3cqw;
+}
+
+/* Use the previously empty lower breathing room without moving the table or
+   changing player-count geometry. */
+.lot-stack { translate: 0 clamp(30px, 5dvh, 46px); }
+
+/* Layered antique-brass frame for the live bid action. */
+.dock-action-slot .primary-action {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid #bd8a43;
+  border-radius: 11px;
+  background:
+    linear-gradient(90deg, rgba(12,5,4,.3), transparent 15%, transparent 85%, rgba(12,5,4,.3)),
+    linear-gradient(180deg, #913847 0%, #6c2733 45%, #43171f 100%);
+  box-shadow:
+    0 2px 0 #160906,
+    0 5px 10px rgba(0,0,0,.36),
+    0 0 0 2px #2b1711,
+    0 0 0 3px rgba(145,99,46,.72),
+    inset 0 1px rgba(255,229,174,.2),
+    inset 0 -7px 11px rgba(0,0,0,.28);
+  text-shadow: 0 1px 1px rgba(24,8,7,.9);
+}
+
+.dock-action-slot .primary-action::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 4px;
+  pointer-events: none;
+  border: 1px solid rgba(225,181,102,.38);
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(49,18,17,.32);
+}
+
+/* Item selection is a tall, single-page appraisal ledger. Three candidates
+   are readable at once as image | price | description rows. */
+body[data-phase="select"] .sheet {
+  top: calc(50% + env(safe-area-inset-top) * .15);
+  width: min(92%, 440px);
+  height: min(86dvh, 720px);
+  max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+body[data-phase="select"] .sheet-scroll {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 30px clamp(13px, 3.5vw, 20px) 18px;
+}
+
+body[data-phase="select"] #content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body[data-phase="select"] .section-title {
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 39%);
+  min-height: 38px;
+  margin-bottom: 8px;
+}
+
+body[data-phase="select"] .section-title h2 { font-size: clamp(16px, 4.2cqw, 19px); }
+body[data-phase="select"] .section-title span { font-size: clamp(9px, 2.2cqw, 11px); line-height: 1.4; }
+
+body[data-phase="select"] .phase-banner {
+  flex: none;
+  min-height: 38px;
+  margin-bottom: 10px;
+  padding: 8px 11px;
+}
+
+body[data-phase="select"] .phase-banner strong { font-size: clamp(10px, 2.5cqw, 12px); }
+body[data-phase="select"] .phase-banner span { font-size: clamp(9px, 2.1cqw, 10px); }
+
+body[data-phase="select"] .candidate-grid {
+  display: grid;
+  flex: 1;
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, minmax(104px, 1fr));
+  gap: 9px;
+  max-width: 100%;
+  min-height: 0;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+  scroll-snap-type: none;
+  touch-action: manipulation;
+}
+
+body[data-phase="select"] .item-card {
+  display: grid;
+  grid-template-columns: clamp(76px, 22cqw, 96px) clamp(58px, 16cqw, 72px) minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 104px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+body[data-phase="select"] .item-card img {
+  width: 100%;
+  height: 100%;
+  min-height: 104px;
+  object-fit: cover;
+  border-right: 1px solid rgba(98,61,31,.44);
+}
+
+body[data-phase="select"] .item-card-price {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 5px;
+  color: #40271a;
+  text-align: center;
+  border-right: 1px solid rgba(98,61,31,.32);
+  background: rgba(105,63,32,.075);
+}
+
+body[data-phase="select"] .item-card-price small {
+  color: #75543a;
+  font-size: clamp(8px, 2cqw, 10px);
+  font-weight: 700;
+}
+
+body[data-phase="select"] .item-card-price b {
+  margin: 0;
+  color: #63313a;
+  font: 800 clamp(13px, 3.5cqw, 17px)/1 "Roboto Slab", serif;
+}
+
+body[data-phase="select"] .item-card-copy {
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 10px 9px;
+  overflow: hidden;
+  border-top: 0;
+}
+
+body[data-phase="select"] .item-card .eyebrow { font-size: clamp(7px, 1.65cqw, 8px); }
+body[data-phase="select"] .item-card strong {
+  margin-top: 4px;
+  font-size: clamp(12px, 3cqw, 15px);
+  line-height: 1.2;
+}
+
+body[data-phase="select"] .item-card .item-subtitle {
+  margin-top: 3px;
+  font-size: clamp(9px, 2.15cqw, 11px);
+  line-height: 1.25;
+}
+
+body[data-phase="select"] .item-card-description {
+  display: grid;
+  gap: 2px;
+  margin-top: 5px;
+}
+
+body[data-phase="select"] .item-card .clause-mini {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  color: #51392b;
+  font-size: clamp(9px, 2.15cqw, 11px);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-height: 700px) {
+  body[data-phase="select"] .sheet { height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  body[data-phase="select"] .sheet-scroll { padding-top: 27px; padding-bottom: 13px; }
+  body[data-phase="select"] .section-title { min-height: 33px; margin-bottom: 5px; }
+  body[data-phase="select"] .phase-banner { min-height: 33px; margin-bottom: 7px; padding-block: 6px; }
+  body[data-phase="select"] .candidate-grid { grid-template-rows: repeat(3, minmax(92px, 1fr)); gap: 7px; }
+  body[data-phase="select"] .item-card,
+  body[data-phase="select"] .item-card img { min-height: 92px; }
+}

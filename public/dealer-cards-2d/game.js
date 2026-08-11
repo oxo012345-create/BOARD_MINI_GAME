@@ -721,12 +721,12 @@ function renderGame() {
     ui.content.innerHTML = `
       <div class="section-title"><h2>비공개 자산 심사</h2><span>감정가와 조항을 검토한 뒤 출품 자산을 선택하세요</span></div>
       <div class="phase-banner" role="status"><strong>이번 라운드 출품품 선택</strong><span>${selected ? "선택 완료" : "내 선택 필요"} · ${selectedCount}/${participantCount}명 제출</span></div>
-      ${items.length > 2 ? `<p class="scroll-cue">좌우로 밀어 더 많은 물건 보기 <span aria-hidden="true">→</span></p>` : ""}
       <div class="candidate-grid">${items.map((item, index) => `
         <button class="item-card ${selected && dealer.selected[mine] === index ? "selected" : ""}" data-select="${index}" ${selected || expired ? "disabled" : ""} aria-label="${escapeHtml(itemName(item))} ${expired ? "선택 마감" : "출품 선택"}">
           <img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" />
-          <span class="item-card-copy"><span class="eyebrow">${escapeHtml(item.era)} · PRIVATE LOT</span><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))}</small><b>${money(item.value)}</b>
-          ${item.clauses.map((clause) => `<small class="clause-mini">§${clause} ${escapeHtml(clauseText[clause])}</small>`).join("")}</span>
+          <span class="item-card-price"><small>감정가</small><b>${money(item.value)}</b></span>
+          <span class="item-card-copy"><span class="eyebrow">${escapeHtml(item.era)} · PRIVATE LOT</span><strong>${escapeHtml(itemName(item))}</strong><small class="item-subtitle">${escapeHtml(itemSubtitle(item))}</small>
+          <span class="item-card-description">${item.clauses.map((clause) => `<small class="clause-mini">§${clause} ${escapeHtml(clauseText[clause])}</small>`).join("")}</span></span>
         </button>`).join("")}</div>
       ${selected ? `<p class="notice">출품 등록 완료 · 다른 딜러의 감정이 끝나기를 기다립니다.</p>` : expired ? `<p class="notice is-closed">선택 시간이 종료되었습니다. 다음 경매를 준비합니다.</p>` : ""}`;
     ui.content.querySelectorAll("[data-select]").forEach((button) => { button.onclick = () => act("dealer-select", { itemIndex: Number(button.dataset.select) }); });
