@@ -976,3 +976,143 @@ body[data-app-state="error"] .action-banner { opacity: 0; visibility: hidden; po
 .dock-action-slot .primary-action,
 .dock-action-slot .stage-action { font-size: clamp(11px, 2.9cqw, 13px); }
 .dock-action-slot .lot-action-note { font-size: clamp(9px, 2.25cqw, 10px); }
+
+/* Commercial polish pass: reduce decorative noise and reserve strong contrast
+   for the three live values (time, current bid and appraisal). */
+.brand-copy strong {
+  font-size: clamp(11px, 2.85cqw, 13px);
+  font-weight: 600;
+  letter-spacing: -.045em;
+}
+.brand-copy small {
+  font-size: clamp(8px, 1.85cqw, 9px);
+  letter-spacing: .045em;
+}
+.timer small { color: #a87735; font-size: clamp(8px, 1.9cqw, 9px); }
+.timer strong { font-size: clamp(21px, 5.4cqw, 24px); font-weight: 600; }
+.cash strong { font-size: clamp(15px, 3.85cqw, 17px); font-weight: 600; }
+
+.seat::after {
+  opacity: .86;
+  filter: saturate(.8) brightness(.92) drop-shadow(0 .12cqw .12cqw rgba(0,0,0,.66));
+}
+.seat.me::after {
+  filter: saturate(.78) brightness(.94) drop-shadow(0 0 .12cqw rgba(74,204,53,.32)) drop-shadow(0 .12cqw .12cqw rgba(0,0,0,.66));
+}
+.seat.seller:not(.me)::after {
+  filter: saturate(.8) brightness(.92) drop-shadow(0 0 .11cqw rgba(231,91,12,.3)) drop-shadow(0 .12cqw .12cqw rgba(0,0,0,.66));
+}
+.seat b { font-weight: 600; text-shadow: 0 1px 1px rgba(0,0,0,.75); }
+.seat span { font-weight: 650; color: #d8bd86; text-shadow: 0 1px 1px rgba(0,0,0,.76); }
+.seat-role-me,
+.seat-role-seller {
+  box-shadow: inset 0 1px rgba(255,230,179,.1), 0 1px 2px rgba(0,0,0,.54);
+}
+
+.lot-card-topline { opacity: .68; }
+.lot-ribbon,
+.live-chip {
+  min-height: 21px;
+  padding: 4px 8px;
+  border-color: rgba(151,111,58,.62);
+  background: rgba(25,15,11,.7);
+  box-shadow: 0 2px 5px rgba(0,0,0,.32), inset 0 1px rgba(255,235,187,.05);
+}
+.lot-ribbon span { font-size: clamp(6px, 1.5cqw, 7px); }
+.lot-ribbon b { font-size: clamp(8px, 1.9cqw, 9px); font-weight: 600; }
+.live-chip { font-size: clamp(7px, 1.65cqw, 8px); }
+
+.lot-meta { margin-bottom: 5px; }
+.lot-meta span { font-size: clamp(7px, 1.7cqw, 8px); font-weight: 600; }
+.lot-copy h1 {
+  font-size: clamp(21px, 5.35cqw, 24px);
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -.04em;
+}
+.lot-copy > p#item-original {
+  margin-top: 3px;
+  margin-bottom: 8px;
+  color: #bca982;
+  font-size: clamp(8px, 1.9cqw, 9px);
+  font-weight: 500;
+}
+.bid-panel { gap: 4px; padding-top: 8px; }
+.bid-panel span { color: #bca981; font-size: clamp(8px, 1.9cqw, 9px); }
+.bid-panel > b {
+  color: #e8cb85;
+  font-size: clamp(26px, 6.5cqw, 29px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+.highest {
+  color: #cbb992;
+  font-size: clamp(9px, 2.05cqw, 10px);
+  font-weight: 500;
+}
+
+.private-dossier {
+  min-height: 144px;
+  padding: 20px 30px 16px 34px;
+}
+.private-dossier header { padding-bottom: 7px; }
+.private-dossier header span {
+  color: #744250;
+  font-size: clamp(8px, 1.9cqw, 9px);
+  font-weight: 700;
+  letter-spacing: .045em;
+}
+.private-dossier header b { font-size: clamp(9px, 2.1cqw, 10px); font-weight: 600; }
+.appraisal-value { padding: 9px 0 8px; }
+.appraisal-value small { font-size: clamp(10px, 2.25cqw, 11px); }
+.appraisal-value strong {
+  color: #3f716a;
+  font-size: clamp(25px, 6.4cqw, 28px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+.private-dossier #clauses {
+  gap: 5px;
+  color: #554032;
+  font-size: clamp(9px, 2.15cqw, 10px);
+  line-height: 1.48;
+}
+.private-dossier #clauses div {
+  padding: 6px 8px;
+  border-left-width: 2px;
+  background: rgba(83,50,29,.035);
+}
+
+.dock button em {
+  margin-top: 2px;
+  font-size: clamp(10px, 2.35cqw, 11px);
+  font-weight: 500;
+}
+.dock-action-slot .primary-action,
+.dock-action-slot .stage-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% + 16px);
+  min-height: 46px;
+  margin-inline: -8px;
+  padding: 0 14px;
+  color: #ead9b7;
+  border-color: #946936;
+  border-radius: 10px;
+  font-family: "Noto Serif KR", serif;
+  font-size: clamp(12px, 3cqw, 14px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.025em;
+  text-align: center;
+  white-space: nowrap;
+}
+.dock-action-slot .primary-action {
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.14), transparent 13%, transparent 87%, rgba(0,0,0,.16)),
+    linear-gradient(180deg, #77303b, #491a22);
+  box-shadow: 0 2px 0 #1b0b09, 0 4px 8px rgba(0,0,0,.28), 0 0 0 1px #2c1914, inset 0 1px rgba(255,228,174,.09), inset 0 -4px 7px rgba(0,0,0,.2);
+}
+.dock-action-slot .primary-action:disabled,
+.dock-action-slot .stage-action:disabled { opacity: .58; }

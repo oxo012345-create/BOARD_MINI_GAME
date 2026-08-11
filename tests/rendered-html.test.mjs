@@ -90,6 +90,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerScript, /seat-shell/);
     assert.match(dealerScript, /seat-role-me/);
     assert.match(dealerScript, /hudMenu/);
+    assert.match(dealerScript, /\$\{playerName\(dealer\.highestBidderId\)\} · 최고 입찰자/);
+    assert.doesNotMatch(dealerScript, /현재 최고 입찰가 · \$\{playerName\(dealer\.highestBidderId\)\}/);
     assert.match(dealerHudStyles, /grid-template-columns:\s*repeat\(4,/);
     assert.match(dealerHudStyles, /\.player-ribbon\[data-count="5"\][\s\S]*grid-template-rows:\s*repeat\(2,/);
     assert.match(dealerHudStyles, /\.player-ribbon\[data-count\][\s\S]*grid-template-rows:\s*10\.65cqw/);
@@ -106,6 +108,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHudStyles, /\.bid-panel\s*\{[\s\S]*grid-template-columns:\s*1fr/);
     assert.match(dealerHudStyles, /\.lot-copy\s*\{[\s\S]*translate:\s*-50% 0/);
     assert.match(dealerHudStyles, /\.private-dossier #clauses\s*\{[\s\S]*text-align:\s*left/);
+    assert.match(dealerHudStyles, /\.dock-action-slot \.primary-action,[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center/);
+    assert.match(dealerHudStyles, /font-family:\s*"Noto Serif KR",\s*serif/);
     assert.match(dealerHudStyles, /z-index:\s*calc\(var\(--z-hud\) \+ 1\)/);
     assert.match(dealerHudStyles, /grid-template-rows:\s*repeat\(2,\s*8\.3cqw\)/);
     assert.match(dealerHudStyles, /flex-direction:\s*row;/);

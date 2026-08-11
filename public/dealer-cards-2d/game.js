@@ -631,7 +631,7 @@ function render() {
     ui.bid.textContent = currentBid === null ? `시작가 ${money(startingBidAmount())}` : money(currentBid);
     ui.highest.textContent = currentBid === null
       ? "아직 입찰 없음"
-      : `현재 최고 입찰가 · ${playerName(dealer.highestBidderId)} · 최고 입찰자`;
+      : `${playerName(dealer.highestBidderId)} · 최고 입찰자`;
   } else {
     clearLotModel();
   }
