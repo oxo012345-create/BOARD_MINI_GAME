@@ -480,6 +480,172 @@
   height: 22.4cqw;
 }
 
+/* Compact upper command deck: all changes stay above the circular table.
+   Players occupy the left deck; time, purse and help form a right rail. */
+.hud {
+  left: 1.2cqw;
+  width: 97.6cqw;
+  height: 25.2cqw;
+  overflow: visible;
+  border: .12cqw solid rgba(117, 74, 30, .82);
+  border-radius: .75cqw;
+  background:
+    radial-gradient(ellipse at 22% 12%, rgba(87, 44, 24, .2), transparent 46%),
+    linear-gradient(180deg, rgba(11, 7, 5, .985), rgba(3, 2, 1, .99)),
+    url("../assets/textures/texture-leather-fine.webp") center / 43.43cqw 43.43cqw;
+  box-shadow: inset 0 0 0 .16cqw rgba(17, 9, 5, .95), inset 0 0 0 .25cqw rgba(158, 105, 47, .27), 0 .45cqw .52cqw rgba(0, 0, 0, .72);
+}
+
+.hud::before {
+  inset: 0;
+  background: url("../assets/svg/frame-header.svg?v=56") center top / 100% 9.245cqw no-repeat;
+  filter: drop-shadow(0 .12cqw .1cqw rgba(0, 0, 0, .86));
+}
+
+.hud::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 1cqw;
+  bottom: 1cqw;
+  left: 74.2cqw;
+  display: block;
+  width: .12cqw;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, #8f5c28 12%, #d09b50 48%, #70451e 88%, transparent);
+  box-shadow: .18cqw 0 .32cqw rgba(0, 0, 0, .58);
+  opacity: .76;
+}
+
+.brand-lockup {
+  top: .82cqw;
+  left: 1.45cqw;
+  width: 70.5cqw;
+  height: 6.8cqw;
+}
+
+.brand-mark {
+  width: 6.25cqw;
+  height: 6.25cqw;
+}
+
+.brand-lockup > .brand-copy,
+.brand-copy {
+  left: 7.7cqw;
+  width: 61cqw;
+  height: 6.25cqw;
+  gap: 2cqw;
+}
+
+.brand-copy strong {
+  max-width: 42cqw;
+  font-size: 2.72cqw;
+}
+
+.brand-copy small { font-size: 1.35cqw; }
+
+.timer {
+  top: 1.15cqw;
+  left: 76.35cqw;
+  width: 18.8cqw;
+  height: 6.8cqw;
+  gap: .25cqw;
+}
+
+.timer small { font-size: .95cqw; }
+.timer strong { font-size: 3.05cqw; }
+
+.cash {
+  top: 9.25cqw;
+  left: 76.4cqw;
+  width: 18.7cqw;
+  text-align: center;
+}
+
+.cash > small {
+  display: block;
+  margin-bottom: .8cqw;
+  color: #a97836;
+  font: 700 .95cqw/1 "Roboto Slab", Georgia, serif;
+  letter-spacing: .08em;
+}
+
+.cash-value { justify-content: center; gap: .8cqw; }
+.cash-value i { width: 2.35cqw; height: 2.35cqw; }
+.cash strong { font-size: 2.8cqw; }
+
+.hud-menu {
+  top: 15.55cqw;
+  right: 7.15cqw;
+  width: 7.8cqw;
+  height: 7.8cqw;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.hud-menu-lines { font-size: 4.8cqw; }
+
+.player-ribbon,
+.player-ribbon[data-count] {
+  z-index: calc(var(--z-hud) + 1);
+  top: calc(var(--hud-y) + 7.75cqw);
+  left: 1.8cqw;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: 8.3cqw;
+  gap: .35cqw .5cqw;
+  width: 71.6cqw;
+  height: 8.3cqw;
+  padding: 0;
+}
+
+.player-ribbon[data-count="5"],
+.player-ribbon[data-count="6"],
+.player-ribbon[data-count="7"],
+.player-ribbon[data-count="8"] {
+  grid-template-rows: repeat(2, 8.3cqw);
+  height: 16.95cqw;
+}
+
+.seat-shell {
+  width: 100%;
+  min-width: 0;
+  height: 8.3cqw;
+}
+
+.seat {
+  top: .3cqw;
+  width: 100%;
+  height: 7.45cqw;
+}
+
+.seat b {
+  top: 1.28cqw;
+  left: .4cqw;
+  width: calc(100% - .8cqw);
+  font-size: clamp(9px, 2.28cqw, 10.5px);
+}
+
+.seat span {
+  top: 4.12cqw;
+  left: .4cqw;
+  width: calc(100% - .8cqw);
+  font-size: clamp(10px, 2.55cqw, 11.5px);
+}
+
+.seat-role-me {
+  right: .2cqw;
+  width: 4.4cqw;
+  height: 1.75cqw;
+  font-size: 1cqw;
+}
+
+.seat-role-seller {
+  top: 6.85cqw;
+  width: 7.5cqw;
+  height: 1.7cqw;
+  font-size: .95cqw;
+}
+
 /* With a second player row, move only the decorative status plaques below
    the row. The item and dossier retain the same coordinates for every count. */
 .player-ribbon[data-count="5"] ~ .lot-stage .lot-card-topline,
