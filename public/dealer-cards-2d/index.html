@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700;800;900&family=Roboto+Slab:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=50" />
+  <link rel="stylesheet" href="./styles.css?v=53" />
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body data-menu="closed" data-app-state="loading">
@@ -24,12 +24,9 @@
     <header class="hud" aria-label="게임 상태">
       <span class="hud-ornament" aria-hidden="true"></span>
       <span class="hud-rivets" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-      <div class="brand-lockup">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <div class="brand-copy"><strong id="phase">정부 공개 경매</strong><small id="round">ROUND 1/5</small></div>
-      </div>
+      <div class="round-status"><strong id="round">ROUND 1/5</strong><span id="phase" class="sr-only">정부 공개 경매</span></div>
       <div class="timer" aria-label="남은 시간"><small id="timer-label">경매 마감</small><strong id="timer">0:20</strong></div>
-      <div class="cash"><small>MY PURSE</small><div class="cash-value"><i aria-hidden="true"></i><strong id="cash">$2,000</strong></div></div>
+      <div class="cash"><small>보유 자금</small><div class="cash-value"><i aria-hidden="true"></i><strong id="cash">$2,000</strong></div></div>
       <button class="hud-menu" id="hud-menu" data-tab="rules" type="button" aria-label="정부 메뉴 열기" aria-expanded="false" aria-controls="sheet"><span class="hud-menu-lines" aria-hidden="true">?</span></button>
     </header>
 
@@ -46,12 +43,12 @@
       <div class="lot-stack">
       <article class="lot-card" id="lot-card">
       <div class="lot-card-topline" aria-label="경매 상태">
-          <div class="lot-ribbon"><span>AUCTIONEER</span><b id="seller">판매자</b></div>
-          <span class="live-chip"><i></i> OPEN</span>
+          <div class="lot-ribbon"><span>경매 진행자</span><b id="seller">판매자</b></div>
+          <span class="live-chip"><i></i> 진행 중</span>
         </div>
       <div class="item-render-wrap" data-model-state="fallback">
           <img id="item-image" src="" alt="" decoding="async" fetchpriority="high" />
-          <model-viewer id="item-model" aria-label="경매 물건 3D 모델" camera-controls camera-orbit="32deg 67deg 105%" field-of-view="30deg" auto-rotate auto-rotate-delay="1800" rotation-per-second="6deg" interaction-prompt="none" touch-action="pan-y" shadow-intensity="1.05" shadow-softness="0.82" exposure="1.05" environment-image="neutral" loading="eager" reveal="auto"></model-viewer>
+          <model-viewer id="item-model" aria-label="경매 물건 3D 모델" camera-controls camera-orbit="0deg 67deg 102%" field-of-view="30deg" interaction-prompt="none" touch-action="pan-y" shadow-intensity="1.05" shadow-softness="0.82" exposure="1.05" environment-image="neutral" loading="eager" reveal="auto"></model-viewer>
           <div class="image-vignette"></div>
         </div>
         <div class="lot-copy">
@@ -67,7 +64,7 @@
          <aside class="private-dossier" id="private-dossier" hidden>
            <i class="dossier-roll dossier-roll-left" aria-hidden="true"></i>
            <i class="dossier-roll dossier-roll-right" aria-hidden="true"></i>
-           <header><span>PRIVATE LEDGER</span><b>비공개 감정서</b></header>
+           <header><span>비공개 원장</span><b>비공개 감정서</b></header>
            <div class="appraisal-value"><small>감정가</small><strong id="true-value">확인 중</strong></div>
            <div id="clauses"></div>
          </aside>
