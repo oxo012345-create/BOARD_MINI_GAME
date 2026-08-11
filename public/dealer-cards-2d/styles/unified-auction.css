@@ -85,7 +85,8 @@
   background: none;
   box-shadow: none;
 }
-.timer::after { opacity: .65; }
+.timer::before,
+.timer::after { display: none !important; content: none !important; }
 .timer small {
   color: #b27a37;
   font: 750 6.5px/1 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
@@ -102,9 +103,9 @@
   position: absolute;
   z-index: 3;
   top: 53px;
-  left: 0;
+  left: -8px;
   right: auto;
-  width: 108px;
+  width: 84px;
   height: 22px;
   padding: 0;
   display: flex;
@@ -127,8 +128,8 @@
 .hud-menu {
   position: absolute;
   z-index: 4;
-  top: 80px;
-  right: 42px;
+  top: 52px;
+  right: 0;
   width: 24px;
   height: 24px;
   min-width: 24px;
@@ -320,8 +321,8 @@
   .player-ribbon[data-count="7"],
   .player-ribbon[data-count="8"] { width: 250px; }
   .seat b, .seat span { font-size: 8.5px; }
-  .cash { right: 45px; width: 96px; }
+  .cash { left: -8px; right: auto; width: 84px; }
   .cash > small { font-size: 6.5px; }
-  .cash strong { font-size: 14px; }
-  .hud-menu { right: 5px; }
+  .cash strong { font-size: 12px; }
+  .hud-menu { top: 52px; right: 0; }
 }
