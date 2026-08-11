@@ -155,7 +155,7 @@
   right: auto;
   /* Keep the two-row height unchanged; use the extra horizontal room to
      close the gaps between the four player columns. */
-  width: 284px;
+  width: 292px;
   height: 53px;
   padding: 0;
   display: grid;
@@ -204,6 +204,36 @@
 .seat.seller { background: linear-gradient(180deg, #4c2018, #1b0c09); box-shadow: 0 0 0 1px #b05d25, inset 0 0 0 1px rgba(236,145,67,.2); }
 .seat .seller-chip { bottom: -7px; height: 8px; min-height: 0; padding: 0 7px; font-size: 6px; line-height: 8px; }
 
+/* Keep the role badges attached to their own card. The compact two-row deck
+   previously let the badges collapse into the neighbouring row. */
+.seat-role {
+  min-height: 9px !important;
+  height: 9px;
+  padding: 1px 5px;
+  color: #f2e3bf;
+  font: 800 6px/7px "Roboto Slab", serif;
+  letter-spacing: .035em;
+  white-space: nowrap;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.66), inset 0 1px rgba(255,238,187,.16);
+}
+.seat-role-me {
+  top: -5px;
+  right: 1px;
+  color: #c8f2a7;
+  border: 1px solid #4a9a3e;
+  background: linear-gradient(180deg, #2a6a2a, #102911);
+}
+.seat-role-seller {
+  top: 26px;
+  bottom: auto;
+  left: 50%;
+  translate: -50% 0;
+  color: #ffe0a8;
+  border: 1px solid #bd6824;
+  background: linear-gradient(180deg, #783611, #321306);
+}
+
 /* The item display and the copy no longer occupy the same pixels. */
 .table-board,
 .lot-stage,
@@ -247,7 +277,7 @@
   background: radial-gradient(circle at 50% 40%, rgba(116,62,25,.12), transparent 63%);
   box-shadow: inset 0 0 40px rgba(0,0,0,.24);
 }
-.lot-card-topline { top: 4px; left: 25px; right: 25px; justify-content: flex-start; z-index: 20; }
+.lot-card-topline { top: 4px; left: 0; right: 0; justify-content: center; z-index: 20; }
 .lot-ribbon { min-height: 22px; padding: 4px 8px; background: rgba(24,14,10,.78); backdrop-filter: blur(4px); }
 .lot-ribbon span { font-size: 7px; font-weight: 800; }
 .lot-ribbon b { font-size: 9px; font-weight: 800; }
@@ -307,6 +337,9 @@
 .bid-panel span { font-size: 8px; }
 .highest { margin-top: 3px; font-size: 8px; }
 .bid-panel > b { font-size: 23px; line-height: 1; }
+/* The state caption is redundant beside the live bid and made the item look
+   like it had a second status card. Keep the highest bidder and amount only. */
+.bid-panel > div > span { display: none !important; }
 
 .private-dossier {
   position: relative;
@@ -350,7 +383,7 @@ body[data-phase="select"] .item-card .clause-mini { font-size: clamp(8px, 2cqw, 
   .player-ribbon[data-count="5"],
   .player-ribbon[data-count="6"],
   .player-ribbon[data-count="7"],
-  .player-ribbon[data-count="8"] { width: 262px; }
+  .player-ribbon[data-count="8"] { width: 270px; }
   .seat b, .seat span { font-size: 8.75px; }
   .cash { left: -8px; right: auto; width: 84px; }
   .cash > small { font-size: 6.5px; }
