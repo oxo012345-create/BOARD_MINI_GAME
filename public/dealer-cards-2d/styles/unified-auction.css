@@ -153,7 +153,9 @@
   top: calc(var(--hud-y) + 2px);
   left: 3px;
   right: auto;
-  width: 278px;
+  /* Keep the two-row height unchanged; use the extra horizontal room to
+     close the gaps between the four player columns. */
+  width: 284px;
   height: 53px;
   padding: 0;
   display: grid;
@@ -161,7 +163,7 @@
   grid-template-rows: repeat(2, 25px);
   align-content: start;
   justify-content: start;
-  gap: 3px;
+  gap: 1px;
   overflow: visible;
   background: transparent;
 }
@@ -194,8 +196,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.seat b { color: #eadcbf; font-size: 9px; font-weight: 750; letter-spacing: -.045em; }
-.seat span { color: #d5b477; font: 750 9px/1 "Roboto Slab", serif; letter-spacing: -.03em; }
+.seat b { color: #eadcbf; font-size: 9.5px; font-weight: 800; letter-spacing: -.045em; }
+.seat span { color: #d5b477; font: 800 9.5px/1 "Roboto Slab", serif; letter-spacing: -.03em; }
 .seat.me { background: linear-gradient(180deg, #163e24, #071b10); box-shadow: 0 0 0 1px #318244, inset 0 0 0 1px rgba(130,224,125,.18); }
 .seat.me b, .seat.me span { color: #f0e5c6; }
 .seat.me::before { top: -6px; right: 1px; padding: 1px 6px; font-size: 6px; line-height: 1; }
@@ -224,12 +226,12 @@
 .lot-stack {
   width: min(81vw, 318px);
   margin-inline: auto;
-  translate: 0;
-  gap: 8px;
+  translate: 0 -10px;
+  gap: 4px;
 }
 .lot-card {
   width: 100%;
-  height: 344px;
+  height: 326px;
   max-height: none;
   aspect-ratio: auto;
   overflow: visible;
@@ -245,19 +247,20 @@
   background: radial-gradient(circle at 50% 40%, rgba(116,62,25,.12), transparent 63%);
   box-shadow: inset 0 0 40px rgba(0,0,0,.24);
 }
-.lot-card-topline { top: 15px; left: 25px; right: 25px; }
-.lot-ribbon, .live-chip { min-height: 23px; padding: 5px 8px; background: rgba(24,14,10,.78); backdrop-filter: blur(4px); }
-.lot-ribbon span { font-size: 6.5px; }
-.lot-ribbon b { font-size: 8.5px; }
-.live-chip { font-size: 6.5px; }
+.lot-card-topline { top: 4px; left: 25px; right: 25px; justify-content: flex-start; z-index: 20; }
+.lot-ribbon { min-height: 22px; padding: 4px 8px; background: rgba(24,14,10,.78); backdrop-filter: blur(4px); }
+.lot-ribbon span { font-size: 7px; font-weight: 800; }
+.lot-ribbon b { font-size: 9px; font-weight: 800; }
+/* The state pill duplicated the auctioneer and obscured the object. */
+.live-chip { display: none !important; }
 
 .item-render-wrap {
   z-index: 2;
-  top: 35px;
+  top: 27px;
   left: 34px;
   right: 34px;
   bottom: auto;
-  height: 188px;
+  height: 180px;
   overflow: visible;
   border-radius: 50%;
   background: transparent;
@@ -277,7 +280,7 @@
 
 .lot-copy {
   z-index: 11;
-  inset: auto 28px 13px;
+  inset: auto 28px 7px;
   width: auto;
   min-height: 108px;
   translate: 0;
@@ -290,7 +293,9 @@
 .lot-meta { justify-content: center; gap: 8px; margin-bottom: 4px; }
 .lot-meta span { font-size: 7px; }
 .lot-copy h1 { font-size: clamp(21px, 5.8cqw, 25px); line-height: 1.12; }
-.lot-copy > p#item-original { margin: 3px 0 6px; font-size: 8px; }
+/* Keep the item title clean; the duplicate subtitle was competing with the
+   highest-bidder and appraisal information on small screens. */
+.lot-copy > p#item-original { display: none !important; }
 .bid-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -308,10 +313,36 @@
   right: auto;
   bottom: auto;
   width: 100%;
-  min-height: 150px;
+  min-height: 138px;
   margin: 0;
   translate: 0;
 }
+
+/* Private asset appraisal: keep the parchment and the bottom dock visible on
+   an iPhone-sized viewport while retaining all three image | value | clause
+   columns in one view. */
+body[data-phase="select"] .sheet {
+  height: min(74dvh, 560px);
+  max-height: calc(100dvh - var(--dock-height) - 18px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+body[data-phase="select"] .sheet-scroll {
+  padding-top: 26px;
+  padding-bottom: 12px;
+}
+body[data-phase="select"] .candidate-grid {
+  grid-template-rows: repeat(3, minmax(108px, 1fr));
+  gap: 6px;
+}
+body[data-phase="select"] .item-card,
+body[data-phase="select"] .item-card img {
+  min-height: 108px;
+}
+body[data-phase="select"] .item-card-copy {
+  padding: 8px 9px 7px;
+}
+body[data-phase="select"] .item-card strong { font-size: clamp(12px, 3cqw, 15px); }
+body[data-phase="select"] .item-card .item-subtitle { font-size: clamp(8px, 2cqw, 10px); }
+body[data-phase="select"] .item-card .clause-mini { font-size: clamp(8px, 2cqw, 10px); line-height: 1.25; }
 
 @media (max-width: 370px) {
   .player-ribbon,
@@ -319,10 +350,17 @@
   .player-ribbon[data-count="5"],
   .player-ribbon[data-count="6"],
   .player-ribbon[data-count="7"],
-  .player-ribbon[data-count="8"] { width: 258px; }
-  .seat b, .seat span { font-size: 8.5px; }
+  .player-ribbon[data-count="8"] { width: 262px; }
+  .seat b, .seat span { font-size: 8.75px; }
   .cash { left: -8px; right: auto; width: 84px; }
   .cash > small { font-size: 6.5px; }
   .cash strong { font-size: 12px; }
   .hud-menu { top: 67px; right: 2px; }
+}
+
+@media (max-height: 700px) {
+  body[data-phase="select"] .sheet { height: min(72dvh, 520px); }
+  body[data-phase="select"] .candidate-grid { grid-template-rows: repeat(3, minmax(96px, 1fr)); }
+  body[data-phase="select"] .item-card,
+  body[data-phase="select"] .item-card img { min-height: 96px; }
 }
