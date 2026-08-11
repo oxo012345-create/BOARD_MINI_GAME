@@ -545,7 +545,7 @@
 .brand-copy small { font-size: 1.35cqw; }
 
 .timer {
-  top: 1.15cqw;
+  top: 8.15cqw;
   left: 76.35cqw;
   width: 18.8cqw;
   height: 6.8cqw;
@@ -556,7 +556,7 @@
 .timer strong { font-size: 3.05cqw; }
 
 .cash {
-  top: 9.25cqw;
+  top: 1.65cqw;
   left: 76.4cqw;
   width: 18.7cqw;
   text-align: center;
@@ -575,7 +575,7 @@
 .cash strong { font-size: 2.8cqw; }
 
 .hud-menu {
-  top: 15.55cqw;
+  top: 16.25cqw;
   right: 7.15cqw;
   width: 7.8cqw;
   height: 7.8cqw;
@@ -588,12 +588,12 @@
 .player-ribbon,
 .player-ribbon[data-count] {
   z-index: calc(var(--z-hud) + 1);
-  top: calc(var(--hud-y) + 7.75cqw);
-  left: 1.8cqw;
+  top: calc(var(--hud-y) + 7.65cqw);
+  left: .55cqw;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: 8.3cqw;
   gap: .35cqw .5cqw;
-  width: 71.6cqw;
+  width: 72.9cqw;
   height: 8.3cqw;
   padding: 0;
 }
