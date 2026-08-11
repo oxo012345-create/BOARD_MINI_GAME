@@ -891,3 +891,88 @@ body[data-app-state="error"] .action-banner { opacity: 0; visibility: hidden; po
   .action-banner .secondary-action,
   .action-banner .stage-action { min-height: 40px; font-size: 9px; }
 }
+
+/* Mobile readability pass: align the auction, item and certificate to one
+   center axis while keeping paragraph-like clauses left aligned. */
+.brand-copy strong { font-size: clamp(12px, 3.1cqw, 14px); }
+.brand-copy small { font-size: clamp(8px, 2cqw, 10px); }
+.timer small { font-size: clamp(9px, 2.15cqw, 10px); }
+.timer strong { font-size: clamp(22px, 5.8cqw, 26px); }
+.cash > small { font-size: clamp(8px, 1.9cqw, 9px); }
+.cash strong { font-size: clamp(16px, 4.1cqw, 19px); }
+
+.lot-stack {
+  align-items: center;
+  margin-inline: auto;
+}
+
+.lot-card-topline { align-items: center; }
+.lot-ribbon span { font-size: clamp(7px, 1.65cqw, 8px); }
+.lot-ribbon b { font-size: clamp(9px, 2.1cqw, 10px); }
+.live-chip { font-size: clamp(8px, 1.85cqw, 9px); }
+
+.lot-copy {
+  right: auto;
+  left: 50%;
+  width: 86%;
+  box-sizing: border-box;
+  translate: -50% 0;
+  text-align: center;
+}
+
+.lot-meta { justify-content: center; }
+.lot-meta span { font-size: clamp(8px, 1.9cqw, 9px); }
+.lot-copy h1 { font-size: clamp(22px, 5.8cqw, 27px); }
+.lot-copy > p#item-original { font-size: clamp(9px, 2.1cqw, 10px); }
+
+.bid-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 100%;
+  gap: 3px;
+  text-align: center;
+}
+.bid-panel > div { display: contents; }
+.bid-panel span {
+  grid-row: 1;
+  font-size: clamp(9px, 2.2cqw, 11px);
+}
+.bid-panel > b {
+  grid-row: 2;
+  font-size: clamp(26px, 6.8cqw, 31px);
+  line-height: 1.05;
+}
+.highest {
+  grid-row: 3;
+  max-width: 100%;
+  margin-top: 1px;
+  font-size: clamp(9px, 2.25cqw, 11px);
+  text-align: center;
+}
+
+.private-dossier {
+  min-height: 150px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 20px 28px 17px 32px;
+  box-sizing: border-box;
+}
+.private-dossier header { align-items: center; padding-bottom: 8px; }
+.private-dossier header span { font-size: clamp(9px, 2.1cqw, 10px); }
+.private-dossier header b { font-size: clamp(10px, 2.3cqw, 11px); }
+.appraisal-value { align-items: center; padding: 9px 0 7px; }
+.appraisal-value small { font-size: clamp(11px, 2.55cqw, 12px); }
+.appraisal-value strong { font-size: clamp(27px, 7cqw, 31px); line-height: 1; }
+.private-dossier #clauses {
+  gap: 5px;
+  font-size: clamp(10px, 2.45cqw, 11px);
+  line-height: 1.45;
+  text-align: left;
+}
+.private-dossier #clauses div { padding: 6px 8px; }
+
+.dock button em { font-size: clamp(10px, 2.5cqw, 12px); }
+.dock-action-slot .primary-action,
+.dock-action-slot .stage-action { font-size: clamp(11px, 2.9cqw, 13px); }
+.dock-action-slot .lot-action-note { font-size: clamp(9px, 2.25cqw, 10px); }
