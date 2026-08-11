@@ -4,7 +4,7 @@
 #app {
   --hud-y: max(5px, env(safe-area-inset-top));
   --hud-height: 101px;
-  --table-top: calc(var(--hud-y) + 104px);
+  --table-top: calc(var(--hud-y) + 92px);
   --table-diameter: min(86vw, 338px, 43dvh);
 }
 
@@ -70,14 +70,14 @@
   width: 108px;
   height: 34px;
   translate: 0;
-  padding: 3px 8px 4px;
+  padding: 0;
   display: grid;
   align-content: center;
   gap: 1px;
-  border: 1px solid #6f4722;
-  border-radius: 5px;
-  background: linear-gradient(180deg, #21130e, #0a0604);
-  box-shadow: 0 0 0 1px #160b07, inset 0 0 0 1px rgba(207,151,69,.25), inset 0 1px rgba(255,225,164,.08), 0 3px 6px #0008;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 .timer::after { opacity: .65; }
 .timer small {
@@ -87,7 +87,7 @@
 }
 .timer strong {
   color: #edd8af;
-  font: 700 19px/.95 "Roboto Slab", serif;
+  font: 700 16px/.95 "Roboto Slab", serif;
   letter-spacing: -.035em;
   text-shadow: 0 1px 2px #000;
 }
@@ -116,24 +116,24 @@
 }
 .cash-value { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .cash-value i { width: 13px; height: 13px; flex: none; }
-.cash strong { color: #f0dfbd; font: 750 15px/1 "Roboto Slab", serif; white-space: nowrap; }
+.cash strong { color: #f0dfbd; font: 750 13px/1 "Roboto Slab", serif; white-space: nowrap; }
 
 .hud-menu {
   position: absolute;
   z-index: 4;
-  top: 77px;
-  right: 39px;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  top: 80px;
+  right: 42px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   border-radius: 50%;
   background: radial-gradient(circle at 42% 34%, #291912, #080503 78%);
   box-shadow: 0 0 0 1px #160c08, 0 0 0 2px #795126, inset 0 0 0 1px rgba(226,173,82,.22), 0 3px 5px #0008;
   pointer-events: auto;
 }
 .hud-menu::before { inset: 3px; }
-.hud-menu-lines { color: #e0b35f; font: 750 21px/1 "Roboto Slab", serif; }
+.hud-menu-lines { color: #e0b35f; font: 750 17px/1 "Roboto Slab", serif; }
 
 .player-ribbon,
 .player-ribbon[data-count],
