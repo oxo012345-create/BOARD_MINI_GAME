@@ -148,6 +148,78 @@
   body[data-phase="select"] .item-card .clause-mini { font-size: 9px; }
 }
 
+/* Inventory and strategy panels are sized for their maximum practical
+   contents (4 items / 3 strategy cards). The frame and action buttons stay
+   fixed while only the list can scroll when copy grows on a narrow device. */
+@media (max-width: 430px) {
+  body[data-tab="items"] .sheet,
+  body[data-tab="cards"] .sheet,
+  body[data-tab="shop"] .sheet {
+    top: calc(8px + env(safe-area-inset-top));
+    bottom: calc(var(--dock-height) + 10px + env(safe-area-inset-bottom));
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+
+  body[data-tab="items"] .sheet-scroll,
+  body[data-tab="cards"] .sheet-scroll,
+  body[data-tab="shop"] .sheet-scroll {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body[data-tab="items"] #content,
+  body[data-tab="cards"] #content,
+  body[data-tab="shop"] #content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  body[data-tab="items"] #content > .inventory-list,
+  body[data-tab="cards"] #content > .inventory-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-content: start;
+    padding: 1px 3px 3px 1px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(142,102,58,.72) transparent;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body[data-tab="items"] #content > .inventory-list::-webkit-scrollbar,
+  body[data-tab="cards"] #content > .inventory-list::-webkit-scrollbar { width: 3px; }
+  body[data-tab="items"] #content > .inventory-list::-webkit-scrollbar-thumb,
+  body[data-tab="cards"] #content > .inventory-list::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: rgba(142,102,58,.72);
+  }
+
+  body[data-tab="items"] .selectable-inventory { min-height: 86px; }
+  body[data-tab="cards"] .inventory-row { min-height: 78px; height: 78px; }
+  body[data-tab="cards"] .inventory-row .strategy-icon { width: 58px; height: 62px; }
+
+  body[data-tab="items"] #content > .inventory-actions,
+  body[data-tab="shop"] #content > .action-row {
+    flex: 0 0 auto;
+    margin-bottom: 1px;
+    padding-top: 2px;
+    background: linear-gradient(180deg, rgba(239,222,182,0), rgba(239,222,182,.14) 30%, rgba(239,222,182,.22));
+  }
+
+  body[data-tab="items"] .inventory-actions .secondary-action,
+  body[data-tab="items"] .inventory-actions .primary-action { min-height: 48px; }
+  body[data-tab="cards"] .target-select { flex: 0 0 auto; margin-bottom: 9px; }
+  body[data-tab="shop"] .shop-grid { flex: 0 0 auto; }
+  body[data-tab="shop"] #content > .action-row { margin-top: auto; }
+}
+
 @media (max-width: 370px) {
   .player-ribbon,
   .player-ribbon[data-count],
