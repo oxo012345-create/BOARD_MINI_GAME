@@ -120,7 +120,7 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 프라이빗 경매와 사실적인 소장품 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
-  { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "board" },
+  { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "solo" },
 ];
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
