@@ -813,7 +813,8 @@ test("keeps the requested game set and removes excluded modes", async () => {
     assert.ok(page.includes(required), `${required} should be present`);
   }
   assert.match(page, /const BOARD_GAMES:[\s\S]*?id: "gem-heist"[\s\S]*?category: "board"/);
-  assert.match(page, /id: "apartment"[\s\S]*?아파트 게임[\s\S]*?category: "solo"/);
+  assert.match(page, /const SOLO_GAMES:[\s\S]*?id: "apartment"[\s\S]*?category: "solo"/);
+  assert.doesNotMatch(page, /const BOARD_GAMES:[\s\S]*?id: "apartment"/);
   assert.match(page, /const ALL_GAMES = \[\.\.\.SOLO_GAMES, \.\.\.COOP_GAMES, \.\.\.BOARD_GAMES\]/);
   for (const removed of ["소리지르기 대결", "조용히 말해요", "흔들림 탐지", "고요 속의 외침", "음악퀴즈", "만장일치 방해꾼", "확대 사진 퀴즈", "범인은 질문을 모른다", "누가 걸렸는지는 우리끼리 판정", "마이크 판정 없음", "점수표 없음", "팀전 없음", "우리끼리 판정하고 있어요", "vote-correct"]) {
     assert.doesNotMatch(page, new RegExp(removed));
@@ -840,9 +841,11 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(roomRoute, /handleGemInvestigationTimeout/);
   assert.match(roomRoute, /payload\.action === "apartment-choice"/);
   assert.match(roomRoute, /completeApartmentIfReady/);
+  assert.match(roomRoute, /resolveApartmentPenalty\(game, room\.players\);[\s\S]*?room\.view = "result"/);
   assert.match(rounds, /resolveApartmentPenalty/);
   assert.match(rounds, /apartmentMaxFloor: players\.length \+ 2/);
   assert.match(page, /아직 선택 안 함/);
+  assert.match(page, /data-apartment-result-screen/);
   assert.match(roomRoute, /payload\.action === "set-surprise"/);
   assert.match(roomRoute, /room\.view !== "lobby"/);
   assert.match(surprise, /room\.surpriseEnabled === false/);

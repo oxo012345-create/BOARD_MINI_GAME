@@ -106,6 +106,7 @@ const SOLO_GAMES: GameMeta[] = [
   { id: "ten-seconds", title: "정확히 10초", icon: "⏱️", description: "각자 한 번씩 10초에 도전해요", category: "solo" },
   { id: "color", title: "색깔 찾기", icon: "🎨", description: "같은 색 물건을 찍어 올려요", category: "solo" },
   { id: "object-initial", title: "초성 물건 찾기", icon: "📸", description: "초성 물건을 찍어 올려요", category: "solo" },
+  { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "solo" },
 ];
 const COOP_GAMES: GameMeta[] = [
   { id: "telestration", title: "텔레그레이션", icon: "✏️", description: "그림을 보고 이어 그리는 릴레이", category: "coop" },
@@ -120,7 +121,6 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 프라이빗 경매와 사실적인 소장품 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
-  { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "solo" },
 ];
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
@@ -218,6 +218,32 @@ function ApartmentBuilding({ maxFloor, selectedFloor, onSelect, submittedIds, pl
       </div>
     </div>}
     {revealed && <div className="apartment-verdict"><span>벌칙 판정</span><strong>{penaltyFloor}층 · {penaltyNames.length ? penaltyNames.join(", ") : "해당 없음"}</strong><small>가장 많이 겹친 층 우선 · 동률이면 낮은 층 · 겹침이 없으면 가장 낮은 층</small></div>}
+  </section>;
+}
+
+function ApartmentResultSummary({ maxFloor, players, selections, counts, penaltyFloor, penaltyPlayerIds }: { maxFloor: number; players: Player[]; selections?: Record<string, number>; counts?: Record<string, number>; penaltyFloor?: number; penaltyPlayerIds?: string[] }) {
+  const groups = new Map<number, string[]>();
+  for (const player of players) {
+    const floor = selections?.[player.id];
+    if (!Number.isInteger(floor)) continue;
+    const names = groups.get(floor) ?? [];
+    names.push(player.name);
+    groups.set(floor, names);
+  }
+  const rows = Array.from({ length: maxFloor }, (_, index) => maxFloor - index).filter((floor) => groups.has(floor));
+  const penaltyNames = (penaltyPlayerIds ?? []).map((id) => players.find((player) => player.id === id)?.name ?? "참가자");
+  const shownPenaltyNames = penaltyNames.length ? penaltyNames : (groups.get(penaltyFloor ?? -1) ?? []);
+  return <section className="apartment-result-summary" data-apartment-result-screen>
+    <div className="apartment-result-heading"><div><span>RESULT</span><h2>아파트 게임 결과</h2><p>각자 고른 층과 겹친 인원을 확인하세요.</p></div><strong>{shownPenaltyNames.length}명</strong></div>
+    <div className="apartment-result-verdict"><span>벌칙 층</span><strong>{penaltyFloor ? `${penaltyFloor}층` : "계산 중"}</strong><b>{shownPenaltyNames.length ? shownPenaltyNames.join(", ") : "벌칙 대상 확인 중"}</b></div>
+    <div className="apartment-result-list">
+      {rows.length ? rows.map((floor) => {
+        const names = groups.get(floor) ?? [];
+        const count = counts?.[String(floor)] ?? names.length;
+        return <div className={`apartment-result-row ${floor === penaltyFloor ? "penalty" : ""}`} key={floor}><strong>{floor}층</strong><span>{names.join(", ")}</span><b>{count}명</b></div>;
+      }) : <div className="apartment-result-empty">선택 결과를 불러오는 중이에요.</div>}
+    </div>
+    <small className="apartment-result-rule">가장 많이 겹친 층 우선 · 동률이면 낮은 층 · 겹침이 없으면 가장 낮은 층</small>
   </section>;
 }
 
@@ -1124,11 +1150,13 @@ export default function Home() {
     </main>;
   }
 
-  if (room.view === "result" && currentGame) {
+  if (room.view === "result" || (currentGame?.id === "apartment" && currentGame.apartmentRevealed)) {
+    if (!currentGame) return <main className="app-shell"><div className="waiting-card">결과를 불러오는 중</div>{commonOverlays}</main>;
     if (currentGame.id === "apartment") return <main className="app-shell result-shell apartment-result-shell">
       {topBar("아파트 결과")}
       <div className="round-label">ROUND {room.roundNumber}</div>
       <ApartmentBuilding maxFloor={currentGame.apartmentMaxFloor ?? room.players.length + 2} selectedFloor={currentGame.apartmentSelections?.[room.meId ?? ""]} submittedIds={currentGame.apartmentSubmitted ?? []} players={room.players} revealed counts={currentGame.apartmentFloorCounts} penaltyFloor={currentGame.apartmentPenaltyFloor} penaltyPlayerIds={currentGame.apartmentPenaltyPlayerIds} />
+      <ApartmentResultSummary maxFloor={currentGame.apartmentMaxFloor ?? room.players.length + 2} players={room.players} selections={currentGame.apartmentSelections} counts={currentGame.apartmentFloorCounts} penaltyFloor={currentGame.apartmentPenaltyFloor} penaltyPlayerIds={currentGame.apartmentPenaltyPlayerIds} />
       <div className="result-actions">{isHost ? <><button className="button primary xl" disabled={hostActionLocked} onClick={() => gameMeta && void prepareGame(gameMeta)}>같은 게임 다시하기</button><button className="button secondary xl" disabled={hostActionLocked} onClick={() => void goHub()}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;

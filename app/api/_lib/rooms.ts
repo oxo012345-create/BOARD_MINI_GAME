@@ -87,6 +87,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
 
     if (internal.id === "apartment") {
       game.apartmentSubmitted = [...(internal.apartmentSubmitted ?? [])];
+      if (internal.apartmentRevealed) game.apartmentRevealed = true;
       if (room.view === "result") {
         if (apartmentSelections) game.apartmentSelections = apartmentSelections;
         if (internal.apartmentFloorCounts) game.apartmentFloorCounts = internal.apartmentFloorCounts;
