@@ -1,5 +1,5 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
-import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
+import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, resolveApartmentPenalty, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
@@ -84,6 +84,16 @@ function handleDealerTimeout(room: RoomState) {
   return players.length > 0 ? tickDealer(game.dealer, players) : false;
 }
 
+function completeApartmentIfReady(room: RoomState) {
+  const game = room.game as GameRound | undefined;
+  if (room.view !== "game" || game?.id !== "apartment" || game.apartmentRevealed) return false;
+  const activeIds = room.players.filter((player) => player.status === "active").map((player) => player.id);
+  if (!activeIds.length || !activeIds.every((playerId) => Number.isInteger(game.apartmentSelections?.[playerId]))) return false;
+  resolveApartmentPenalty(game, room.players);
+  room.view = "result";
+  return true;
+}
+
 async function persistAndRespond(room: RoomState, viewerId: string) {
   const expectedRevision = room.revision ?? 0;
   tickSurprise(room);
@@ -152,6 +162,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
       itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean; requestId?: string;
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
+      floor?: number;
       enabled?: boolean;
     };
 
@@ -237,6 +248,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "double-dealers" && (room.players.length < 3 || room.players.length > 8)) {
         return Response.json({ error: "수상한 딜러들은 3~8명이 함께할 수 있어요." }, { status: 409 });
       }
+      if (gameId === "apartment" && room.players.length < 3) {
+        return Response.json({ error: "아파트 게임은 3명 이상이 함께할 수 있어요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const pendingGame = room.game as GameRound | undefined;
       const previousContentKey = pendingGame?.id === gameId
@@ -321,6 +335,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         finishTelestrationRound(activeGame, room.players);
         if (activeGame.telestrationComplete) room.view = "result";
       }
+      completeApartmentIfReady(room);
       if (!await writeRoomIfRevision(room, room.revision ?? 0)) {
         return Response.json({ error: "다른 참가자의 변경을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
       }
@@ -329,6 +344,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (payload.action === "apartment-choice") {
+      if (game.id !== "apartment" || room.view !== "game") return Response.json({ error: "아파트 게임이 진행 중이 아니에요." }, { status: 409 });
+      if (game.apartmentRevealed) return Response.json({ error: "이미 결과가 공개됐어요." }, { status: 409 });
+      if (game.apartmentSubmitted?.includes(viewer.id)) return Response.json({ error: "이미 층을 선택했어요." }, { status: 409 });
+      const floor = Math.floor(Number(payload.floor));
+      const maxFloor = game.apartmentMaxFloor ?? room.players.length + 2;
+      if (!Number.isInteger(floor) || floor < 1 || floor > maxFloor) return Response.json({ error: "층을 다시 선택해 주세요." }, { status: 400 });
+      game.apartmentSelections = { ...(game.apartmentSelections ?? {}), [viewer.id]: floor };
+      game.apartmentSubmitted = [...new Set(Object.keys(game.apartmentSelections))];
+      completeApartmentIfReady(room);
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (String(payload.action).startsWith("dealer-")) {
       if (game.id !== "double-dealers" || !game.dealer) return Response.json({ error: "딜러 게임이 진행 중이 아니에요." }, { status: 409 });

@@ -57,6 +57,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const gemSolution = internal.gemSolution;
     const mazeStartedAt = internal.maze?.startedAt;
     const dealer = internal.dealer;
+    const apartmentSelections = internal.apartmentSelections;
 
     delete game.answer;
     delete game.liarId;
@@ -82,6 +83,20 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.gemSolution;
     delete game.maze;
     delete game.dealer;
+    delete game.apartmentSelections;
+
+    if (internal.id === "apartment") {
+      game.apartmentSubmitted = [...(internal.apartmentSubmitted ?? [])];
+      if (room.view === "result") {
+        if (apartmentSelections) game.apartmentSelections = apartmentSelections;
+        if (internal.apartmentFloorCounts) game.apartmentFloorCounts = internal.apartmentFloorCounts;
+        if (internal.apartmentPenaltyFloor) game.apartmentPenaltyFloor = internal.apartmentPenaltyFloor;
+        if (internal.apartmentPenaltyPlayerIds) game.apartmentPenaltyPlayerIds = internal.apartmentPenaltyPlayerIds;
+        game.apartmentRevealed = Boolean(internal.apartmentRevealed);
+      } else if (viewerId && apartmentSelections?.[viewerId] !== undefined) {
+        game.apartmentMyChoice = apartmentSelections[viewerId];
+      }
+    }
 
     if (internal.id === "maze-courier") game.mazeStartedAt = mazeStartedAt;
     if (internal.id === "double-dealers" && dealer) {

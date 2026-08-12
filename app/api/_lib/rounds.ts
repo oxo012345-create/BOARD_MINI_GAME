@@ -111,6 +111,13 @@ export type GameRound = {
   mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
   maze?: import("./maze").MazeState;
   dealer?: import("./dealer").DealerState;
+  apartmentMaxFloor?: number;
+  apartmentSelections?: Record<string, number>;
+  apartmentSubmitted?: string[];
+  apartmentFloorCounts?: Record<string, number>;
+  apartmentPenaltyFloor?: number;
+  apartmentPenaltyPlayerIds?: string[];
+  apartmentRevealed?: boolean;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -130,6 +137,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   "gem-heist": { title: "사라진 보석", briefing: "범인은 가짜 알리바이로 정체를 숨깁니다. 각자 단서 하나만 말해 두 용의자로 좁힌 뒤, 대화의 모순을 찾아 비밀 투표하세요.", category: "solo" },
   "maze-courier": { title: "미로의 배달부", briefing: "최대 8명이 같은 3D 미로에서 재료를 찾아 중앙 조리대로 배달합니다. 길을 막고, 밀치고, 캐릭터 스킬을 활용해 제한 시간 안에 가장 많은 요리를 완성하세요.", category: "solo" },
   "double-dealers": { title: "수상한 딜러들", briefing: "3~8명이 진짜 가치와 두 조항이 숨겨진 아이템 카드를 사고팝니다. 화면 밖에서는 자유롭게 협상하고, 휴대폰에서는 2D 카드·입찰·아이템·상점만 조작하세요.", category: "solo" },
+  apartment: { title: "아파트 게임", briefing: "3명 이상이 각자 한 층을 고릅니다. 가장 많이 겹친 층이 벌칙 층이고, 동률이면 더 낮은 층이 선택됩니다. 아무도 겹치지 않으면 가장 낮은 층입니다.", category: "solo" },
   telestration: { title: "텔레그레이션", briefing: "45초·40초·35초 동안 그림을 이어 그립니다. 마지막 그림의 정답 입력에는 제한시간이 없고, 두 명 이상 맞히면 통과입니다.", category: "coop" },
   people: { title: "인물 퀴즈", briefing: "한 사람씩 5초 안에 사진 속 인물을 맞힙니다. 전원이 성공하면 통과하고, 방장이 다음 문제 또는 실패를 선택합니다.", category: "coop" },
   chain: { title: "줄줄이 말해요", briefing: "같은 주제로 한 사람씩 5초 안에 답합니다. 전원이 성공하면 통과하고, 주제는 도중에 바뀌지 않습니다.", category: "coop" },
@@ -758,6 +766,8 @@ export function removePlayerFromRound(game: GameRound | undefined, playerId: str
   if (game.mazeCharacters) delete game.mazeCharacters[playerId];
   game.mazeReadyPlayerIds = game.mazeReadyPlayerIds?.filter((id) => id !== playerId);
   game.mazeResults = game.mazeResults?.filter((result) => result.playerId !== playerId);
+  if (game.apartmentSelections) delete game.apartmentSelections[playerId];
+  game.apartmentSubmitted = game.apartmentSubmitted?.filter((id) => id !== playerId);
   if (game.gemVotes) {
     delete game.gemVotes[playerId];
     for (const [voterId, suspectId] of Object.entries(game.gemVotes)) {
@@ -765,6 +775,28 @@ export function removePlayerFromRound(game: GameRound | undefined, playerId: str
     }
   }
   if (game.playerOrder?.length) game.currentPlayerIndex = (game.currentPlayerIndex ?? 0) % game.playerOrder.length;
+}
+
+export function resolveApartmentPenalty(game: GameRound, players: Player[]) {
+  const activeIds = new Set(players.filter((player) => player.status === "active").map((player) => player.id));
+  const selections = Object.fromEntries(Object.entries(game.apartmentSelections ?? {}).filter(([playerId, floor]) => activeIds.has(playerId) && Number.isInteger(floor)));
+  const groups = new Map<number, string[]>();
+  for (const [playerId, floor] of Object.entries(selections)) {
+    const normalizedFloor = Number(floor);
+    const group = groups.get(normalizedFloor) ?? [];
+    group.push(playerId);
+    groups.set(normalizedFloor, group);
+  }
+  const overlapping = [...groups.entries()].filter(([, ids]) => ids.length >= 2);
+  const targetGroup = overlapping.length
+    ? overlapping.sort((a, b) => b[1].length - a[1].length || a[0] - b[0])[0]
+    : [...groups.entries()].sort(([floorA], [floorB]) => floorA - floorB)[0];
+  game.apartmentSelections = selections;
+  game.apartmentSubmitted = Object.keys(selections);
+  game.apartmentFloorCounts = Object.fromEntries([...groups.entries()].sort(([floorA], [floorB]) => floorA - floorB).map(([floor, ids]) => [String(floor), ids.length]));
+  game.apartmentPenaltyFloor = targetGroup?.[0];
+  game.apartmentPenaltyPlayerIds = targetGroup?.[1] ?? [];
+  game.apartmentRevealed = true;
 }
 
 function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | "dumb" = "normal", specialRoles = false, gemDifficulty: GemDifficulty = "normal"): GameRound | null {
@@ -817,6 +849,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "gem-heist") return makeGemHeistRound(base, players, specialRoles, gemDifficulty);
   if (id === "maze-courier") return { ...base, prompt: "서버 판정 3D 배달 대결" };
   if (id === "double-dealers") return { ...base, prompt: "2D 카드 비밀 경매" };
+  if (id === "apartment") return { ...base, prompt: "층을 선택하세요", apartmentMaxFloor: players.length + 2, apartmentSelections: {}, apartmentSubmitted: [], apartmentRevealed: false };
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));
@@ -858,6 +891,7 @@ export function roundContentKey(game: GameRound | undefined) {
   }
   if (game.id === "gem-heist") return game.gemCase ? `${game.id}:${game.gemCase.scene.id}:${game.gemCase.stolenItem.id}:${game.gemThiefId ?? ""}` : undefined;
   if (["ten-seconds"].includes(game.id)) return undefined;
+  if (game.id === "apartment") return undefined;
   return game.prompt ? `${game.id}:${game.prompt}` : undefined;
 }
 

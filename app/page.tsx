@@ -85,6 +85,7 @@ type GameRound = {
   mazeStartedAt?: number;
   mazeCharacters?: Record<string, number>; mazeReadyPlayerIds?: string[];
   mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
+  apartmentMaxFloor?: number; apartmentSubmitted?: string[]; apartmentMyChoice?: number; apartmentSelections?: Record<string, number>; apartmentFloorCounts?: Record<string, number>; apartmentPenaltyFloor?: number; apartmentPenaltyPlayerIds?: string[]; apartmentRevealed?: boolean;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -119,6 +120,7 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 프라이빗 경매와 사실적인 소장품 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
+  { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "board" },
 ];
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
@@ -175,6 +177,37 @@ function QuizImageRequest({ imageId }: { imageId: string }) {
 
 function QuizImage({ imageId }: { imageId: string }) {
   return <QuizImageRequest key={imageId} imageId={imageId} />;
+}
+
+function ApartmentBuilding({ maxFloor, selectedFloor, onSelect, submittedIds, players, revealed, counts, penaltyFloor, penaltyPlayerIds, preview }: { maxFloor: number; selectedFloor?: number; onSelect?: (floor: number) => void; submittedIds: string[]; players: Player[]; revealed?: boolean; counts?: Record<string, number>; penaltyFloor?: number; penaltyPlayerIds?: string[]; preview?: boolean }) {
+  const floors = Array.from({ length: maxFloor }, (_, index) => maxFloor - index);
+  const penaltyNames = (penaltyPlayerIds ?? []).map((id) => players.find((player) => player.id === id)?.name ?? "참가자");
+  return <section className={`apartment-board ${revealed ? "revealed" : ""}`}>
+    <div className="apartment-board-heading"><div><span className="apartment-kicker">APARTMENT DRAW</span><h2>{revealed ? `${penaltyFloor}층이 벌칙 층` : `${maxFloor}층 아파트에서 한 층 선택`}</h2></div><strong>{revealed ? "RESULT" : `${maxFloor}F`}</strong></div>
+    <p className="apartment-rule-copy">{revealed ? penaltyNames.length ? `${penaltyNames.join(", ")} · 같은 층에 모였어요.` : "벌칙 대상이 정해졌어요." : "모두의 선택은 결과가 공개될 때까지 숨겨져요."}</p>
+    <div className="apartment-scene">
+      <div className="apartment-skyline"><i /><i /><i /><i /><span>HANPAN HEIGHTS</span></div>
+      <div className="apartment-building">
+        <div className="apartment-roof"><span /><span /><span /></div>
+        <div className="apartment-floors">
+          {floors.map((floor) => {
+            const count = counts?.[String(floor)] ?? 0;
+            const isSelected = selectedFloor === floor;
+            const isPenalty = revealed && penaltyFloor === floor;
+            return <button type="button" key={floor} disabled={revealed || !onSelect} className={`apartment-floor ${isSelected ? "selected" : ""} ${isPenalty ? "penalty" : ""}`} onClick={() => onSelect?.(floor)} aria-pressed={isSelected}>
+              <span className="apartment-floor-number">{floor}<small>F</small></span>
+              <span className="apartment-windows" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <i key={index} className={(floor + index) % 4 === 0 ? "lit" : ""} />)}</span>
+              <span className="apartment-floor-meta">{isPenalty ? "벌칙 층" : revealed ? count ? `${count}명 겹침` : "비어 있음" : isSelected ? "내 선택" : "선택"}</span>
+            </button>;
+          })}
+        </div>
+        <div className="apartment-lobby"><span>H</span><small>LOBBY</small></div>
+      </div>
+      <div className="apartment-street"><i /><i /><i /></div>
+    </div>
+    {!revealed && !preview && <div className="apartment-submit-status"><div><span className="status-dot" />{selectedFloor ? `${selectedFloor}층 선택 완료` : "층을 눌러 선택하세요"}</div><strong>{submittedIds.length}/{players.length}명 선택 완료</strong></div>}
+    {revealed && <div className="apartment-verdict"><span>벌칙 판정</span><strong>{penaltyFloor}층 · {penaltyNames.length ? penaltyNames.join(", ") : "해당 없음"}</strong><small>가장 많이 겹친 층 우선 · 동률이면 낮은 층 · 겹침이 없으면 가장 낮은 층</small></div>}
+  </section>;
 }
 
 function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, onCancel }: { title: string; message: string; confirmLabel: string; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
@@ -898,7 +931,7 @@ export default function Home() {
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
   const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
   const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
   const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
@@ -924,6 +957,11 @@ export default function Home() {
     try { await applyAction({ action: "submit-timer", seconds }); }
     catch (error) { showNotice(error instanceof Error ? error.message : "기록을 제출하지 못했어요."); }
     finally { timerSubmitting.current = false; }
+  };
+  const selectApartmentFloor = async (floor: number) => {
+    if (currentGame?.id !== "apartment" || currentGame.apartmentRevealed) return;
+    try { await applyAction({ action: "apartment-choice", floor }); }
+    catch (error) { showNotice(error instanceof Error ? error.message : "층 선택을 저장하지 못했어요."); }
   };
   const uploadPhoto = async (file: File) => { if (!room) return; const sequence = nextRoomRequestSequence(); roomMutationCountRef.current += 1; setBusy(true); try { let blob: Blob; try { blob = await compressPhoto(file); } catch (conversionError) { if (!file.type.startsWith("image/") || file.size > 6 * 1024 * 1024) throw conversionError; blob = file; } const nextRoom = await uploadPhotoWithRetry(room.code, blob); applyRoomSnapshot(nextRoom, sequence); } catch (error) { showNotice(error instanceof Error ? error.message : "사진을 올리지 못했어요."); } finally { roomMutationCountRef.current = Math.max(0, roomMutationCountRef.current - 1); setBusy(false); } };
   const currentPlayer = currentGame?.playerOrder?.[currentGame.currentPlayerIndex ?? 0];
@@ -1026,6 +1064,8 @@ export default function Home() {
         <div className="eyebrow">시작 전 설명</div>
         <h1>{currentGame.title}</h1>
         <p>{currentGame.briefing ?? currentGame.prompt}</p>
+        {currentGame.id === "apartment" && <div className="apartment-briefing"><ApartmentBuilding maxFloor={room.players.length + 2} submittedIds={[]} players={room.players} preview /></div>}
+        {currentGame.id === "apartment" && room.players.length < 3 && <div className="count-warning">아파트 게임은 3명 이상 필요해요.</div>}
         {LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}
         {currentGame.id === "gem-heist" && <>
           <div className="gem-briefing-steps">
@@ -1074,6 +1114,13 @@ export default function Home() {
   }
 
   if (room.view === "result" && currentGame) {
+    if (currentGame.id === "apartment") return <main className="app-shell result-shell apartment-result-shell">
+      {topBar("아파트 결과")}
+      <div className="round-label">ROUND {room.roundNumber}</div>
+      <ApartmentBuilding maxFloor={currentGame.apartmentMaxFloor ?? room.players.length + 2} selectedFloor={currentGame.apartmentSelections?.[room.meId ?? ""]} submittedIds={currentGame.apartmentSubmitted ?? []} players={room.players} revealed counts={currentGame.apartmentFloorCounts} penaltyFloor={currentGame.apartmentPenaltyFloor} penaltyPlayerIds={currentGame.apartmentPenaltyPlayerIds} />
+      <div className="result-actions">{isHost ? <><button className="button primary xl" disabled={hostActionLocked} onClick={() => gameMeta && void prepareGame(gameMeta)}>같은 게임 다시하기</button><button className="button secondary xl" disabled={hostActionLocked} onClick={() => void goHub()}>다른 게임 하러가기</button></> : <div className="waiting"><span className="pulse" />방장의 선택을 기다리는 중</div>}</div>
+      {commonOverlays}
+    </main>;
     const liarName = playerName(room, currentGame.liarId);
     const history = currentGame.history ?? [];
     return <main className="app-shell result-shell">
@@ -1100,6 +1147,13 @@ export default function Home() {
   }
 
   if (!currentGame) return <main className="app-shell"><div className="waiting-card">게임 정보를 불러오는 중</div>{commonOverlays}</main>;
+  if (currentGame.id === "apartment") return <main className="app-shell game-shell apartment-game-shell">
+    {topBar(currentGame.title)}
+    <div className="round-label">ROUND {room.roundNumber}</div>
+    <ApartmentBuilding maxFloor={currentGame.apartmentMaxFloor ?? room.players.length + 2} selectedFloor={currentGame.apartmentMyChoice} onSelect={currentGame.apartmentSubmitted?.includes(room.meId ?? "") ? undefined : (floor) => void selectApartmentFloor(floor)} submittedIds={currentGame.apartmentSubmitted ?? []} players={room.players} />
+    {currentGame.apartmentSubmitted?.includes(room.meId ?? "") ? <div className="apartment-waiting-note"><span className="status-dot" />선택 완료 · 다른 플레이어를 기다리는 중</div> : <div className="apartment-waiting-note">층을 고르면 선택이 잠겨요. 모두 고르면 바로 결과가 공개돼요.</div>}
+    {commonOverlays}
+  </main>;
   if (currentGame.id === "maze-courier") return <main className="maze-courier-shell">
     <iframe
       key={`${room.code}-${currentGame.mazeStartedAt ?? currentGame.startedAt}`}
