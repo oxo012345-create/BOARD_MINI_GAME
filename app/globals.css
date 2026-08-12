@@ -599,64 +599,94 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-special-reveal { margin-top: 8px; padding: 10px; border-radius: 11px; background: rgba(156,140,255,.08); color: #bcb4ff; font-size: 9px; }
 .gem-special-reveal.detective { background: rgba(139,231,255,.07); color: var(--gem-ice); }
 
-/* Apartment game: a compact, tactile floor-picker with a night-city silhouette. */
-.apartment-game-shell, .apartment-result-shell { background: radial-gradient(circle at 50% 0%, rgba(94, 155, 255, .13), transparent 34%), linear-gradient(180deg, #0c1019, #080a0e 62%); }
+/* Apartment game: a bright, illustrated high-rise floor picker inspired by a mobile board-game card. */
+.apartment-game-shell, .apartment-result-shell { --apartment-blue: #0b9ff0; --apartment-deep-blue: #0576d5; --apartment-ink: #101725; background: radial-gradient(circle at 50% -10%, rgba(255, 255, 255, .28), transparent 30%), linear-gradient(160deg, #0aa9f7 0%, #078fe9 55%, #087edc 100%); color: #fff; }
+.apartment-game-shell::before, .apartment-result-shell::before { position: fixed; z-index: 0; inset: 0; pointer-events: none; content: ""; opacity: .18; background: repeating-linear-gradient(105deg, transparent 0 26px, rgba(255, 255, 255, .12) 27px 28px, transparent 29px 65px); }
+.apartment-game-shell > *, .apartment-result-shell > * { position: relative; z-index: 1; }
+.apartment-game-shell .topbar, .apartment-result-shell .topbar { margin-bottom: 8px; border-bottom-color: rgba(255, 255, 255, .16); background: rgba(4, 99, 182, .25); color: #fff; }
+.apartment-game-shell .topbar-actions button, .apartment-result-shell .topbar-actions button { color: rgba(255, 255, 255, .83); }
+.apartment-game-shell .room-code-mini, .apartment-result-shell .room-code-mini { color: #fff; }
 .apartment-briefing { margin: 18px -7px -8px; }
 .apartment-briefing .apartment-board { box-shadow: none; }
-.apartment-board { position: relative; margin-top: 12px; padding: 18px 14px 14px; overflow: hidden; border: 1px solid rgba(130, 177, 255, .2); border-radius: 26px; background: linear-gradient(155deg, rgba(18, 27, 43, .98), rgba(11, 14, 21, .98)); box-shadow: 0 24px 60px rgba(0, 0, 0, .3); text-align: left; }
-.apartment-board::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,.035), transparent 28%, transparent 72%, rgba(91, 143, 220, .05)); }
-.apartment-board-heading { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.apartment-kicker { color: #8fb9ff; font: 900 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; }
-.apartment-board-heading h2 { margin: 7px 0 0; color: #f5f8ff; font-size: 23px; line-height: 1.15; letter-spacing: -.055em; }
-.apartment-board-heading > strong { flex: 0 0 auto; padding: 8px 9px; border: 1px solid rgba(143, 185, 255, .32); border-radius: 10px; color: #9fc4ff; font: 900 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
-.apartment-rule-copy { position: relative; z-index: 1; margin: 9px 0 13px; color: #8f9bae; font-size: 10px; line-height: 1.5; }
-.apartment-scene { position: relative; min-height: 360px; padding: 14px 9px 0; overflow: hidden; border: 1px solid rgba(145, 183, 233, .12); border-radius: 19px; background: linear-gradient(180deg, #18263b 0%, #0f1726 55%, #0a0d14 100%); }
-.apartment-skyline { position: absolute; inset: 0 0 auto; height: 94px; overflow: hidden; opacity: .62; background: radial-gradient(circle at 18% 30%, rgba(255, 227, 151, .9) 0 1px, transparent 2px), radial-gradient(circle at 77% 19%, rgba(160, 201, 255, .8) 0 1px, transparent 2px), radial-gradient(circle at 42% 22%, rgba(255,255,255,.65) 0 1px, transparent 2px), linear-gradient(180deg, rgba(61, 99, 151, .38), transparent); }
-.apartment-skyline::after { content: ""; position: absolute; right: -10%; bottom: 0; left: -10%; height: 36px; background: linear-gradient(135deg, transparent 0 9%, #0b111d 9% 22%, transparent 22% 28%, #0a1019 28% 48%, transparent 48% 54%, #0b111d 54% 74%, transparent 74%); opacity: .78; }
-.apartment-skyline i { position: absolute; bottom: 16px; width: 33px; height: 44px; border: 1px solid rgba(134, 173, 224, .15); background: repeating-linear-gradient(180deg, rgba(104, 153, 218, .18) 0 3px, transparent 3px 9px); }
-.apartment-skyline i:nth-child(1) { left: 3%; height: 33px; }
-.apartment-skyline i:nth-child(2) { left: 15%; height: 56px; }
-.apartment-skyline i:nth-child(3) { right: 17%; height: 48px; }
-.apartment-skyline i:nth-child(4) { right: 3%; height: 28px; }
-.apartment-skyline span { position: absolute; top: 13px; right: 15px; color: rgba(187, 212, 248, .58); font: 800 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .2em; }
-.apartment-building { position: relative; z-index: 1; width: min(100%, 330px); margin: 44px auto 0; padding: 11px 10px 12px; border: 1px solid rgba(177, 201, 235, .28); border-radius: 10px 10px 5px 5px; background: linear-gradient(100deg, #1c2a3d, #26364b 44%, #182538); box-shadow: 13px 18px 0 rgba(3, 6, 11, .26), 0 18px 28px rgba(0, 0, 0, .35); }
-.apartment-roof { display: flex; align-items: flex-end; justify-content: center; gap: 7px; height: 9px; margin: -20px 5px 8px; }
-.apartment-roof span { display: block; width: 9px; height: 9px; border-radius: 2px 2px 0 0; background: #7794bb; box-shadow: 0 0 10px rgba(142, 193, 255, .2); }
-.apartment-roof span:nth-child(2) { height: 15px; background: #a5bfdc; }
-.apartment-floors { display: grid; gap: 3px; }
-.apartment-floor { display: grid; grid-template-columns: 36px 1fr 72px; align-items: center; gap: 7px; width: 100%; min-height: 35px; padding: 4px 6px; border: 1px solid rgba(198, 218, 244, .12); border-radius: 5px; background: linear-gradient(90deg, rgba(19, 31, 47, .9), rgba(31, 51, 72, .72)); color: #c8d9ed; text-align: left; cursor: pointer; transition: border-color .14s ease, background .14s ease, transform .14s ease; }
-.apartment-floor:hover:not(:disabled) { border-color: rgba(173, 211, 255, .72); background: linear-gradient(90deg, rgba(35, 59, 86, .96), rgba(44, 72, 98, .82)); transform: translateX(2px); }
+.apartment-board { position: relative; margin-top: 12px; padding: 12px 7px 16px; overflow: visible; border: 0; border-radius: 0; background: transparent; text-align: left; }
+.apartment-board::before { position: absolute; inset: 0; pointer-events: none; content: ""; }
+.apartment-board-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 0 8px; color: #fff; }
+.apartment-kicker { color: rgba(255, 255, 255, .78); font: 900 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; }
+.apartment-board-heading h2 { margin: 5px 0 0; color: #fff; font-size: 23px; line-height: 1.1; letter-spacing: -.055em; text-shadow: 0 2px 0 rgba(4, 86, 166, .2); }
+.apartment-board-heading p { margin: 4px 0 0; color: rgba(255, 255, 255, .78); font-size: 10px; line-height: 1.35; }
+.apartment-board-heading > strong { flex: 0 0 auto; padding: 8px 10px; border: 2px solid rgba(255, 255, 255, .7); border-radius: 12px; color: #fff; font: 900 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.apartment-scene { position: relative; min-height: 470px; padding: 48px 0 42px; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+.apartment-skyline { position: absolute; inset: 0 0 auto; height: 122px; overflow: hidden; opacity: .34; background: radial-gradient(circle at 11% 36%, rgba(255, 255, 255, .8) 0 1px, transparent 2px), radial-gradient(circle at 85% 22%, rgba(255, 255, 255, .72) 0 1px, transparent 2px), linear-gradient(180deg, rgba(255, 255, 255, .2), transparent); }
+.apartment-skyline::before { position: absolute; right: -18%; bottom: 0; left: -18%; height: 54px; content: ""; background: linear-gradient(135deg, transparent 0 8%, rgba(4, 98, 182, .55) 8% 21%, transparent 21% 28%, rgba(3, 87, 171, .48) 28% 51%, transparent 51% 58%, rgba(4, 96, 181, .5) 58% 80%, transparent 80%); }
+.apartment-skyline::after { position: absolute; right: 12%; bottom: 17px; width: 46px; height: 52px; content: ""; border: 2px solid rgba(4, 98, 182, .45); background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .22) 0 4px, transparent 4px 12px); }
+.apartment-skyline i { position: absolute; bottom: 18px; width: 34px; height: 43px; border: 2px solid rgba(4, 98, 182, .34); background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .2) 0 4px, transparent 4px 11px); }
+.apartment-skyline i:nth-child(1) { left: 2%; height: 36px; }
+.apartment-skyline i:nth-child(2) { left: 15%; height: 65px; }
+.apartment-skyline i:nth-child(3) { right: 27%; height: 38px; }
+.apartment-skyline i:nth-child(4) { right: 3%; height: 67px; }
+.apartment-skyline span { position: absolute; top: 16px; right: 15px; color: rgba(255, 255, 255, .68); font: 800 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .2em; }
+.apartment-building { position: relative; z-index: 1; width: min(92%, 380px); margin: 37px auto 0; padding: 27px 11px 19px; border: 4px solid var(--apartment-ink); border-radius: 3px 3px 0 0; background: linear-gradient(90deg, #fdfdfd 0%, #f3f5f6 52%, #e4e9ed 100%); box-shadow: 9px 13px 0 rgba(2, 87, 155, .24), 0 24px 34px rgba(1, 67, 126, .18); }
+.apartment-building::before { position: absolute; top: -23px; right: -4px; left: -4px; height: 22px; content: ""; border: 4px solid var(--apartment-ink); border-bottom: 0; border-radius: 4px 4px 0 0; background: linear-gradient(90deg, #dfe7ef, #fff 49%, #d9e2ea); }
+.apartment-building::after { position: absolute; right: 7px; bottom: -20px; left: 7px; height: 20px; content: ""; background: repeating-linear-gradient(90deg, #e9eef2 0 13px, #9ba9b6 13px 16px); }
+.apartment-roof { position: absolute; top: -92px; right: 5%; left: 5%; height: 94px; pointer-events: none; }
+.apartment-roof::before { position: absolute; top: 51px; right: 4%; left: 4%; height: 42px; content: ""; border-top: 4px solid var(--apartment-ink); border-radius: 48% 48% 0 0; transform: rotate(2deg); }
+.apartment-roof::after { position: absolute; top: 17px; left: 7%; width: 4px; height: 76px; content: ""; background: var(--apartment-ink); box-shadow: 270px 4px 0 var(--apartment-ink); }
+.apartment-roof span { position: absolute; top: 45px; left: calc(5% + var(--lamp-offset)); width: 11px; height: 11px; border: 3px solid var(--apartment-ink); border-radius: 50%; background: #ffd84a; box-shadow: 0 0 0 3px rgba(255, 216, 74, .3), 0 0 13px rgba(255, 216, 74, .8); }
+.apartment-roof span:nth-child(1) { --lamp-offset: 0%; top: 58px; }
+.apartment-roof span:nth-child(2) { --lamp-offset: 10%; top: 47px; }
+.apartment-roof span:nth-child(3) { --lamp-offset: 20%; top: 43px; }
+.apartment-roof span:nth-child(4) { --lamp-offset: 30%; top: 48px; }
+.apartment-roof span:nth-child(5) { --lamp-offset: 40%; top: 54px; }
+.apartment-roof span:nth-child(6) { --lamp-offset: 50%; top: 56px; }
+.apartment-roof span:nth-child(7) { --lamp-offset: 60%; top: 52px; }
+.apartment-roof span:nth-child(8) { --lamp-offset: 70%; top: 44px; }
+.apartment-roof span:nth-child(9) { --lamp-offset: 80%; top: 34px; }
+.apartment-floors { display: grid; gap: 13px; }
+.apartment-floor { position: relative; display: block; width: 100%; min-height: 68px; padding: 7px 10px 8px; border: 3px solid var(--apartment-ink); border-radius: 4px; background: #fff; color: var(--apartment-ink); text-align: left; cursor: pointer; transition: transform .16s ease, filter .16s ease, box-shadow .16s ease; }
+.apartment-floor:hover:not(:disabled), .apartment-floor:focus-visible { transform: translateX(-2px); filter: brightness(1.02); box-shadow: 0 4px 0 rgba(4, 80, 151, .17); }
 .apartment-floor:disabled { cursor: default; }
-.apartment-floor.selected { border-color: #caff66; background: linear-gradient(90deg, rgba(92, 121, 46, .72), rgba(41, 65, 53, .82)); box-shadow: inset 3px 0 #d9ff57; }
-.apartment-floor.penalty { border-color: rgba(255, 108, 119, .88); background: linear-gradient(90deg, rgba(108, 39, 53, .92), rgba(67, 31, 45, .9)); box-shadow: inset 3px 0 #ff6b72, 0 0 16px rgba(255, 107, 114, .14); }
-.apartment-floor-number { color: #eef5ff; font: 900 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
-.apartment-floor-number small { margin-left: 2px; color: #7f9abd; font-size: 8px; }
-.apartment-windows { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.apartment-windows i { display: block; height: 13px; border: 1px solid rgba(149, 192, 239, .16); border-radius: 2px; background: rgba(88, 141, 201, .14); box-shadow: inset 0 1px rgba(255,255,255,.04); }
-.apartment-windows i.lit { border-color: rgba(255, 213, 122, .4); background: linear-gradient(180deg, rgba(255, 226, 141, .88), rgba(189, 129, 57, .42)); box-shadow: 0 0 8px rgba(255, 193, 87, .18); }
-.apartment-floor-meta { overflow: hidden; color: #7f9ab9; font-size: 8px; font-weight: 850; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.apartment-floor.selected .apartment-floor-meta { color: #e1ff9d; }
-.apartment-floor.penalty .apartment-floor-meta { color: #ffb9bd; }
-.apartment-lobby { display: flex; align-items: center; justify-content: center; gap: 7px; height: 33px; margin: 7px 33% 0; border: 1px solid rgba(190, 210, 237, .2); border-radius: 4px; background: linear-gradient(90deg, #0e1623, #304257, #0e1623); }
-.apartment-lobby span { display: grid; place-items: center; width: 17px; height: 22px; border: 1px solid rgba(212, 231, 255, .26); border-radius: 8px 8px 2px 2px; color: #9fc4ff; font: 900 10px/1 ui-monospace, monospace; }
-.apartment-lobby small { color: #6f859f; font: 900 7px/1 ui-monospace, monospace; letter-spacing: .1em; }
-.apartment-street { position: absolute; right: 0; bottom: 0; left: 0; height: 31px; border-top: 1px solid rgba(177, 201, 230, .08); background: repeating-linear-gradient(90deg, transparent 0 38px, rgba(195, 213, 236, .08) 38px 54px, transparent 54px 90px); }
-.apartment-submit-status, .apartment-waiting-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; padding: 11px 12px; border: 1px solid rgba(146, 181, 229, .14); border-radius: 13px; background: rgba(17, 25, 38, .8); color: #aab9cc; font-size: 10px; line-height: 1.45; }
-.apartment-submit-status strong { color: #9fc4ff; font-size: 10px; }
-.status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #d9ff57; box-shadow: 0 0 0 4px rgba(217,255,87,.1); }
-.apartment-verdict { display: grid; gap: 5px; margin-top: 11px; padding: 14px; border: 1px solid rgba(255, 107, 114, .35); border-radius: 15px; background: linear-gradient(135deg, rgba(255, 107, 114, .13), rgba(34, 25, 34, .7)); }
-.apartment-verdict span { color: #ff9ca2; font: 900 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
-.apartment-verdict strong { color: #fff1f2; font-size: 18px; letter-spacing: -.04em; }
-.apartment-verdict small { color: #b99da2; font-size: 9px; line-height: 1.45; }
+.apartment-floor.selected { border-color: #0754bf; background: #e9f5ff; box-shadow: inset 0 0 0 3px #0a96f1, 0 3px 0 rgba(4, 80, 151, .16); }
+.apartment-floor.penalty { border-color: #e62f35; background: #fff0f0; box-shadow: inset 0 0 0 3px #ffce39, 0 3px 0 rgba(183, 27, 37, .2); }
+.apartment-floor-number { position: absolute; z-index: 3; top: 50%; right: -51px; display: grid; place-items: center; width: 76px; height: 56px; border: 3px solid #f3cf00; border-radius: 19px; background: #ffe500; color: #073b9d; font: 900 27px/.8 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.08em; transform: translateY(-50%); box-shadow: 0 4px 0 rgba(4, 84, 147, .18); }
+.apartment-floor-number small { margin-left: 2px; font-size: 13px; letter-spacing: -.08em; }
+.apartment-windows { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 38px 15px; gap: 5px; padding-right: 28px; }
+.apartment-windows i { display: block; min-width: 0; border: 3px solid var(--apartment-ink); border-radius: 2px; background: linear-gradient(145deg, #ffdc9e 0 42%, #c4b3b3 42% 100%); }
+.apartment-windows i:nth-child(n + 4) { border-width: 3px; border-radius: 0; background: repeating-linear-gradient(90deg, #e6caca 0 7px, var(--apartment-ink) 7px 10px); }
+.apartment-windows i.lit { background: linear-gradient(145deg, #ffe5ad 0 42%, #d8b0a0 42% 100%); }
+.apartment-floor-meta { position: absolute; right: 12px; bottom: 2px; color: #40506a; font-size: 8px; font-weight: 900; text-align: right; text-transform: uppercase; }
+.apartment-floor.selected .apartment-floor-meta { color: #0754bf; }
+.apartment-floor.penalty .apartment-floor-meta { color: #c52632; }
+.apartment-lobby { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; width: 130px; height: 59px; margin: 15px auto 0; border: 4px solid var(--apartment-ink); border-bottom: 0; border-radius: 4px 4px 0 0; background: linear-gradient(90deg, #f3d4a5 0 48%, #bd8c55 48% 52%, #f1d0a1 52%); color: var(--apartment-ink); }
+.apartment-lobby span { display: none; }
+.apartment-lobby small { position: absolute; top: -19px; color: #40506a; font: 900 7px/1 ui-monospace, monospace; letter-spacing: .1em; }
+.apartment-street { position: absolute; right: -8px; bottom: 0; left: -8px; height: 51px; border: 4px solid var(--apartment-ink); border-bottom: 0; background: linear-gradient(180deg, #fbfbfb 0 56%, #f3f3f3 56%); }
+.apartment-street::before, .apartment-street::after { position: absolute; bottom: 0; width: 92px; height: 31px; content: ""; border: 4px solid var(--apartment-ink); border-radius: 22px 22px 4px 4px; background: radial-gradient(circle at 20% 75%, #59ae3a 0 13px, transparent 14px), radial-gradient(circle at 53% 54%, #b7d42e 0 11px, transparent 12px), radial-gradient(circle at 78% 68%, #3d9f43 0 14px, transparent 15px), #fff; }
+.apartment-street::before { left: -4px; }
+.apartment-street::after { right: -4px; }
+.apartment-submit-status, .apartment-waiting-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 14px 15px; border: 3px solid rgba(255, 255, 255, .94); border-radius: 18px; background: rgba(255, 255, 255, .94); color: #0b4aa5; font-size: 11px; line-height: 1.45; box-shadow: 0 5px 0 rgba(4, 80, 151, .18); }
+.apartment-submit-status strong { color: #087fe4; font-size: 11px; }
+.status-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #10a9ec; box-shadow: 0 0 0 4px rgba(16, 169, 236, .14); }
+.apartment-verdict { display: grid; gap: 5px; margin-top: 12px; padding: 15px; border: 3px solid #fff; border-radius: 18px; background: #fff; color: #092b75; box-shadow: 0 5px 0 rgba(4, 80, 151, .18); }
+.apartment-verdict span { color: #0c75d7; font: 900 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+.apartment-verdict strong { color: #092b75; font-size: 18px; letter-spacing: -.04em; }
+.apartment-verdict small { color: #4c6081; font-size: 9px; line-height: 1.45; }
 .apartment-result-shell .result-actions { margin-top: 14px; }
-.count-warning { margin-top: 12px; padding: 10px 12px; border: 1px solid rgba(255, 107, 114, .3); border-radius: 12px; background: rgba(255, 107, 114, .08); color: #ffb5b9; font-size: 11px; }
-@media (max-width: 380px) {
-  .apartment-board { padding: 15px 10px 11px; }
+.apartment-result-shell .result-actions .button.primary { background: #fff; color: #0754bf; box-shadow: 0 4px 0 rgba(4, 80, 151, .18); }
+.apartment-result-shell .result-actions .button.secondary { border-color: rgba(255, 255, 255, .72); background: rgba(255, 255, 255, .16); color: #fff; }
+.count-warning { margin-top: 12px; padding: 10px 12px; border: 2px solid rgba(255, 255, 255, .78); border-radius: 12px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 11px; }
+@media (max-width: 420px) {
+  .apartment-board { padding-inline: 1px; }
   .apartment-board-heading h2 { font-size: 20px; }
-  .apartment-floor { grid-template-columns: 32px 1fr 58px; gap: 5px; min-height: 33px; padding-inline: 5px; }
-  .apartment-windows { gap: 3px; }
-  .apartment-windows i { height: 11px; }
-  .apartment-floor-meta { font-size: 7px; }
+  .apartment-scene { min-height: 440px; padding-top: 42px; }
+  .apartment-building { width: 86%; padding-inline: 8px; }
+  .apartment-floor-number { right: -45px; width: 68px; height: 51px; font-size: 24px; }
+  .apartment-windows { padding-right: 21px; }
+}
+@media (max-width: 360px) {
+  .apartment-floor-number { right: -39px; width: 61px; height: 47px; font-size: 21px; }
+  .apartment-windows { gap: 4px; padding-right: 17px; grid-template-rows: 34px 13px; }
+  .apartment-windows i { border-width: 2px; }
+  .apartment-street::before, .apartment-street::after { width: 76px; }
 }
 
 @media (max-width: 380px) {

@@ -182,13 +182,15 @@ function QuizImage({ imageId }: { imageId: string }) {
 function ApartmentBuilding({ maxFloor, selectedFloor, onSelect, submittedIds, players, revealed, counts, penaltyFloor, penaltyPlayerIds, preview }: { maxFloor: number; selectedFloor?: number; onSelect?: (floor: number) => void; submittedIds: string[]; players: Player[]; revealed?: boolean; counts?: Record<string, number>; penaltyFloor?: number; penaltyPlayerIds?: string[]; preview?: boolean }) {
   const floors = Array.from({ length: maxFloor }, (_, index) => maxFloor - index);
   const penaltyNames = (penaltyPlayerIds ?? []).map((id) => players.find((player) => player.id === id)?.name ?? "참가자");
-  return <section className={`apartment-board ${revealed ? "revealed" : ""}`}>
-    <div className="apartment-board-heading"><div><span className="apartment-kicker">APARTMENT DRAW</span><h2>{revealed ? `${penaltyFloor}층이 벌칙 층` : `${maxFloor}층 아파트에서 한 층 선택`}</h2></div><strong>{revealed ? "RESULT" : `${maxFloor}F`}</strong></div>
-    <p className="apartment-rule-copy">{revealed ? penaltyNames.length ? `${penaltyNames.join(", ")} · 같은 층에 모였어요.` : "벌칙 대상이 정해졌어요." : "모두의 선택은 결과가 공개될 때까지 숨겨져요."}</p>
+  return <section className={`apartment-board ${revealed ? "revealed" : ""} ${preview ? "preview" : ""}`}>
+    <div className="apartment-board-heading">
+      <div><span className="apartment-kicker">APARTMENT DRAW</span><h2>{revealed ? `${penaltyFloor}층 벌칙 층` : `${maxFloor}층 아파트`}</h2><p>{revealed ? penaltyNames.length ? `${penaltyNames.join(", ")} · 같은 층에 모였어요.` : "벌칙 대상이 정해졌어요." : "한 층을 골라 주세요"}</p></div>
+      <strong>{revealed ? "RESULT" : `${maxFloor}F`}</strong>
+    </div>
     <div className="apartment-scene">
       <div className="apartment-skyline"><i /><i /><i /><i /><span>HANPAN HEIGHTS</span></div>
       <div className="apartment-building">
-        <div className="apartment-roof"><span /><span /><span /></div>
+        <div className="apartment-roof" aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <span key={index} />)}</div>
         <div className="apartment-floors">
           {floors.map((floor) => {
             const count = counts?.[String(floor)] ?? 0;
