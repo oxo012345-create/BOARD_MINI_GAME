@@ -160,3 +160,67 @@
   .timer { width: 90px; }
   body[data-phase="select"] .item-card { grid-template-columns: 76px 56px minmax(0, 1fr); }
 }
+
+/* Short iPhone browser viewport (393 x 664): the auction card and the
+   parchment must fit above the fixed command dock without being clipped. */
+@media (max-width: 520px) and (max-height: 700px) {
+  :root,
+  #app {
+    --table-diameter: min(82vw, 318px, 47dvh);
+  }
+
+  .hud {
+    right: 2px;
+    width: 100px;
+  }
+  .round-status,
+  .timer { width: 100px; }
+
+  /* Reserve separate horizontal slots.  The previous 67px cash box let its
+     contents overflow underneath the 30px help button. */
+  .cash {
+    top: 64px;
+    left: 0;
+    width: 72px;
+    height: 29px;
+    justify-content: flex-end;
+    gap: 2px;
+    overflow: hidden;
+  }
+  .cash > small { font-size: 6px; }
+  .cash-value { gap: 2px; }
+  .cash-value i { width: 10px; height: 10px; }
+  .cash strong { font-size: 11.5px; }
+  .hud-menu {
+    top: 65px;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+  }
+  .hud-menu-lines { font-size: 16px; }
+
+  .lot-stack {
+    width: min(82vw, 318px);
+    translate: 0 -12px;
+    gap: 2px;
+  }
+  .lot-card { height: 306px; }
+  .item-render-wrap {
+    top: 25px;
+    left: 29px;
+    right: 29px;
+    height: 162px;
+  }
+  .lot-copy { inset: auto 23px 4px; }
+
+  .private-dossier {
+    min-height: 126px;
+    padding: 15px 26px 12px 30px;
+  }
+  .private-dossier header { padding-bottom: 6px; }
+  .appraisal-value { padding: 6px 0 5px; }
+  .private-dossier #clauses { gap: 3px; line-height: 1.32; }
+  .private-dossier #clauses > div { padding: 4px 6px; }
+}
