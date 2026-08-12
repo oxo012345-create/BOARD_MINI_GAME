@@ -9,6 +9,7 @@ export type DealerItem = {
   clauses: number[];
   acquiredRound?: number;
   acquiredAuction?: number;
+  sellLockedThroughRound?: number;
 };
 
 export type DealerCard = { id: number; name: string; price: number; effect: string; passive?: boolean };
@@ -43,7 +44,8 @@ export type DealerState = {
   auctionCount: number;
   pendingLoans: Array<{ playerId: string; dueAuction: number; amount: number }>;
   pendingInvestments: Array<{ playerId: string; dueAuction: number; amount: number; chance: number; gain: number }>;
-  delayedItems: Array<{ playerId: string; dueAuction: number; item: DealerItem }>;
+  delayedItems: Array<{ playerId: string; dueAuction: number; item?: DealerItem }>;
+  cardLockedThroughRound: Record<string, number>;
   speechLocked: string[];
   nextSpeechLocked: string[];
   intel: Record<string, { price?: boolean; clauses?: boolean }>;
@@ -106,7 +108,8 @@ const playerName = (players: Player[], id?: string) => players.find((p) => p.id 
 function makeItem(round = 1): DealerItem {
   const id = Math.floor(Math.random() * DEALER_ITEMS.length);
   const [name, era] = DEALER_ITEMS[id];
-  const clauses = shuffle([...DEALER_CLAUSES.keys()]).slice(0, 2);
+  // Clause 24 is the boxing mini-game. It is intentionally omitted here.
+  const clauses = shuffle([...DEALER_CLAUSES.keys()].filter((clause) => clause !== 24)).slice(0, 2);
   const value = clauses.includes(15) ? -250 : money(Math.max(0, 500 + Math.floor(Math.random() * 1001) - 500));
   return { uid: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, id, name, era, value, clauses, acquiredRound: round };
 }
@@ -138,22 +141,30 @@ function beginSelection(state: DealerState, players: Player[]) {
   state.log.unshift(`${state.round}라운드 판매품 선택 시작`);
 }
 
+function settleDueInvestments(state: DealerState, players: Player[], force = false) {
+  const due = state.pendingInvestments.filter((entry) => force || entry.dueAuction <= state.auctionCount);
+  for (const investment of due) {
+    const won = Math.random() < investment.chance;
+    state.balances[investment.playerId] = (state.balances[investment.playerId] ?? 0)
+      + (won ? money(investment.amount * (1 + investment.gain)) : 0);
+    state.log.unshift(`${playerName(players, investment.playerId)} All In ${won ? "성공" : "실패"}`);
+  }
+  const settled = new Set(due);
+  state.pendingInvestments = state.pendingInvestments.filter((entry) => !settled.has(entry));
+}
+
 function beginAuction(state: DealerState, players: Player[]) {
   state.auctionCount += 1;
   for (const loan of state.pendingLoans.filter((entry) => entry.dueAuction <= state.auctionCount)) {
-    state.balances[loan.playerId] = Math.max(0, (state.balances[loan.playerId] ?? 0) - loan.amount);
+    state.balances[loan.playerId] = (state.balances[loan.playerId] ?? 0) - loan.amount;
     state.log.unshift(`${playerName(players, loan.playerId)} 대출 상환 -$${loan.amount}`);
   }
   state.pendingLoans = state.pendingLoans.filter((entry) => entry.dueAuction > state.auctionCount);
-  for (const investment of state.pendingInvestments.filter((entry) => entry.dueAuction <= state.auctionCount)) {
-    const won = Math.random() < investment.chance;
-    state.balances[investment.playerId] += won ? money(investment.amount * (1 + investment.gain)) : 0;
-    state.log.unshift(`${playerName(players, investment.playerId)} All In ${won ? "성공" : "실패"}`);
-  }
-  state.pendingInvestments = state.pendingInvestments.filter((entry) => entry.dueAuction > state.auctionCount);
+  settleDueInvestments(state, players);
   for (const delayed of state.delayedItems.filter((entry) => entry.dueAuction <= state.auctionCount)) {
-    if ((state.inventories[delayed.playerId]?.length ?? 0) < 4) state.inventories[delayed.playerId].push({ ...delayed.item, uid: `${delayed.item.uid}-copy` });
-    else delayed.dueAuction += 1;
+    const inventory = state.inventories[delayed.playerId] ?? [];
+    const source = inventory[Math.floor(Math.random() * inventory.length)];
+    if (source && inventory.length < 4) inventory.push({ ...source, uid: `${source.uid}-copy-${state.auctionCount}`, acquiredRound: state.round, acquiredAuction: state.auctionCount });
   }
   state.delayedItems = state.delayedItems.filter((entry) => entry.dueAuction > state.auctionCount);
   const eras = [...new Set(DEALER_ITEMS.map((item) => item[1]))];
@@ -161,7 +172,7 @@ function beginAuction(state: DealerState, players: Player[]) {
     state.inventories[player.id] = (state.inventories[player.id] ?? []).filter((item) => {
       if (item.clauses.includes(16)) item.era = eras[Math.floor(Math.random() * eras.length)];
       if (item.clauses.includes(15) && state.auctionCount - (item.acquiredAuction ?? state.auctionCount) >= 10) {
-        state.balances[player.id] += Math.max(0, item.value);
+        state.balances[player.id] += item.value;
         return false;
       }
       return true;
@@ -201,21 +212,36 @@ function resolveAuction(state: DealerState, players: Player[]) {
   const sold = Boolean(buyer && bid !== null && (state.balances[buyer] ?? 0) >= bid && (state.inventories[buyer]?.length ?? 0) < 4);
   if (sold && buyer && bid !== null) {
     state.balances[buyer] -= bid;
-    state.balances[seller] += bid;
+    if (item.clauses.includes(20) && players.length > 1) {
+      const partner = shuffle(players.filter((player) => player.id !== seller))[0];
+      const partnerShare = money(bid / 2);
+      state.balances[seller] += bid - partnerShare;
+      state.balances[partner.id] += partnerShare;
+    } else state.balances[seller] += bid;
     if (item.clauses.includes(12)) removeRandomCard(state, buyer);
     if (item.clauses.includes(13)) removeRandomCard(state, seller);
     if (item.clauses.includes(17)) {
       state.balances[buyer] += (state.cards[buyer]?.length ?? 0) * 150;
       state.cards[buyer] = [];
     }
-    if (item.clauses.includes(14)) state.delayedItems.push({ playerId: buyer, dueAuction: state.auctionCount + 7, item: { ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount } });
-    else state.inventories[buyer].push({ ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount });
+    if (item.clauses.includes(14)) state.delayedItems.push({ playerId: buyer, dueAuction: state.auctionCount + 7 });
+    else state.inventories[buyer].push({ ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount, sellLockedThroughRound: item.clauses.includes(9) ? state.round : undefined });
+    if (item.clauses.includes(10)) state.cardLockedThroughRound[buyer] = state.round;
+    if (item.clauses.includes(11)) state.cardLockedThroughRound[seller] = state.round;
     if (item.clauses.includes(22)) state.nextSpeechLocked.push(buyer);
     if (item.clauses.includes(23)) state.nextSpeechLocked.push(seller);
   }
+  if (!sold) {
+    const sellerInventory = state.inventories[seller] ?? [];
+    if (sellerInventory.length < 4) sellerInventory.push({ ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount });
+    else {
+      state.balances[seller] += item.value;
+      state.log.unshift(`${playerName(players, seller)} inventory full · unsold item auto-sold $${item.value}`);
+    }
+  }
   for (const [targetId, ownerId] of Object.entries(state.overbidTraps)) {
-    if ((state.bidCounts[targetId] ?? 0) >= 5) state.balances[targetId] = Math.max(0, state.balances[targetId] - 300);
-    else state.balances[ownerId] = Math.max(0, state.balances[ownerId] - 300);
+    if ((state.bidCounts[targetId] ?? 0) >= 5) state.balances[targetId] -= 300;
+    else state.balances[ownerId] -= 300;
   }
   const message = sold && buyer ? `${playerName(players, buyer)} 낙찰 · $${bid}` : "유찰";
   state.lastResult = { sold, sellerId: seller, buyerId: sold && buyer ? buyer : undefined, bid: sold && bid !== null ? bid : undefined, item, message };
@@ -240,9 +266,19 @@ function beginShop(state: DealerState, players: Player[]) {
 
 function finishShop(state: DealerState, players: Player[]) {
   for (const player of players) {
-    for (const item of state.inventories[player.id] ?? []) if (item.clauses.includes(18)) state.balances[player.id] = Math.max(0, state.balances[player.id] + (Math.random() < .5 ? 150 : -150));
+    for (const item of state.inventories[player.id] ?? []) if (item.clauses.includes(18)) state.balances[player.id] += Math.random() < .5 ? 150 : -150;
   }
   if (state.round >= state.totalRounds) {
+    for (const loan of state.pendingLoans) state.balances[loan.playerId] = (state.balances[loan.playerId] ?? 0) - loan.amount;
+    state.pendingLoans = [];
+    settleDueInvestments(state, players, true);
+    for (const player of players) {
+      const itemIds = (state.inventories[player.id] ?? []).map((item) => item.uid);
+      const total = checkoutValue(state, player.id, itemIds, true);
+      state.balances[player.id] += total;
+      state.inventories[player.id] = [];
+      if (total) state.log.unshift(`${playerName(players, player.id)} final auto-checkout +$${total}`);
+    }
     state.phase = "finished";
     state.deadline = Date.now();
     state.log.unshift("최종 정산 완료");
@@ -257,7 +293,7 @@ export function createDealerState(players: Player[]): DealerState {
     phase: "select", round: 1, totalRounds: 5, deadline: 0, sellerOrder: [], sellerIndex: 0,
     balances: {}, inventories: {}, cards: {}, candidates: {}, selected: {}, shopOffers: {}, previousOffers: {}, rerolls: {},
     startingBid: 100, currentBid: null, bidHistory: [], bidCounts: {}, blockedBidders: [], protectedPlayers: [], overbidTraps: {}, auctionCount: 0,
-    pendingLoans: [], pendingInvestments: [], delayedItems: [], speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
+    pendingLoans: [], pendingInvestments: [], delayedItems: [], cardLockedThroughRound: {}, speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
     lastActionIds: {},
   };
   for (const p of players) { state.balances[p.id] = 2000; state.inventories[p.id] = []; state.cards[p.id] = []; state.previousOffers[p.id] = []; }
@@ -270,6 +306,8 @@ function normalizeAuctionState(state: DealerState) {
   if (!Number.isFinite(state.startingBid)) state.startingBid = 100;
   if (!Array.isArray(state.bidHistory)) state.bidHistory = [];
   if (!state.lastActionIds || typeof state.lastActionIds !== "object") state.lastActionIds = {};
+  if (!state.cardLockedThroughRound || typeof state.cardLockedThroughRound !== "object") state.cardLockedThroughRound = {};
+  state.pendingInvestments = state.pendingInvestments ?? [];
   if (!state.highestBidderId) {
     state.currentBid = null;
     state.bidHistory = [];
@@ -297,8 +335,10 @@ export function tickDealer(state: DealerState, players: Player[]) {
 
 function cardDiscount(state: DealerState, id: string) { return state.cards[id]?.includes(3) ? .8 : state.cards[id]?.includes(2) ? .9 : 1; }
 
-function checkoutValue(state: DealerState, playerId: string) {
-  const items = state.inventories[playerId] ?? [];
+function checkoutValue(state: DealerState, playerId: string, itemIds?: string[], force = false) {
+  const inventory = state.inventories[playerId] ?? [];
+  const requested = new Set(itemIds?.length ? itemIds : inventory.map((item) => item.uid));
+  const items = inventory.filter((item) => requested.has(item.uid) && (force || (item.sellLockedThroughRound ?? -1) < state.round));
   const eraCounts: Record<string, number> = {};
   for (const item of items) if (!item.clauses.includes(8)) eraCounts[item.era] = (eraCounts[item.era] ?? 0) + 1;
   const wild = items.filter((item) => item.clauses.includes(8)).length;
@@ -314,7 +354,7 @@ function checkoutValue(state: DealerState, playerId: string) {
     if (item.clauses.includes(5)) value *= 1 + Math.max(0, 3 - (state.cards[playerId]?.length ?? 0)) * .1;
     if (item.clauses.includes(6)) value *= Math.random() < .33 ? 3 : 1 / 3;
     if (item.clauses.includes(19)) value -= Math.max(0, state.round - (item.acquiredRound ?? state.round)) * 100;
-    if (item.clauses.includes(21)) value *= 1 + items.length * .12;
+    if (item.clauses.includes(21)) value *= 1 + inventory.length * .12;
     total += value;
   }
   total *= setMultiplier;
@@ -342,6 +382,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     if (state.phase !== "auction" || actorId === state.sellerId) throw new Error("지금은 입찰할 수 없어요.");
     if (state.blockedBidders.includes(actorId)) throw new Error("Hammer Lock으로 입찰이 막혔어요.");
     if ((state.inventories[actorId]?.length ?? 0) >= 4) throw new Error("아이템 인벤토리가 가득 찼어요.");
+    if (state.highestBidderId === actorId) throw new Error("다른 플레이어가 입찰할 때까지 기다려 주세요.");
     const next = state.currentBid === null ? state.startingBid : state.currentBid + 50;
     if ((state.balances[actorId] ?? 0) < next) throw new Error("현금이 부족해요.");
     state.currentBid = next;
@@ -381,14 +422,14 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
   }
   if (action === "dealer-checkout") {
     if (state.phase !== "shop" && state.phase !== "finished") throw new Error("지금은 시장에 판매할 수 없어요.");
-    const total = checkoutValue(state, actorId);
-    if (state.inventories[actorId].some((item) => item.clauses.includes(20)) && players.length > 1) {
-      const partner = shuffle(players.filter((player) => player.id !== actorId))[0];
-      const half = money(total / 2);
-      state.balances[actorId] += total - half;
-      state.balances[partner.id] += half;
-    } else state.balances[actorId] += total;
-    state.inventories[actorId] = [];
+    const requestedIds = Array.isArray(payload.itemIds) ? payload.itemIds.map(String) : state.inventories[actorId].map((item) => item.uid);
+    const sellableIds = new Set(state.inventories[actorId]
+      .filter((item) => requestedIds.includes(item.uid) && (item.sellLockedThroughRound ?? -1) < state.round)
+      .map((item) => item.uid));
+    if (!sellableIds.size) throw new Error("이번 라운드에 판매할 수 있는 아이템을 선택해 주세요.");
+    const total = checkoutValue(state, actorId, [...sellableIds]);
+    state.balances[actorId] += total;
+    state.inventories[actorId] = state.inventories[actorId].filter((item) => !sellableIds.has(item.uid));
     state.log.unshift(`${playerName(players, actorId)} 시장 정산 +$${total}`);
     rememberRequest();
     return;
@@ -399,28 +440,37 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     const index = state.cards[actorId]?.indexOf(cardId) ?? -1;
     const card = DEALER_CARDS[cardId];
     if (index < 0 || !card || card.passive) throw new Error("사용할 수 없는 카드예요.");
+    if ((state.cardLockedThroughRound[actorId] ?? -1) >= state.round) throw new Error("이번 라운드에는 전략 카드를 사용할 수 없습니다.");
     const targetId = String(payload.targetId ?? "");
     const needsTarget = [6, 13, 14, 21].includes(cardId);
     if (needsTarget && (!targetId || targetId === actorId || !players.some((player) => player.id === targetId))) {
       throw new Error("카드를 사용할 대상을 선택해 주세요.");
     }
     if (cardId === 6 && targetId === state.sellerId) throw new Error("판매자는 입찰 대상이 아니에요.");
-    if (targetId && state.protectedPlayers.includes(targetId)) throw new Error("대상이 Shut Down으로 보호 중이에요.");
+    if (targetId && state.protectedPlayers.includes(targetId)) {
+      state.cards[actorId].splice(index, 1);
+      rememberRequest();
+      return;
+    }
     if (cardId === 0) state.intel[actorId] = { ...(state.intel[actorId] ?? {}), price: true };
     else if (cardId === 1) state.intel[actorId] = { ...(state.intel[actorId] ?? {}), clauses: true };
     else if (cardId === 6 && targetId && targetId !== state.sellerId) state.blockedBidders.push(targetId);
-    else if (cardId === 7) { state.balances[actorId] += 1000; state.pendingLoans.push({ playerId: actorId, dueAuction: state.auctionCount + 3, amount: 1200 }); }
+    else if (cardId === 7) { state.balances[actorId] += 1000; state.pendingLoans.push({ playerId: actorId, dueAuction: state.auctionCount + 2, amount: 1200 }); }
     else if (cardId >= 8 && cardId <= 12) { const chances=[.75,.5,.3,.15,.05], rewards=[300,500,700,1000,1500]; if (Math.random()<chances[cardId-8]) state.balances[actorId]+=rewards[cardId-8]; }
     else if (cardId === 13 && targetId && state.balances[targetId] > 1000) state.balances[targetId] -= 300;
     else if (cardId === 14 && targetId) { const target=state.cards[targetId]??[]; if(target.length && state.cards[actorId].length<3) state.cards[actorId].push(target.splice(Math.floor(Math.random()*target.length),1)[0]); }
-    else if (cardId >= 15 && cardId <= 17) { const chances=[.8,.5,.2], gains=[.2,.35,.5], amount=state.balances[actorId]; state.balances[actorId]=0; state.pendingInvestments.push({playerId:actorId,dueAuction:state.auctionCount+2,amount,chance:chances[cardId-15],gain:gains[cardId-15]}); }
-    else if (cardId === 18) { const rich=players.filter(p=>p.id!==actorId).sort((a,b)=>state.balances[b.id]-state.balances[a.id])[0]; if(rich){const take=Math.min(250,state.balances[rich.id]);state.balances[rich.id]-=take;state.balances[actorId]+=take;} }
+    else if (cardId >= 15 && cardId <= 17) {
+      if (state.pendingInvestments.some((entry) => entry.playerId === actorId)) throw new Error("이미 올인 효과가 진행 중입니다.");
+      const chances=[.8,.5,.2], gains=[.2,.35,.5], amount=state.balances[actorId];
+      state.balances[actorId]=0;
+      state.pendingInvestments.push({playerId:actorId,dueAuction:state.auctionCount+2,amount,chance:chances[cardId-15],gain:gains[cardId-15]});
+    }
+    else if (cardId === 18) { const rich=players.filter(p=>p.id!==actorId && !state.protectedPlayers.includes(p.id)).sort((a,b)=>state.balances[b.id]-state.balances[a.id])[0]; if(rich){state.balances[rich.id]-=250;state.balances[actorId]+=250;} }
     else if (cardId === 19) state.protectedPlayers.push(actorId);
     else if (cardId === 20) {
-      for (const p of players) if (p.id !== actorId) {
-        const take = Math.min(100, state.balances[p.id]);
-        state.balances[p.id] -= take;
-        state.balances[actorId] += take;
+      for (const p of players) if (p.id !== actorId && !state.protectedPlayers.includes(p.id)) {
+        state.balances[p.id] -= 100;
+        state.balances[actorId] += 100;
       }
     }
     else if (cardId === 21 && targetId) state.overbidTraps[targetId]=actorId;

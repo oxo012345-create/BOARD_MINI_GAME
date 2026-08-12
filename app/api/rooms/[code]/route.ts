@@ -160,7 +160,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const payload = (await request.json()) as {
       action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
-      itemIndex?: number; cardId?: number; targetId?: string; character?: number; ready?: boolean; requestId?: string;
+      itemIndex?: number; itemIds?: string[]; cardId?: number; targetId?: string; character?: number; ready?: boolean; requestId?: string;
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
       floor?: number;
       enabled?: boolean;
