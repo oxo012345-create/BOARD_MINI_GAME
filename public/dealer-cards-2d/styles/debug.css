@@ -2,22 +2,32 @@ body[data-debug="true"] .debug-toggle {
   position: fixed;
   z-index: 120;
   top: 50%;
-  right: max(8px, env(safe-area-inset-right));
+  right: max(0px, env(safe-area-inset-right));
   translate: 0 -50%;
-  min-width: 58px;
-  min-height: 28px;
-  padding: 5px 9px;
+  width: 28px;
+  min-width: 28px;
+  min-height: 64px;
+  padding: 6px 4px;
   color: #f4dba3;
   font: 800 9px "Roboto Slab", serif;
-  letter-spacing: .09em;
+  letter-spacing: .08em;
   border: 1px solid #b07b3e;
-  border-radius: 999px;
+  border-radius: 12px 0 0 12px;
   background: linear-gradient(180deg, #693744, #321821);
   box-shadow: 0 3px 8px rgba(0,0,0,.48), inset 0 1px rgba(255,235,187,.16);
   cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  opacity: .78;
+  transition: opacity .15s ease, filter .15s ease;
 }
 
 body[data-debug="true"] .debug-toggle:active { transform: translateY(1px); }
+body[data-debug="true"] .debug-toggle:hover,
+body[data-debug-panel="open"] .debug-toggle { opacity: 1; filter: brightness(1.08); }
+/* When a game sheet is open, the edge tab sits underneath it instead of
+   covering product copy or candidate rows. Close the sheet to reopen debug. */
+body[data-debug="true"][data-menu="open"][data-debug-panel="closed"] .debug-toggle { z-index: 33; }
 
 body[data-debug="true"] .debug-panel {
   position: fixed;

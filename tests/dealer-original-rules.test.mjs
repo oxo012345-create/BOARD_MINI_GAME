@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDealerState, DEALER_CARDS, dealerAction, tickDealer } from "../app/api/_lib/dealer.ts";
+import { createDealerState, DEALER_CARDS, dealerAction, dealerClientState, tickDealer } from "../app/api/_lib/dealer.ts";
 
 const players = Array.from({ length: 4 }, (_, index) => ({
   id: `p${index + 1}`,
@@ -117,4 +117,45 @@ test("Cut Deal transfers 30 percent of the target's next checkout", () => {
   assert.equal(state.balances[owner.id], ownerBefore + 300);
   assert.equal(state.balances[target.id], targetBefore + 700);
   assert.equal(state.cutDeals[target.id], undefined);
+});
+
+test("four players stay in one authoritative auction state through shop ready", () => {
+  const state = createDealerState(players);
+  for (const player of players) dealerAction(state, players, player.id, "dealer-select", { itemIndex: 0, requestId: `select-${player.id}` });
+  assert.equal(state.phase, "auction");
+
+  const firstSeller = state.sellerId;
+  const firstBuyer = players.find((player) => player.id !== firstSeller);
+  const firstItemUid = state.currentItem.uid;
+  const buyerBefore = state.balances[firstBuyer.id];
+  dealerAction(state, players, firstBuyer.id, "dealer-bid", { requestId: "first-bid" });
+  dealerAction(state, players, firstBuyer.id, "dealer-bid", { requestId: "first-bid" });
+  assert.equal(state.bidHistory.length, 1, "duplicate request must not create a second bid");
+
+  for (let auction = 0; auction < players.length; auction += 1) {
+    state.deadline = Date.now() - 1;
+    tickDealer(state, players);
+    assert.equal(state.phase, "resolution");
+    state.deadline = Date.now() - 1;
+    tickDealer(state, players);
+  }
+
+  assert.equal(state.phase, "shop");
+  assert.equal(state.balances[firstBuyer.id], buyerBefore - state.startingBid);
+  assert.equal(state.inventories[firstBuyer.id].filter((item) => item.uid === firstItemUid).length, 1);
+  for (const player of players) dealerAction(state, players, player.id, "dealer-shop-ready", { ready: true, requestId: `ready-${player.id}` });
+  assert.equal(state.phase, "select");
+  assert.equal(state.round, 2);
+});
+
+test("four client views share public auction facts but only seller sees appraisal", () => {
+  const state = auctionState();
+  const publicViews = players.map((player) => dealerClientState(state, player.id));
+  assert.equal(new Set(publicViews.map((view) => view.phase)).size, 1);
+  assert.equal(new Set(publicViews.map((view) => view.currentItem?.id)).size, 1);
+  assert.equal(new Set(publicViews.map((view) => view.startingBid)).size, 1);
+  for (const [index, view] of publicViews.entries()) {
+    if (players[index].id === state.sellerId) assert.equal(typeof view.currentItem?.value, "number");
+    else assert.equal(view.currentItem?.value, null);
+  }
 });

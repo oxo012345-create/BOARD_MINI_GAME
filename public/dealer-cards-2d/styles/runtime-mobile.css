@@ -223,4 +223,71 @@
   .appraisal-value { padding: 6px 0 5px; }
   .private-dossier #clauses { gap: 3px; line-height: 1.32; }
   .private-dossier #clauses > div { padding: 4px 6px; }
+
+  /* The policy shop has three mandatory controls.  At 393 x 664 the generic
+     sheet was too short, which clipped the ready button outside the frame. */
+  body[data-phase="shop"] .sheet {
+    top: calc(50% - 4px);
+    height: min(72dvh, 478px);
+    max-height: calc(100dvh - var(--dock-height) - 18px);
+  }
+  body[data-phase="shop"] .sheet-scroll {
+    padding: 27px 13px 14px;
+  }
+  body[data-phase="shop"] .section-title {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    min-height: 42px;
+    padding-right: 38px;
+  }
+  body[data-phase="shop"] .section-title h2 { font-size: 16px; }
+  body[data-phase="shop"] .section-title span {
+    padding-left: 0;
+    font-size: 8px;
+    line-height: 1.25;
+    text-align: left;
+  }
+  body[data-phase="shop"] .scroll-cue {
+    min-height: 20px;
+    margin-bottom: 5px;
+    padding-block: 3px;
+  }
+  body[data-phase="shop"] .shop-grid {
+    grid-auto-columns: calc((100% - 8px) / 2);
+    gap: 8px;
+    padding-bottom: 5px;
+  }
+  body[data-phase="shop"] .card-card {
+    min-height: 154px;
+    padding: 10px;
+  }
+  body[data-phase="shop"] .card-card::before {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 9px;
+    font-size: 15px;
+  }
+  body[data-phase="shop"] .card-card strong { font-size: 11px; }
+  body[data-phase="shop"] .card-card small {
+    min-height: 25px;
+    font-size: 7.5px;
+    line-height: 1.25;
+  }
+  body[data-phase="shop"] .action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 5px;
+  }
+  body[data-phase="shop"] .action-row .secondary-action {
+    min-height: 38px;
+    padding: 7px 6px;
+    font-size: 8px;
+  }
+  body[data-phase="shop"] #shop-ready { grid-column: 1 / -1; }
+
+  /* Keep the one-page selection ledger clear of the fixed command dock. */
+  body[data-phase="select"] .sheet {
+    top: calc(50% - 21px);
+    height: calc(100dvh - var(--dock-height) - 52px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
 }
