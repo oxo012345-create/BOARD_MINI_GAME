@@ -842,6 +842,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.match(roomRoute, /completeApartmentIfReady/);
   assert.match(rounds, /resolveApartmentPenalty/);
   assert.match(rounds, /apartmentMaxFloor: players\.length \+ 2/);
+  assert.match(page, /아직 선택 안 함/);
   assert.match(roomRoute, /payload\.action === "set-surprise"/);
   assert.match(roomRoute, /room\.view !== "lobby"/);
   assert.match(surprise, /room\.surpriseEnabled === false/);

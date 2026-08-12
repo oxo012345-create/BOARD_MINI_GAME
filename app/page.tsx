@@ -182,6 +182,9 @@ function QuizImage({ imageId }: { imageId: string }) {
 function ApartmentBuilding({ maxFloor, selectedFloor, onSelect, submittedIds, players, revealed, counts, penaltyFloor, penaltyPlayerIds, preview }: { maxFloor: number; selectedFloor?: number; onSelect?: (floor: number) => void; submittedIds: string[]; players: Player[]; revealed?: boolean; counts?: Record<string, number>; penaltyFloor?: number; penaltyPlayerIds?: string[]; preview?: boolean }) {
   const floors = Array.from({ length: maxFloor }, (_, index) => maxFloor - index);
   const penaltyNames = (penaltyPlayerIds ?? []).map((id) => players.find((player) => player.id === id)?.name ?? "참가자");
+  const submittedSet = new Set(submittedIds);
+  const submittedNames = players.filter((player) => submittedSet.has(player.id)).map((player) => player.name);
+  const waitingNames = players.filter((player) => !submittedSet.has(player.id)).map((player) => player.name);
   return <section className={`apartment-board ${revealed ? "revealed" : ""} ${preview ? "preview" : ""}`}>
     <div className="apartment-board-heading">
       <div><span className="apartment-kicker">APARTMENT DRAW</span><h2>{revealed ? `${penaltyFloor}층 벌칙 층` : `${maxFloor}층 아파트`}</h2><p>{revealed ? penaltyNames.length ? `${penaltyNames.join(", ")} · 같은 층에 모였어요.` : "벌칙 대상이 정해졌어요." : "한 층을 골라 주세요"}</p></div>
@@ -207,7 +210,13 @@ function ApartmentBuilding({ maxFloor, selectedFloor, onSelect, submittedIds, pl
       </div>
       <div className="apartment-street"><i /><i /><i /></div>
     </div>
-    {!revealed && !preview && <div className="apartment-submit-status"><div><span className="status-dot" />{selectedFloor ? `${selectedFloor}층 선택 완료` : "층을 눌러 선택하세요"}</div><strong>{submittedIds.length}/{players.length}명 선택 완료</strong></div>}
+    {!revealed && !preview && <div className="apartment-submit-status">
+      <div className="apartment-status-head"><div><span className="status-dot" /><strong>{submittedIds.length}/{players.length}명 선택 완료</strong></div><small>층 번호는 결과 공개 전까지 비공개</small></div>
+      <div className="apartment-status-groups">
+        <div className="apartment-status-group submitted"><span>선택 완료</span><div className="apartment-name-list">{submittedNames.length ? submittedNames.map((name, index) => <b key={`${name}-${index}`}>{name}</b>) : <em>아직 없음</em>}</div></div>
+        <div className="apartment-status-group waiting"><span>아직 선택 안 함</span><div className="apartment-name-list">{waitingNames.length ? waitingNames.map((name, index) => <b key={`${name}-${index}`}>{name}</b>) : <em>모두 선택 완료</em>}</div></div>
+      </div>
+    </div>}
     {revealed && <div className="apartment-verdict"><span>벌칙 판정</span><strong>{penaltyFloor}층 · {penaltyNames.length ? penaltyNames.join(", ") : "해당 없음"}</strong><small>가장 많이 겹친 층 우선 · 동률이면 낮은 층 · 겹침이 없으면 가장 낮은 층</small></div>}
   </section>;
 }
