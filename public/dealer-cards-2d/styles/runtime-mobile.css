@@ -1,0 +1,162 @@
+/* Real-room mobile safeguards. Loaded after the decorative art sheets so the
+   original textures remain while the 393 x 664 interaction layout stays
+   readable and collision-free. */
+
+@media (max-width: 520px) {
+  :root,
+  #app {
+    --hud-height: 102px;
+    --table-top: calc(var(--hud-y) + 108px);
+    --table-diameter: min(88vw, 342px, 49dvh);
+  }
+
+  .player-ribbon,
+  .player-ribbon[data-count],
+  .player-ribbon[data-count="5"],
+  .player-ribbon[data-count="6"],
+  .player-ribbon[data-count="7"],
+  .player-ribbon[data-count="8"] {
+    left: 3px;
+    width: calc(100% - 101px);
+    height: 61px;
+    grid-template-rows: repeat(2, 27px);
+    gap: 7px 2px;
+  }
+
+  .seat-shell { min-width: 0; height: 27px; }
+  .seat,
+  .player-ribbon[data-count] .seat {
+    height: 27px;
+    padding: 3px 2px 2px;
+  }
+  .seat b,
+  .seat span {
+    max-width: calc(100% - 3px);
+    font-size: clamp(9px, 2.55vw, 10.5px);
+    letter-spacing: -.04em;
+  }
+  .seat-role-me {
+    top: -5px;
+    right: 1px;
+    min-width: 22px;
+  }
+  .seat-role-seller {
+    top: 27px;
+    height: 8px;
+    min-height: 8px !important;
+    line-height: 6px;
+  }
+
+  .hud { right: 3px; width: 94px; }
+  .round-status,
+  .timer { width: 94px; }
+  .round-status strong { font-size: 8.5px; }
+  .timer small { font-size: 7.5px; }
+  .timer strong { font-size: 17px; }
+  .cash {
+    top: 65px;
+    left: 0;
+    width: 67px;
+    justify-content: flex-end;
+    gap: 3px;
+  }
+  .cash > small { font-size: 7px; }
+  .cash-value { gap: 2px; }
+  .cash-value i { width: 11px; height: 11px; }
+  .cash strong { font-size: 12.5px; }
+  .hud-menu {
+    top: 60px;
+    right: 0;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+  }
+  .hud-menu::before { inset: 4px; }
+  .hud-menu-lines { font-size: 18px; }
+
+  .lot-stage { padding-bottom: calc(var(--dock-height) + 8px); }
+  .lot-stack {
+    width: min(84vw, 330px);
+    translate: 0 -10px;
+    gap: 3px;
+  }
+  .lot-card { height: min(332px, 50dvh); }
+  .lot-ribbon { min-height: 24px; }
+  .lot-ribbon span { font-size: 7.5px; }
+  .lot-ribbon b { font-size: 10px; }
+  .item-render-wrap {
+    top: 29px;
+    left: 30px;
+    right: 30px;
+    height: 176px;
+  }
+  .lot-copy { inset: auto 24px 5px; }
+  .lot-copy h1 { font-size: clamp(21px, 6.2vw, 25px); }
+  .lot-meta span { font-size: 8px; }
+  .highest { font-size: 9px; }
+  .bid-panel > b { font-size: 24px; }
+  .private-dossier { min-height: 130px; }
+  .private-dossier header { font-size: 9px; }
+  .appraisal-value small { font-size: 11px; }
+  .appraisal-value strong { font-size: 29px; }
+  .private-dossier #clauses > div { font-size: 10px; }
+
+  .primary-action {
+    min-height: 52px;
+    font-size: clamp(14px, 3.9vw, 17px);
+    line-height: 1.15;
+  }
+  .lot-action-note { font-size: 11px; line-height: 1.35; }
+
+  body[data-phase="select"] .sheet {
+    top: calc(50% - 2px);
+    width: calc(100% - 16px);
+    height: calc(100dvh - var(--dock-height) - 18px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-width: 440px;
+    max-height: none;
+  }
+  body[data-phase="select"] .sheet-scroll { padding: 29px 12px 12px; }
+  body[data-phase="select"] .section-title {
+    grid-template-columns: minmax(0, 1fr) minmax(105px, 37%);
+    min-height: 35px;
+    margin-bottom: 6px;
+  }
+  body[data-phase="select"] .section-title h2 { font-size: 17px; }
+  body[data-phase="select"] .section-title span { font-size: 9.5px; }
+  body[data-phase="select"] .phase-banner {
+    min-height: 34px;
+    margin-bottom: 7px;
+    padding: 6px 9px;
+  }
+  body[data-phase="select"] .phase-banner strong { font-size: 11px; }
+  body[data-phase="select"] .phase-banner span { font-size: 9.5px; }
+  body[data-phase="select"] .candidate-grid {
+    grid-template-rows: repeat(3, minmax(96px, 1fr));
+    gap: 7px;
+  }
+  body[data-phase="select"] .item-card {
+    grid-template-columns: 82px 61px minmax(0, 1fr);
+    min-height: 96px;
+  }
+  body[data-phase="select"] .item-card img { min-height: 96px; }
+  body[data-phase="select"] .item-card-price small { font-size: 9px; }
+  body[data-phase="select"] .item-card-price b { font-size: 15px; }
+  body[data-phase="select"] .item-card-copy { padding: 7px 8px 6px; }
+  body[data-phase="select"] .item-card strong { font-size: 13px; }
+  body[data-phase="select"] .item-card .item-subtitle,
+  body[data-phase="select"] .item-card .clause-mini { font-size: 9px; }
+}
+
+@media (max-width: 370px) {
+  .player-ribbon,
+  .player-ribbon[data-count],
+  .player-ribbon[data-count="5"],
+  .player-ribbon[data-count="6"],
+  .player-ribbon[data-count="7"],
+  .player-ribbon[data-count="8"] { width: calc(100% - 96px); }
+  .hud { width: 90px; }
+  .round-status,
+  .timer { width: 90px; }
+  body[data-phase="select"] .item-card { grid-template-columns: 76px 56px minmax(0, 1fr); }
+}

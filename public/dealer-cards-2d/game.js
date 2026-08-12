@@ -43,6 +43,7 @@ let toastTimer = null;
 let lastMenuButton = null;
 let preloadedItemId = null;
 let lotModelItemId = null;
+let lastManualSelectionRound = null;
 
 function clearLotModel() {
   if (!ui.itemModel) return;
@@ -177,10 +178,19 @@ function actionSuccessMessage(action) {
   return "처리가 완료되었습니다.";
 }
 
-function phaseTransitionMessage(phase) {
+function phaseTransitionMessage(phase, previousPhase = null) {
   if (phase === "select") return "새 라운드가 열렸습니다. 출품할 물건을 선택하세요.";
-  if (phase === "auction") return "경매가 시작되었습니다. 아이템을 살펴보고 입찰하세요.";
-  if (phase === "resolution") return "경매가 마감되었습니다. 낙찰 결과를 확인하세요.";
+  if (phase === "auction") {
+    if (previousPhase === "select" && lastManualSelectionRound !== dealer?.round) {
+      return "선택 시간이 종료되어 물건이 자동으로 선택되었습니다.";
+    }
+    return `${playerName(dealer?.sellerId)}의 경매가 시작되었습니다.`;
+  }
+  if (phase === "resolution") {
+    return dealer?.lastResult?.sold
+      ? `${playerName(dealer.lastResult.buyerId)} ${knownMoney(dealer.lastResult.bid)} 낙찰`
+      : "입찰자가 없어 유찰되었습니다.";
+  }
   if (phase === "shop") return "라운드 상점이 열렸습니다. 전략패를 준비하세요.";
   if (phase === "finished") return "모든 라운드가 끝났습니다. 최종 결과를 확인하세요.";
   return "게임 단계가 변경되었습니다.";
@@ -493,11 +503,14 @@ async function act(action, extra = {}) {
     }
     if (!response.ok) throw new Error(body.error || "요청 실패");
     applyRoomSnapshot(body.room, { force: true });
+    if (action === "dealer-select") lastManualSelectionRound = dealer?.round ?? null;
     render();
     showToast(actionSuccessMessage(action));
   } catch (error) {
     if (error?.name === "ROOM_CONFLICT") {
-      const message = "다른 플레이어가 먼저 변경했습니다. 최신 상태를 불러옵니다.";
+      const message = action === "dealer-bid"
+        ? "다른 플레이어가 먼저 입찰했습니다. 최신 호가를 불러왔습니다."
+        : "다른 플레이어의 행동을 먼저 반영했습니다. 최신 상태를 불러왔습니다.";
       ui.notice.textContent = message;
       showToast(message, "error");
       await sync();
@@ -535,6 +548,7 @@ async function sync() {
       return;
     }
     const body = await response.json();
+    const previousRevision = lastRevision;
     const applied = applyRoomSnapshot(body.room);
     if (!applied && requestGeneration < syncGeneration) return;
     nextSyncDelay = dealer?.phase === "auction" ? 1600 : 2200;
@@ -547,8 +561,10 @@ async function sync() {
       return;
     }
     hideLoading();
-    if (room.revision !== lastRevision) {
-      lastRevision = room.revision;
+    const missingCoreUi = ui.seats.childElementCount === 0
+      || (dealer.phase === "select" && !menuOpen)
+      || (dealer.currentItem && ["auction", "resolution"].includes(dealer.phase) && ui.lotStage.hidden);
+    if (applied && (Number(room.revision ?? -1) !== previousRevision || missingCoreUi)) {
       render();
     }
   } catch (error) {
@@ -583,7 +599,7 @@ function render() {
     } else if (tab === "game" && menuOpen) {
       closeSheet();
     }
-    if (previousPhase !== null) showToast(phaseTransitionMessage(dealer.phase));
+    if (previousPhase !== null) showToast(phaseTransitionMessage(dealer.phase, previousPhase));
     lastRenderedPhase = dealer.phase;
   }
   const inventory = dealer.inventories[mine] || [];
