@@ -47,6 +47,7 @@ function makeState(scenario, playerCount) {
   const balances = Object.fromEntries(players.map((player, index) => [player.id, 2000 - index * 150]));
   const inventories = Object.fromEntries(players.map((player) => [player.id, []]));
   const cards = Object.fromEntries(players.map((player) => [player.id, []]));
+  const permanentCards = Object.fromEntries(players.map((player) => [player.id, []]));
   const candidates = Object.fromEntries(players.map((player) => [player.id, clone(ITEM_FIXTURES.slice(0, 3))]));
   const shopOffers = Object.fromEntries(players.map((player) => [player.id, [0, 4, 7]]));
   const phase = scenario === "waiting" ? null : scenario === "auction-seller" || scenario === "auction-mystery" || scenario === "auction-known" ? "auction" : validPhase(scenario);
@@ -79,8 +80,10 @@ function makeState(scenario, playerCount) {
     balances,
     inventories,
     cards,
+    permanentCards,
     shopOffers,
     rerolls: Object.fromEntries(players.map((player) => [player.id, 0])),
+    shopReady: [],
     auctionCount: 1,
     startingBid: 100,
     currentBid: scenario === "auction-known" ? 350 : null,
@@ -201,8 +204,11 @@ export function applyDebugAction(state, action, payload = {}) {
       next.dealer.balances[mine] = Math.max(0, next.dealer.balances[mine] - 100);
     }
   } else if (action === "dealer-checkout") {
-    next.dealer.phase = "finished";
-    next.dealer.deadline = Date.now() + phaseDuration.finished;
+    const requested = new Set(payload.itemIds || next.dealer.inventories[mine].map((item) => item.uid));
+    next.dealer.inventories[mine] = next.dealer.inventories[mine].filter((item) => !requested.has(item.uid));
+  } else if (action === "dealer-shop-ready") {
+    next.dealer.shopReady = (next.dealer.shopReady || []).filter((id) => id !== mine);
+    if (payload.ready !== false) next.dealer.shopReady.push(mine);
   } else if (action === "dealer-use-card") {
     const cardId = Number(payload.cardId);
     next.dealer.cards[mine] = next.dealer.cards[mine].filter((id) => id !== cardId);

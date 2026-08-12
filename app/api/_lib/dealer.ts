@@ -12,7 +12,16 @@ export type DealerItem = {
   sellLockedThroughRound?: number;
 };
 
-export type DealerCard = { id: number; name: string; price: number; effect: string; passive?: boolean };
+export type DealerCard = {
+  id: number;
+  name: string;
+  price: number;
+  effect: string;
+  passive?: boolean;
+  rarity?: number;
+  permanent?: boolean;
+  usableInShop?: boolean;
+};
 export type DealerState = {
   phase: "select" | "auction" | "resolution" | "shop" | "finished";
   round: number;
@@ -23,11 +32,13 @@ export type DealerState = {
   balances: Record<string, number>;
   inventories: Record<string, DealerItem[]>;
   cards: Record<string, number[]>;
+  permanentCards: Record<string, number[]>;
   candidates: Record<string, DealerItem[]>;
   selected: Record<string, number>;
   shopOffers: Record<string, number[]>;
   previousOffers: Record<string, number[]>;
   rerolls: Record<string, number>;
+  shopReady: string[];
   currentItem?: DealerItem;
   sellerId?: string;
   highestBidderId?: string | null;
@@ -45,6 +56,9 @@ export type DealerState = {
   pendingLoans: Array<{ playerId: string; dueAuction: number; amount: number }>;
   pendingInvestments: Array<{ playerId: string; dueAuction: number; amount: number; chance: number; gain: number }>;
   delayedItems: Array<{ playerId: string; dueAuction: number; item?: DealerItem }>;
+  hotPotatoes: Array<{ playerId: string; dueAuction: number; transferableAfterAuction: number }>;
+  jackpotChases: Array<{ playerId: string; chance: number; usedThisAuction: boolean; acquiredAuction: number }>;
+  cutDeals: Record<string, string>;
   cardLockedThroughRound: Record<string, number>;
   speechLocked: string[];
   nextSpeechLocked: string[];
@@ -83,7 +97,7 @@ export const DEALER_CARDS: DealerCard[] = [
   { id: 3, name: "Reroll Saver II", price: 200, effect: "리롤 비용 영구 20% 할인", passive: true },
   { id: 4, name: "Black Marketeer I", price: 100, effect: "시장 판매 수익 영구 +10%", passive: true },
   { id: 5, name: "Black Marketeer II", price: 200, effect: "시장 판매 수익 영구 +20%", passive: true },
-  { id: 6, name: "Hammer Lock", price: 400, effect: "대상 입찰을 현재 경매 동안 금지" },
+  { id: 6, name: "Bid Ban", price: 400, effect: "대상 입찰을 현재 경매 동안 금지" },
   { id: 7, name: "Loan Shark", price: 200, effect: "즉시 $1,000 획득, 이후 $1,200 상환" },
   { id: 8, name: "Roll the Dice I", price: 150, effect: "75% 확률로 $300 획득" },
   { id: 9, name: "Roll the Dice II", price: 250, effect: "50% 확률로 $500 획득" },
@@ -95,11 +109,19 @@ export const DEALER_CARDS: DealerCard[] = [
   { id: 15, name: "All In I", price: 400, effect: "80% 확률로 보유 현금 +20%, 실패 시 전액 손실" },
   { id: 16, name: "All In II", price: 400, effect: "50% 확률로 보유 현금 +35%, 실패 시 전액 손실" },
   { id: 17, name: "All In III", price: 300, effect: "20% 확률로 보유 현금 +50%, 실패 시 전액 손실" },
-  { id: 18, name: "Robin Hood", price: 150, effect: "가장 부유한 참가자에게서 최대 $250 강탈" },
+  { id: 18, name: "Robin Hood", price: 100, effect: "가장 부유한 참가자에게서 최대 $250 강탈" },
   { id: 19, name: "Shut Down", price: 150, effect: "현재 경매 동안 카드 효과 면역" },
   { id: 20, name: "Bank Heist", price: 100, effect: "다른 모두에게서 각각 $100 강탈" },
   { id: 21, name: "Overbid Trap", price: 100, effect: "대상이 5회 이상 입찰하면 -$300, 아니면 사용자 -$300" },
+  { id: 22, name: "Hot Potato", price: 100, rarity: 1, effect: "1~10손 뒤 폭발해 $300 손실. 다른 플레이어에게 넘길 수 있음" },
+  { id: 23, name: "Cut Deal", price: 150, rarity: 2, effect: "대상의 다음 소장품 판매액 30%를 가져옴" },
+  { id: 24, name: "Jackpot Chase", price: 100, rarity: 3, effect: "10%부터 시작해 성공 시 +$500, 실패 시 -$500. 미사용 시 확률이 오르며 전달" },
 ];
+
+// Original shop uses rarity-weighted offers instead of a uniform shuffle.
+const CARD_RARITY: Record<number, number> = { 3: 1, 5: 1, 6: 2, 7: 1, 9: 1, 10: 1, 11: 2, 12: 3, 14: 1, 15: 1, 16: 2, 17: 3, 18: 1, 19: 1, 20: 2, 21: 1, 22: 1, 23: 2, 24: 3 };
+const SHOP_USABLE = new Set([2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 24]);
+const PERMANENT_CARDS = new Set([2, 3, 4, 5]);
 
 const shuffle = <T,>(values: T[]) => [...values].sort(() => Math.random() - .5);
 const money = (value: number) => Math.round(value / 10) * 10;
@@ -116,11 +138,25 @@ function makeItem(round = 1): DealerItem {
 
 function offersFor(state: DealerState, playerId: string) {
   const held = new Set(state.cards[playerId] ?? []);
-  const permanent = new Set([2, 3, 4, 5]);
+  const activated = new Set(state.permanentCards[playerId] ?? []);
   const previous = new Set(state.previousOffers[playerId] ?? []);
-  let pool = DEALER_CARDS.map((card) => card.id).filter((id) => !permanent.has(id) || !held.has(id)).filter((id) => !previous.has(id));
-  if (pool.length < 3) pool = DEALER_CARDS.map((card) => card.id).filter((id) => !permanent.has(id) || !held.has(id));
-  return shuffle(pool).slice(0, 3);
+  const allowed = (ignorePrevious: boolean) => DEALER_CARDS.filter((card) => {
+    if (card.id !== 24 && held.has(card.id)) return false;
+    if (PERMANENT_CARDS.has(card.id) && activated.has(card.id)) return false;
+    return ignorePrevious || !previous.has(card.id);
+  });
+  let pool = allowed(false);
+  if (pool.length < 3) pool = allowed(true);
+  const result: number[] = [];
+  while (pool.length && result.length < 3) {
+    const weights = pool.map((card) => Math.max(.08, Math.pow(.55, CARD_RARITY[card.id] ?? card.rarity ?? 0)));
+    let roll = Math.random() * weights.reduce((sum, weight) => sum + weight, 0);
+    let index = 0;
+    for (; index < weights.length - 1 && roll >= weights[index]; index += 1) roll -= weights[index];
+    result.push(pool[index].id);
+    pool.splice(index, 1);
+  }
+  return result;
 }
 
 function beginSelection(state: DealerState, players: Player[]) {
@@ -155,6 +191,27 @@ function settleDueInvestments(state: DealerState, players: Player[], force = fal
 
 function beginAuction(state: DealerState, players: Player[]) {
   state.auctionCount += 1;
+  for (const potato of state.hotPotatoes.filter((entry) => entry.dueAuction <= state.auctionCount)) {
+    state.balances[potato.playerId] = (state.balances[potato.playerId] ?? 0) - 300;
+    const cards = state.cards[potato.playerId] ?? [];
+    const cardIndex = cards.indexOf(22);
+    if (cardIndex >= 0) cards.splice(cardIndex, 1);
+    state.log.unshift(`${playerName(players, potato.playerId)} Hot Potato explosion -$300`);
+  }
+  state.hotPotatoes = state.hotPotatoes.filter((entry) => entry.dueAuction > state.auctionCount);
+  for (const chase of state.jackpotChases) {
+    if (state.auctionCount <= chase.acquiredAuction + 1) continue;
+    if (chase.usedThisAuction) { chase.usedThisAuction = false; continue; }
+    chase.chance = Math.min(1, chase.chance + .1);
+    const candidates = players.filter((player) => player.id !== chase.playerId && (state.cards[player.id]?.length ?? 0) < 3);
+    if (!candidates.length) continue;
+    const next = candidates[Math.floor(Math.random() * candidates.length)];
+    const oldCards = state.cards[chase.playerId] ?? [];
+    const oldIndex = oldCards.indexOf(24);
+    if (oldIndex >= 0) oldCards.splice(oldIndex, 1);
+    state.cards[next.id].push(24);
+    chase.playerId = next.id;
+  }
   for (const loan of state.pendingLoans.filter((entry) => entry.dueAuction <= state.auctionCount)) {
     state.balances[loan.playerId] = (state.balances[loan.playerId] ?? 0) - loan.amount;
     state.log.unshift(`${playerName(players, loan.playerId)} 대출 상환 -$${loan.amount}`);
@@ -163,8 +220,8 @@ function beginAuction(state: DealerState, players: Player[]) {
   settleDueInvestments(state, players);
   for (const delayed of state.delayedItems.filter((entry) => entry.dueAuction <= state.auctionCount)) {
     const inventory = state.inventories[delayed.playerId] ?? [];
-    const source = inventory[Math.floor(Math.random() * inventory.length)];
-    if (source && inventory.length < 4) inventory.push({ ...source, uid: `${source.uid}-copy-${state.auctionCount}`, acquiredRound: state.round, acquiredAuction: state.auctionCount });
+    const source = delayed.item;
+    if (source && inventory.length < 4) inventory.push({ ...source, uid: `${source.uid}-return-${state.auctionCount}`, acquiredRound: state.round, acquiredAuction: state.auctionCount });
   }
   state.delayedItems = state.delayedItems.filter((entry) => entry.dueAuction > state.auctionCount);
   const eras = [...new Set(DEALER_ITEMS.map((item) => item[1]))];
@@ -224,7 +281,7 @@ function resolveAuction(state: DealerState, players: Player[]) {
       state.balances[buyer] += (state.cards[buyer]?.length ?? 0) * 150;
       state.cards[buyer] = [];
     }
-    if (item.clauses.includes(14)) state.delayedItems.push({ playerId: buyer, dueAuction: state.auctionCount + 7 });
+    if (item.clauses.includes(14)) state.delayedItems.push({ playerId: buyer, dueAuction: state.auctionCount + 7, item: { ...item } });
     else state.inventories[buyer].push({ ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount, sellLockedThroughRound: item.clauses.includes(9) ? state.round : undefined });
     if (item.clauses.includes(10)) state.cardLockedThroughRound[buyer] = state.round;
     if (item.clauses.includes(11)) state.cardLockedThroughRound[seller] = state.round;
@@ -255,6 +312,7 @@ function beginShop(state: DealerState, players: Player[]) {
   state.deadline = Date.now() + 60_000;
   state.shopOffers = {};
   state.rerolls = {};
+  state.shopReady = [];
   for (const player of players) {
     const next = offersFor(state, player.id);
     state.shopOffers[player.id] = next;
@@ -291,12 +349,12 @@ function finishShop(state: DealerState, players: Player[]) {
 export function createDealerState(players: Player[]): DealerState {
   const state: DealerState = {
     phase: "select", round: 1, totalRounds: 5, deadline: 0, sellerOrder: [], sellerIndex: 0,
-    balances: {}, inventories: {}, cards: {}, candidates: {}, selected: {}, shopOffers: {}, previousOffers: {}, rerolls: {},
+    balances: {}, inventories: {}, cards: {}, permanentCards: {}, candidates: {}, selected: {}, shopOffers: {}, previousOffers: {}, rerolls: {}, shopReady: [],
     startingBid: 100, currentBid: null, bidHistory: [], bidCounts: {}, blockedBidders: [], protectedPlayers: [], overbidTraps: {}, auctionCount: 0,
-    pendingLoans: [], pendingInvestments: [], delayedItems: [], cardLockedThroughRound: {}, speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
+    pendingLoans: [], pendingInvestments: [], delayedItems: [], hotPotatoes: [], jackpotChases: [], cutDeals: {}, cardLockedThroughRound: {}, speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
     lastActionIds: {},
   };
-  for (const p of players) { state.balances[p.id] = 2000; state.inventories[p.id] = []; state.cards[p.id] = []; state.previousOffers[p.id] = []; }
+  for (const p of players) { state.balances[p.id] = 2000; state.inventories[p.id] = []; state.cards[p.id] = []; state.permanentCards[p.id] = []; state.previousOffers[p.id] = []; }
   beginSelection(state, players);
   return state;
 }
@@ -308,6 +366,11 @@ function normalizeAuctionState(state: DealerState) {
   if (!state.lastActionIds || typeof state.lastActionIds !== "object") state.lastActionIds = {};
   if (!state.cardLockedThroughRound || typeof state.cardLockedThroughRound !== "object") state.cardLockedThroughRound = {};
   state.pendingInvestments = state.pendingInvestments ?? [];
+  state.permanentCards = state.permanentCards ?? {};
+  state.shopReady = state.shopReady ?? [];
+  state.hotPotatoes = state.hotPotatoes ?? [];
+  state.jackpotChases = state.jackpotChases ?? [];
+  state.cutDeals = state.cutDeals ?? {};
   if (!state.highestBidderId) {
     state.currentBid = null;
     state.bidHistory = [];
@@ -333,7 +396,7 @@ export function tickDealer(state: DealerState, players: Player[]) {
   return changed;
 }
 
-function cardDiscount(state: DealerState, id: string) { return state.cards[id]?.includes(3) ? .8 : state.cards[id]?.includes(2) ? .9 : 1; }
+function cardDiscount(state: DealerState, id: string) { return state.permanentCards[id]?.includes(3) ? .8 : state.permanentCards[id]?.includes(2) ? .9 : 1; }
 
 function checkoutValue(state: DealerState, playerId: string, itemIds?: string[], force = false) {
   const inventory = state.inventories[playerId] ?? [];
@@ -359,7 +422,7 @@ function checkoutValue(state: DealerState, playerId: string, itemIds?: string[],
   }
   total *= setMultiplier;
   if (items.some((item) => item.clauses.includes(7))) total *= 1.15;
-  total *= state.cards[playerId]?.includes(5) ? 1.2 : state.cards[playerId]?.includes(4) ? 1.1 : 1;
+  total *= state.permanentCards[playerId]?.includes(5) ? 1.2 : state.permanentCards[playerId]?.includes(4) ? 1.1 : 1;
   if (total > 500 && items.some((item) => item.clauses.includes(0))) total += 100;
   return Math.max(0, money(total));
 }
@@ -416,6 +479,8 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
     if (state.balances[actorId] < card.price) throw new Error("현금이 부족해요.");
     state.balances[actorId] -= card.price;
     state.cards[actorId].push(cardId);
+    if (cardId === 22) state.hotPotatoes.push({ playerId: actorId, dueAuction: state.auctionCount + 1 + Math.floor(Math.random() * 10), transferableAfterAuction: state.auctionCount + 1 });
+    if (cardId === 24) state.jackpotChases.push({ playerId: actorId, chance: .1, usedThisAuction: false, acquiredAuction: state.auctionCount });
     state.shopOffers[actorId] = state.shopOffers[actorId].filter((id) => id !== cardId);
     rememberRequest();
     return;
@@ -428,21 +493,35 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
       .map((item) => item.uid));
     if (!sellableIds.size) throw new Error("이번 라운드에 판매할 수 있는 아이템을 선택해 주세요.");
     const total = checkoutValue(state, actorId, [...sellableIds]);
-    state.balances[actorId] += total;
+    const cutDealOwner = state.cutDeals[actorId];
+    if (cutDealOwner && cutDealOwner !== actorId && state.balances[cutDealOwner] !== undefined) {
+      const ownerShare = money(total * .3);
+      state.balances[cutDealOwner] += ownerShare;
+      state.balances[actorId] += total - ownerShare;
+      delete state.cutDeals[actorId];
+    } else state.balances[actorId] += total;
     state.inventories[actorId] = state.inventories[actorId].filter((item) => !sellableIds.has(item.uid));
     state.log.unshift(`${playerName(players, actorId)} 시장 정산 +$${total}`);
     rememberRequest();
     return;
   }
+  if (action === "dealer-shop-ready") {
+    if (state.phase !== "shop") throw new Error("상점 단계에서만 준비할 수 있습니다.");
+    state.shopReady = state.shopReady.filter((id) => id !== actorId);
+    if (payload.ready !== false) state.shopReady.push(actorId);
+    rememberRequest();
+    if (players.length && players.every((player) => state.shopReady.includes(player.id))) finishShop(state, players);
+    return;
+  }
   if (action === "dealer-use-card") {
-    if (state.phase !== "auction") throw new Error("경매 중에만 카드를 쓸 수 있어요.");
     const cardId = Number(payload.cardId);
     const index = state.cards[actorId]?.indexOf(cardId) ?? -1;
     const card = DEALER_CARDS[cardId];
-    if (index < 0 || !card || card.passive) throw new Error("사용할 수 없는 카드예요.");
+    const usableHere = state.phase === "auction" || (state.phase === "shop" && (SHOP_USABLE.has(cardId) || card.usableInShop));
+    if (!usableHere || index < 0 || !card) throw new Error("이 단계에서 사용할 수 없는 전략패입니다.");
     if ((state.cardLockedThroughRound[actorId] ?? -1) >= state.round) throw new Error("이번 라운드에는 전략 카드를 사용할 수 없습니다.");
     const targetId = String(payload.targetId ?? "");
-    const needsTarget = [6, 13, 14, 21].includes(cardId);
+    const needsTarget = [6, 13, 14, 21, 22, 23].includes(cardId);
     if (needsTarget && (!targetId || targetId === actorId || !players.some((player) => player.id === targetId))) {
       throw new Error("카드를 사용할 대상을 선택해 주세요.");
     }
@@ -452,7 +531,12 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
       rememberRequest();
       return;
     }
-    if (cardId === 0) state.intel[actorId] = { ...(state.intel[actorId] ?? {}), price: true };
+    let consumeCard = true;
+    if (PERMANENT_CARDS.has(cardId)) {
+      const upgrades = state.permanentCards[actorId] ?? (state.permanentCards[actorId] = []);
+      if (!upgrades.includes(cardId)) upgrades.push(cardId);
+    }
+    else if (cardId === 0) state.intel[actorId] = { ...(state.intel[actorId] ?? {}), price: true };
     else if (cardId === 1) state.intel[actorId] = { ...(state.intel[actorId] ?? {}), clauses: true };
     else if (cardId === 6 && targetId && targetId !== state.sellerId) state.blockedBidders.push(targetId);
     else if (cardId === 7) { state.balances[actorId] += 1000; state.pendingLoans.push({ playerId: actorId, dueAuction: state.auctionCount + 2, amount: 1200 }); }
@@ -474,7 +558,23 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
       }
     }
     else if (cardId === 21 && targetId) state.overbidTraps[targetId]=actorId;
-    state.cards[actorId].splice(index, 1);
+    else if (cardId === 22 && targetId) {
+      if ((state.cards[targetId]?.length ?? 0) >= 3) throw new Error("대상의 전략패 보관함이 가득 찼습니다.");
+      const potato = state.hotPotatoes.find((entry) => entry.playerId === actorId);
+      if (!potato || potato.transferableAfterAuction > state.auctionCount) throw new Error("받은 직후에는 Hot Potato를 넘길 수 없습니다.");
+      state.cards[targetId].push(22);
+      potato.playerId = targetId;
+      potato.transferableAfterAuction = state.auctionCount + 1;
+      state.cards[actorId].splice(index, 1);
+      consumeCard = false;
+    }
+    else if (cardId === 23 && targetId) state.cutDeals[targetId] = actorId;
+    else if (cardId === 24) {
+      const chase = state.jackpotChases.find((entry) => entry.playerId === actorId);
+      state.balances[actorId] += Math.random() < (chase?.chance ?? .1) ? 500 : -500;
+      if (chase) state.jackpotChases.splice(state.jackpotChases.indexOf(chase), 1);
+    }
+    if (consumeCard) state.cards[actorId].splice(index, 1);
     rememberRequest();
     return;
   }
@@ -491,10 +591,15 @@ export function removeDealerPlayer(state: DealerState, playerId: string, remaini
   if (removedIndex >= 0 && removedIndex < state.sellerIndex) state.sellerIndex -= 1;
   state.sellerIndex = Math.max(0, state.sellerIndex);
   state.sellerOrder = state.sellerOrder.filter((id) => id !== playerId);
-  for (const record of [state.balances, state.inventories, state.cards, state.candidates, state.selected, state.shopOffers, state.previousOffers, state.rerolls, state.bidCounts, state.intel, state.lastActionIds]) delete record[playerId];
+  for (const record of [state.balances, state.inventories, state.cards, state.permanentCards, state.candidates, state.selected, state.shopOffers, state.previousOffers, state.rerolls, state.bidCounts, state.intel, state.lastActionIds]) delete record[playerId];
   state.pendingLoans = state.pendingLoans.filter((entry) => entry.playerId !== playerId);
   state.pendingInvestments = state.pendingInvestments.filter((entry) => entry.playerId !== playerId);
   state.delayedItems = state.delayedItems.filter((entry) => entry.playerId !== playerId);
+  state.hotPotatoes = state.hotPotatoes.filter((entry) => entry.playerId !== playerId);
+  state.jackpotChases = state.jackpotChases.filter((entry) => entry.playerId !== playerId);
+  state.shopReady = state.shopReady.filter((id) => id !== playerId);
+  delete state.cutDeals[playerId];
+  for (const [targetId, ownerId] of Object.entries(state.cutDeals)) if (ownerId === playerId) delete state.cutDeals[targetId];
   state.blockedBidders = state.blockedBidders.filter((id) => id !== playerId);
   state.protectedPlayers = state.protectedPlayers.filter((id) => id !== playerId);
   state.speechLocked = state.speechLocked.filter((id) => id !== playerId);
@@ -537,6 +642,9 @@ export function dealerClientState(state: DealerState, viewerId?: string) {
     pendingLoans: [],
     pendingInvestments: [],
     delayedItems: [],
+    hotPotatoes: [],
+    jackpotChases: [],
+    cutDeals: {},
     intel: {},
     overbidTraps: {},
     lastActionIds: {},
@@ -552,6 +660,9 @@ export function dealerClientState(state: DealerState, viewerId?: string) {
   copy.pendingLoans = copy.pendingLoans.filter((entry) => entry.playerId === viewerId);
   copy.pendingInvestments = copy.pendingInvestments.filter((entry) => entry.playerId === viewerId);
   copy.delayedItems = copy.delayedItems.filter((entry) => entry.playerId === viewerId);
+  copy.hotPotatoes = copy.hotPotatoes.filter((entry) => entry.playerId === viewerId);
+  copy.jackpotChases = copy.jackpotChases.filter((entry) => entry.playerId === viewerId);
+  copy.cutDeals = Object.fromEntries(Object.entries(copy.cutDeals).filter(([targetId, ownerId]) => targetId === viewerId || ownerId === viewerId));
   for (const [id, items] of Object.entries(copy.inventories)) if (id !== viewerId) copy.inventories[id] = items.map((item) => ({ ...item, value: null as unknown as number, clauses: [] }));
   const mayKnow = viewerId === state.sellerId || state.intel[viewerId]?.price || state.phase === "resolution";
   const mayKnowClauses = viewerId === state.sellerId || state.intel[viewerId]?.clauses || state.phase === "resolution";

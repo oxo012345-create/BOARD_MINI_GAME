@@ -44,6 +44,7 @@ let lastMenuButton = null;
 let preloadedItemId = null;
 let lotModelItemId = null;
 let lastManualSelectionRound = null;
+const selectedCheckoutIds = new Set();
 
 function clearLotModel() {
   if (!ui.itemModel) return;
@@ -175,6 +176,7 @@ function actionSuccessMessage(action) {
   if (action === "dealer-reroll") return "상점 목록을 새로 고쳤습니다.";
   if (action === "dealer-buy-card") return "전략패를 소장품에 추가했습니다.";
   if (action === "dealer-checkout") return "컬렉션 정산을 완료했습니다.";
+  if (action === "dealer-shop-ready") return dealer?.shopReady?.includes(me()) ? "상점 준비를 완료했습니다." : "상점 준비를 취소했습니다.";
   return "처리가 완료되었습니다.";
 }
 
@@ -202,8 +204,8 @@ function phaseExpired(phase = dealer?.phase) {
 
 function actionBlockedByDeadline(action) {
   if (action === "dealer-select") return phaseExpired("select");
-  if (["dealer-bid", "dealer-use-card"].includes(action)) return phaseExpired("auction");
-  if (["dealer-reroll", "dealer-buy-card", "dealer-checkout"].includes(action)) return phaseExpired("shop");
+  if (action === "dealer-bid" || (action === "dealer-use-card" && dealer?.phase === "auction")) return phaseExpired("auction");
+  if (["dealer-reroll", "dealer-buy-card", "dealer-checkout", "dealer-shop-ready"].includes(action) || (action === "dealer-use-card" && dealer?.phase === "shop")) return phaseExpired("shop");
   return false;
 }
 
@@ -423,13 +425,14 @@ const cards = [
   ["Roll the Dice II",250,"50%로 $500"],["Roll the Dice III",300,"30%로 $700"],["Roll the Dice IV",300,"15%로 $1,000"],
   ["Roll the Dice V",350,"5%로 $1,500"],["Sharp Guess",100,"부자 대상 -$300"],["Pickpocket",200,"카드 1장 강탈"],
   ["All In I",400,"80%로 현금 +20%"],["All In II",400,"50%로 현금 +35%"],["All In III",300,"20%로 현금 +50%"],
-  ["Robin Hood",150,"최대 $250 강탈"],["Shut Down",150,"카드 효과 면역"],["Bank Heist",100,"모두에게 $100 강탈"],
-  ["Overbid Trap",100,"5회 입찰 함정"],
+  ["Robin Hood",100,"최대 $250 강탈"],["Shut Down",150,"카드 효과 면역"],["Bank Heist",100,"모두에게 $100 강탈"],
+  ["Overbid Trap",100,"5회 입찰 함정"],["Hot Potato",100,"1~10손 뒤 폭발 · $300 손실"],
+  ["Cut Deal",150,"다음 판매액의 30% 획득"],["Jackpot Chase",100,"10%부터 시작 · 성공/실패 $500"],
 ];
 const cardKoreanNames = [
   "가격 정보원", "계약 정보원", "리롤 할인 I", "리롤 할인 II", "암시장 거래 I", "암시장 거래 II",
   "해머 잠금", "고리대금", "승부수 I", "승부수 II", "승부수 III", "승부수 IV", "승부수 V",
-  "날카로운 추측", "소매치기", "올인 I", "올인 II", "올인 III", "의적", "셧다운", "은행 강도", "과입찰 함정",
+  "세금", "소매치기", "올인 I", "올인 II", "올인 III", "의적", "셧다운", "은행 강도", "과입찰 함정", "폭탄 돌리기", "거래 가로채기", "잭팟 추격",
 ];
 
 const isFiniteNumber = (value) => typeof value === "number" && Number.isFinite(value);
@@ -455,7 +458,7 @@ const lotItemSrc = (id) => `/dealer-items-real/${itemFiles[id] || itemFiles[0]}`
 const lotModelSrc = (id) => itemModelFiles[id] ? `/dealer-items-3d/${itemModelFiles[id]}_LOD1.glb` : "";
 const itemName = (item) => itemKoreanNames[item?.id] || item?.name || "미확인 물품";
 const itemSubtitle = (item) => item?.name || "Private Collection";
-const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!"][id] || "♦";
+const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦", "♦", "♦", "♦", "♦", "?", "♠", "%", "%", "%", "♣", "◈", "$", "!", "●", "%", "★"][id] || "♦";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 async function act(action, extra = {}) {
@@ -767,17 +770,19 @@ function renderGame() {
   if (dealer.phase === "shop") {
     const offers = dealer.shopOffers[mine] || [];
     const reroll = dealer.rerolls[mine] || 0;
-    const discount = myCards().includes(3) ? .8 : myCards().includes(2) ? .9 : 1;
+    const permanent = dealer.permanentCards?.[mine] || [];
+    const discount = permanent.includes(3) ? .8 : permanent.includes(2) ? .9 : 1;
     const cost = Math.round((100 + reroll * 100) * discount / 10) * 10;
     const expired = phaseExpired("shop");
     ui.content.innerHTML = `
       <div class="section-title"><h2>정책 거래소</h2><span>교체 ${reroll}회 · 다음 목록 갱신 ${money(cost)}</span></div>
       ${offers.length > 2 ? `<p class="scroll-cue">좌우로 밀어 더 많은 전략패 보기 <span aria-hidden="true">→</span></p>` : ""}
       <div class="shop-grid">${offers.map((id) => { const card = cards[id]; const disabled = expired || myCards().length >= 3 || dealer.balances[mine] < card[1]; return `<button class="card-card" data-symbol="${cardSymbol(id)}" data-buy="${id}" ${disabled ? "disabled" : ""} aria-label="${escapeHtml(cardKoreanNames[id])} ${expired ? "구매 마감" : "구매"}"><span class="eyebrow">${card[0]}</span><strong>${cardKoreanNames[id]}</strong><small>${card[2]}</small><b>${money(card[1])}</b></button>`; }).join("")}</div>
-      <div class="action-row"><button class="secondary-action ${expired ? "is-closed" : ""}" id="reroll" ${expired || dealer.balances[mine] < cost ? "disabled" : ""}>${expired ? "상점 마감" : `상품 교체 · ${money(cost)}`}</button><button class="secondary-action" id="checkout" ${expired || !(dealer.inventories[mine]?.length) ? "disabled" : ""}>컬렉션 정산</button></div>`;
+      <div class="action-row"><button class="secondary-action ${expired ? "is-closed" : ""}" id="reroll" ${expired || dealer.balances[mine] < cost ? "disabled" : ""}>${expired ? "상점 마감" : `상품 교체 · ${money(cost)}`}</button><button class="secondary-action" id="open-inventory" ${expired || !(dealer.inventories[mine]?.length) ? "disabled" : ""}>소장품 판매</button><button class="secondary-action" id="shop-ready" ${expired ? "disabled" : ""}>${dealer.shopReady?.includes(mine) ? "준비 취소" : `준비 완료 · ${dealer.shopReady?.length || 0}/${dealerPlayers().length}`}</button></div>`;
     ui.content.querySelectorAll("[data-buy]").forEach((button) => { button.onclick = () => act("dealer-buy-card", { cardId: Number(button.dataset.buy) }); });
     $("reroll").onclick = () => act("dealer-reroll");
-    $("checkout").onclick = () => act("dealer-checkout");
+    $("open-inventory").onclick = () => setTab("items");
+    $("shop-ready").onclick = () => act("dealer-shop-ready", { ready: !dealer.shopReady?.includes(mine) });
     return;
   }
   const ranks = [...dealerPlayers()].sort((a, b) => dealer.balances[b.id] - dealer.balances[a.id]);
@@ -795,19 +800,23 @@ function renderItems() {
   ui.content.innerHTML = `
     <div class="section-title"><h2>정부 승인 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
     <div class="inventory-list">${list.length ? list.map((item) => `
-      <div class="inventory-row"><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(item.value)}</b></div>`).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>`;
+      <label class="inventory-row"><input type="checkbox" data-checkout-item="${escapeHtml(item.uid)}" ${selectedCheckoutIds.has(item.uid) ? "checked" : ""} ${dealer.phase !== "shop" || (item.sellLockedThroughRound ?? -1) >= dealer.round ? "disabled" : ""}/><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(item.value)}</b></label>`).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>
+    ${dealer.phase === "shop" && list.length ? `<button class="secondary-action" id="sell-selected" ${selectedCheckoutIds.size ? "" : "disabled"}>선택 소장품 판매</button>` : ""}`;
+  ui.content.querySelectorAll("[data-checkout-item]").forEach((input) => { input.onchange = () => { input.checked ? selectedCheckoutIds.add(input.dataset.checkoutItem) : selectedCheckoutIds.delete(input.dataset.checkoutItem); renderItems(); }; });
+  const sell = $("sell-selected");
+  if (sell) sell.onclick = async () => { const itemIds = [...selectedCheckoutIds]; await act("dealer-checkout", { itemIds }); selectedCheckoutIds.clear(); };
 }
 
 function renderCards() {
   if (!room || !dealer) return;
   const mine = me();
   const list = myCards();
-  const expired = phaseExpired("auction");
+  const expired = dealer.phase === "auction" ? phaseExpired("auction") : dealer.phase !== "shop";
   const targetOptions = dealerPlayers().filter((player) => player.id !== mine).map((player) => `<option value="${player.id}">${escapeHtml(player.name)}</option>`).join("");
   ui.content.innerHTML = `
-    <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 경매 후 결정적인 순간에 사용하세요</span></div>
+    <div class="section-title"><h2>승부의 전략패</h2><span>${list.length}/3 · 영구 효과 ${(dealer.permanentCards?.[mine] || []).length}개 활성화</span></div>
     <select class="target-select" id="target" aria-label="카드 사용 대상"><option value="">대상 자동 선택 또는 대상 없음</option>${targetOptions}</select>
-    <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const passive = id >= 2 && id <= 5; const disabled = dealer.phase !== "auction" || expired; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions">${passive ? "<b>PASSIVE</b>" : `<button data-use="${id}" ${disabled ? "disabled" : ""}>${expired ? "마감" : "사용"}</button>`}</div></div>`; }).join("") : `<div class="empty-state"><div class="empty-state-icon">+</div><strong>아직 보유한 전략패가 없습니다</strong><small>정책 거래소에서 전략패를 구입하면 이곳에 보관됩니다.</small></div>`}</div>`;
+    <div class="inventory-list">${list.length ? list.map((id) => { const card = cards[id]; const shopUsable = [2,3,4,5,7,8,9,10,11,12,15,16,17,18,24].includes(id); const disabled = !(dealer.phase === "auction" || (dealer.phase === "shop" && shopUsable)) || expired; return `<div class="inventory-row"><div class="strategy-icon">${cardSymbol(id)}</div><div><strong>${cardKoreanNames[id]}</strong><small>${card[0]} · ${card[2]}</small></div><div class="card-actions"><button data-use="${id}" ${disabled ? "disabled" : ""}>${expired ? "사용 불가" : id >= 2 && id <= 5 ? "활성화" : "사용"}</button></div></div>`; }).join("") : `<div class="empty-state"><div class="empty-state-icon">+</div><strong>아직 보유한 전략패가 없습니다</strong><small>정책 거래소에서 전략패를 구입하면 이곳에 보관됩니다.</small></div>`}</div>`;
     ui.content.querySelectorAll("[data-use]").forEach((button) => {
       const cardId = Number(button.dataset.use);
       button.setAttribute("aria-label", `${cardKoreanNames[cardId]} ${expired ? "사용 마감" : "사용"}`);

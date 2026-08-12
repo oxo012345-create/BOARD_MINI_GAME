@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDealerState, dealerAction, tickDealer } from "../app/api/_lib/dealer.ts";
+import { createDealerState, DEALER_CARDS, dealerAction, tickDealer } from "../app/api/_lib/dealer.ts";
 
 const players = Array.from({ length: 4 }, (_, index) => ({
   id: `p${index + 1}`,
@@ -54,7 +54,7 @@ test("clause 20 splits auction revenue, not market checkout", () => {
   state.deadline = Date.now() - 1;
   tickDealer(state, players);
   assert.equal(state.balances[seller], beforeSeller + 50);
-  const partnerGained = players.some((player) => player.id !== seller && player.id !== bidder.id && state.balances[player.id] === beforeOthers[player.id] + 50);
+  const partnerGained = players.some((player) => player.id !== seller && state.balances[player.id] === beforeOthers[player.id] + (player.id === bidder.id ? -50 : 50));
   assert.equal(partnerGained, true);
 });
 
@@ -69,4 +69,52 @@ test("loan and all-in use the original two-hand delay and exact odds", () => {
     { chance: state.pendingInvestments[0].chance, gain: state.pendingInvestments[0].gain, dueAuction: state.pendingInvestments[0].dueAuction },
     { chance: 0.5, gain: 0.35, dueAuction: state.auctionCount + 2 },
   );
+});
+
+test("original strategy deck includes cards 22-24 and patched Robin Hood price", () => {
+  assert.equal(DEALER_CARDS.length, 25);
+  assert.deepEqual(DEALER_CARDS.slice(22).map((card) => card.name), ["Hot Potato", "Cut Deal", "Jackpot Chase"]);
+  assert.equal(DEALER_CARDS[18].price, 100);
+});
+
+test("permanent cards activate and free their inventory slot", () => {
+  const state = auctionState();
+  const actor = players.find((player) => player.id !== state.sellerId);
+  state.phase = "shop";
+  state.deadline = Date.now() + 60_000;
+  state.cards[actor.id] = [2];
+  dealerAction(state, players, actor.id, "dealer-use-card", { cardId: 2 });
+  assert.deepEqual(state.cards[actor.id], []);
+  assert.deepEqual(state.permanentCards[actor.id], [2]);
+});
+
+test("checkout sells only selected collection items", () => {
+  const state = auctionState();
+  const actor = players[0];
+  state.phase = "shop";
+  state.deadline = Date.now() + 60_000;
+  state.inventories[actor.id] = [
+    { uid: "one", id: 0, name: "One", era: "A", value: 100, clauses: [] },
+    { uid: "two", id: 1, name: "Two", era: "B", value: 200, clauses: [] },
+  ];
+  const before = state.balances[actor.id];
+  dealerAction(state, players, actor.id, "dealer-checkout", { itemIds: ["one"] });
+  assert.equal(state.balances[actor.id], before + 100);
+  assert.deepEqual(state.inventories[actor.id].map((item) => item.uid), ["two"]);
+});
+
+test("Cut Deal transfers 30 percent of the target's next checkout", () => {
+  const state = auctionState();
+  const owner = players[0];
+  const target = players[1];
+  state.phase = "shop";
+  state.deadline = Date.now() + 60_000;
+  state.cutDeals[target.id] = owner.id;
+  state.inventories[target.id] = [{ uid: "deal", id: 0, name: "Deal", era: "A", value: 1000, clauses: [] }];
+  const ownerBefore = state.balances[owner.id];
+  const targetBefore = state.balances[target.id];
+  dealerAction(state, players, target.id, "dealer-checkout", { itemIds: ["deal"] });
+  assert.equal(state.balances[owner.id], ownerBefore + 300);
+  assert.equal(state.balances[target.id], targetBefore + 700);
+  assert.equal(state.cutDeals[target.id], undefined);
 });
