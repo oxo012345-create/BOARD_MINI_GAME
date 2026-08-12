@@ -775,7 +775,7 @@ function renderGame() {
     const cost = Math.round((100 + reroll * 100) * discount / 10) * 10;
     const expired = phaseExpired("shop");
     ui.content.innerHTML = `
-      <div class="section-title"><h2>정책 거래소</h2><span>교체 ${reroll}회 · 다음 목록 갱신 ${money(cost)}</span></div>
+      <div class="section-title shop-title"><h2>정책 거래소</h2><span>교체 ${reroll}회 · 다음 목록 갱신 ${money(cost)}</span></div>
       ${offers.length > 2 ? `<p class="scroll-cue">좌우로 밀어 더 많은 전략패 보기 <span aria-hidden="true">→</span></p>` : ""}
       <div class="shop-grid">${offers.map((id) => { const card = cards[id]; const disabled = expired || myCards().length >= 3 || dealer.balances[mine] < card[1]; return `<button class="card-card" data-symbol="${cardSymbol(id)}" data-buy="${id}" ${disabled ? "disabled" : ""} aria-label="${escapeHtml(cardKoreanNames[id])} ${expired ? "구매 마감" : "구매"}"><span class="eyebrow">${card[0]}</span><strong>${cardKoreanNames[id]}</strong><small>${card[2]}</small><b>${money(card[1])}</b></button>`; }).join("")}</div>
       <div class="action-row"><button class="secondary-action ${expired ? "is-closed" : ""}" id="reroll" ${expired || dealer.balances[mine] < cost ? "disabled" : ""}>${expired ? "상점 마감" : `상품 교체 · ${money(cost)}`}</button><button class="secondary-action" id="open-inventory" ${expired || !(dealer.inventories[mine]?.length) ? "disabled" : ""}>소장품 판매</button><button class="secondary-action" id="shop-ready" ${expired ? "disabled" : ""}>${dealer.shopReady?.includes(mine) ? "준비 취소" : `준비 완료 · ${dealer.shopReady?.length || 0}/${dealerPlayers().length}`}</button></div>`;
@@ -797,12 +797,16 @@ function renderGame() {
 function renderItems() {
   if (!dealer) return;
   const list = dealer.inventories[me()] || [];
+  const selectionKey = (item, index) => item.uid || `debug-${item.id}-${index}`;
+  const selectedCount = list.filter((item, index) => selectedCheckoutIds.has(selectionKey(item, index))).length;
   ui.content.innerHTML = `
     <div class="section-title"><h2>정부 승인 소장품</h2><span>${list.length}/4 · 같은 시대를 모으면 세트 보너스</span></div>
-    <div class="inventory-list">${list.length ? list.map((item) => `
-      <label class="inventory-row"><input type="checkbox" data-checkout-item="${escapeHtml(item.uid)}" ${selectedCheckoutIds.has(item.uid) ? "checked" : ""} ${dealer.phase !== "shop" || (item.sellLockedThroughRound ?? -1) >= dealer.round ? "disabled" : ""}/><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b>${money(item.value)}</b></label>`).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>
-    ${dealer.phase === "shop" && list.length ? `<button class="secondary-action" id="sell-selected" ${selectedCheckoutIds.size ? "" : "disabled"}>선택 소장품 판매</button>` : ""}`;
-  ui.content.querySelectorAll("[data-checkout-item]").forEach((input) => { input.onchange = () => { input.checked ? selectedCheckoutIds.add(input.dataset.checkoutItem) : selectedCheckoutIds.delete(input.dataset.checkoutItem); renderItems(); }; });
+    <div class="inventory-list">${list.length ? list.map((item, index) => { const key = selectionKey(item, index); return `
+      <div class="inventory-row selectable-inventory ${selectedCheckoutIds.has(key) ? "is-selected" : ""}"><button class="inventory-check" type="button" aria-label="${escapeHtml(itemName(item))} ${selectedCheckoutIds.has(key) ? "선택 취소" : "판매 선택"}" aria-pressed="${selectedCheckoutIds.has(key)}" data-checkout-item="${escapeHtml(key)}" ${dealer.phase !== "shop" || (item.sellLockedThroughRound ?? -1) >= dealer.round ? "disabled" : ""}><i aria-hidden="true"></i></button><img src="${itemSrc(item.id)}" alt="${escapeHtml(itemName(item))}" /><div class="inventory-copy"><strong>${escapeHtml(itemName(item))}</strong><small>${escapeHtml(itemSubtitle(item))} · ${escapeHtml(item.era)}</small>${item.clauses.map((clause) => `<div class="clause">§${clause} ${escapeHtml(clauseText[clause])}</div>`).join("")}</div><b class="inventory-price">${money(item.value)}</b></div>`; }).join("") : "<div class='notice'>아직 낙찰받은 컬렉션이 없습니다.</div>"}</div>
+    ${dealer.phase === "shop" && list.length ? `<div class="inventory-actions"><button class="secondary-action" id="clear-selection" ${selectedCount ? "" : "disabled"}>선택 취소</button><button class="primary-action" id="sell-selected" ${selectedCount ? "" : "disabled"}>${selectedCount ? `선택 ${selectedCount}개 판매` : "판매할 소장품 선택"}</button></div>` : ""}`;
+  ui.content.querySelectorAll("[data-checkout-item]").forEach((button) => { button.onclick = () => { selectedCheckoutIds.has(button.dataset.checkoutItem) ? selectedCheckoutIds.delete(button.dataset.checkoutItem) : selectedCheckoutIds.add(button.dataset.checkoutItem); renderItems(); }; });
+  const clear = $("clear-selection");
+  if (clear) clear.onclick = () => { selectedCheckoutIds.clear(); renderItems(); };
   const sell = $("sell-selected");
   if (sell) sell.onclick = async () => { const itemIds = [...selectedCheckoutIds]; await act("dealer-checkout", { itemIds }); selectedCheckoutIds.clear(); };
 }

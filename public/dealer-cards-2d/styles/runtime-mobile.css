@@ -234,17 +234,34 @@
   body[data-phase="shop"] .sheet-scroll {
     padding: 27px 13px 14px;
   }
-  body[data-phase="shop"] .section-title {
+  body[data-phase="shop"] .shop-title {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     min-height: 42px;
     padding-right: 38px;
   }
-  body[data-phase="shop"] .section-title h2 { font-size: 16px; }
-  body[data-phase="shop"] .section-title span {
+  body[data-phase="shop"] .shop-title h2 { font-size: 16px; }
+  body[data-phase="shop"] .shop-title span {
     padding-left: 0;
     font-size: 8px;
     line-height: 1.25;
+    text-align: left;
+  }
+  body[data-phase="shop"] .section-title:not(.shop-title) {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 2px;
+    min-height: 46px;
+    padding-right: 44px;
+  }
+  body[data-phase="shop"] .section-title:not(.shop-title) h2 {
+    font-size: 16px;
+    line-height: 1.15;
+  }
+  body[data-phase="shop"] .section-title:not(.shop-title) span {
+    max-width: 100%;
+    font-size: 8px;
+    line-height: 1.2;
     text-align: left;
   }
   body[data-phase="shop"] .scroll-cue {
@@ -284,6 +301,98 @@
     font-size: 8px;
   }
   body[data-phase="shop"] #shop-ready { grid-column: 1 / -1; }
+
+  /* Collection rows use dedicated columns. The former absolute checkbox sat
+     on the thumbnail and the fixed 74px row clipped clause copy. */
+  .selectable-inventory {
+    grid-template-columns: 26px 54px minmax(0, 1fr) auto;
+    gap: 7px;
+    min-height: 86px;
+    height: auto;
+    padding: 8px 9px;
+  }
+  .selectable-inventory > input { position: static; }
+  .selectable-inventory > img {
+    width: 52px;
+    height: 68px;
+    align-self: stretch;
+  }
+  .inventory-check {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    min-height: 44px;
+    align-self: stretch;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .inventory-check i {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid #795432;
+    border-radius: 6px;
+    background: linear-gradient(180deg,#ead7a8,#b9945f);
+    box-shadow: inset 0 1px rgba(255,250,220,.7), 0 1px 3px rgba(38,19,9,.35);
+  }
+  .inventory-check[aria-pressed="true"] i {
+    border-color: #6e2734;
+    background: linear-gradient(180deg,#8a3543,#4b1822);
+  }
+  .inventory-check[aria-pressed="true"] i::after {
+    content: "✓";
+    color: #f1ddb2;
+    font: 900 14px/1 Arial,sans-serif;
+  }
+  .inventory-check:focus-visible i { outline: 2px solid #8f5f2e; outline-offset: 2px; }
+  .inventory-copy { min-width: 0; align-self: center; }
+  .selectable-inventory .inventory-copy strong {
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .selectable-inventory .inventory-copy small {
+    margin-top: 2px;
+    font-size: 7.5px;
+    line-height: 1.25;
+  }
+  .selectable-inventory .clause {
+    margin-top: 3px;
+    padding: 3px 4px;
+    font-size: 7px;
+    line-height: 1.2;
+    white-space: normal;
+  }
+  .selectable-inventory .inventory-price {
+    align-self: center;
+    color: #5e2933;
+    font: 800 12px/1 "Roboto Slab",serif;
+    white-space: nowrap;
+  }
+  .selectable-inventory.is-selected {
+    border-color: #76404a;
+    background: linear-gradient(90deg,rgba(116,47,60,.08),rgba(255,250,224,.08));
+    box-shadow: 0 3px 0 rgba(54,31,17,.55),0 0 0 2px rgba(101,47,54,.55),inset 0 2px rgba(255,249,222,.48);
+  }
+  .inventory-actions {
+    display: grid;
+    grid-template-columns: minmax(82px,.7fr) minmax(0,1.3fr);
+    gap: 7px;
+    margin-top: 8px;
+  }
+  .inventory-actions .secondary-action,
+  .inventory-actions .primary-action {
+    min-height: 44px;
+    margin: 0;
+    padding: 8px 7px;
+    font-size: 9px;
+  }
 
   /* Keep the one-page selection ledger clear of the fixed command dock. */
   body[data-phase="select"] .sheet {
