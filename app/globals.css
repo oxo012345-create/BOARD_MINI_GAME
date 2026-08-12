@@ -600,12 +600,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .gem-special-reveal.detective { background: rgba(139,231,255,.07); color: var(--gem-ice); }
 
 /* Apartment game: a bright, illustrated high-rise floor picker inspired by a mobile board-game card. */
-.apartment-game-shell, .apartment-result-shell { --apartment-blue: #0b9ff0; --apartment-deep-blue: #0576d5; --apartment-ink: #101725; background: radial-gradient(circle at 50% -10%, rgba(255, 255, 255, .28), transparent 30%), linear-gradient(160deg, #0aa9f7 0%, #078fe9 55%, #087edc 100%); color: #fff; }
-.apartment-game-shell::before, .apartment-result-shell::before { position: fixed; z-index: 0; inset: 0; pointer-events: none; content: ""; opacity: .18; background: repeating-linear-gradient(105deg, transparent 0 26px, rgba(255, 255, 255, .12) 27px 28px, transparent 29px 65px); }
+.apartment-game-shell, .apartment-result-shell { --apartment-blue: #0b9ff0; --apartment-deep-blue: #0576d5; --apartment-ink: #101725; background: radial-gradient(circle at 50% 0%, rgba(94, 155, 255, .13), transparent 34%), linear-gradient(180deg, #0c1019, #080a0e 62%); color: var(--text); }
+.apartment-game-shell::before, .apartment-result-shell::before { display: none; }
 .apartment-game-shell > *, .apartment-result-shell > * { position: relative; z-index: 1; }
-.apartment-game-shell .topbar, .apartment-result-shell .topbar { margin-bottom: 8px; border-bottom-color: rgba(255, 255, 255, .16); background: rgba(4, 99, 182, .25); color: #fff; }
-.apartment-game-shell .topbar-actions button, .apartment-result-shell .topbar-actions button { color: rgba(255, 255, 255, .83); }
-.apartment-game-shell .room-code-mini, .apartment-result-shell .room-code-mini { color: #fff; }
+.apartment-game-shell .topbar, .apartment-result-shell .topbar { margin-bottom: 8px; border-bottom-color: rgba(255, 255, 255, .05); background: rgba(13, 15, 18, .88); color: var(--text); }
+.apartment-game-shell .topbar-actions button, .apartment-result-shell .topbar-actions button { color: var(--muted); }
+.apartment-game-shell .room-code-mini, .apartment-result-shell .room-code-mini { color: var(--accent); }
 .apartment-briefing { margin: 18px -7px -8px; }
 .apartment-briefing .apartment-board { box-shadow: none; }
 .apartment-board { position: relative; margin-top: 12px; padding: 12px 7px 16px; overflow: visible; border: 0; border-radius: 0; background: transparent; text-align: left; }
