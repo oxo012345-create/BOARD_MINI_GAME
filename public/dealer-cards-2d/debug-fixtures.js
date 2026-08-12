@@ -58,7 +58,7 @@ function makeState(scenario, playerCount) {
   const phaseNow = Date.now();
 
   if (scenario === "shop" || scenario === "finished") {
-    inventories[meId] = [clone(ITEM_FIXTURES[0])];
+    inventories[meId] = [{ ...clone(ITEM_FIXTURES[0]), uid: "debug-inventory-1", acquiredRound: 1 }];
     cards[meId] = [2, 7];
   }
   if (scenario === "finished") {
@@ -204,8 +204,14 @@ export function applyDebugAction(state, action, payload = {}) {
       next.dealer.balances[mine] = Math.max(0, next.dealer.balances[mine] - 100);
     }
   } else if (action === "dealer-checkout") {
-    const requested = new Set(payload.itemIds || next.dealer.inventories[mine].map((item) => item.uid));
-    next.dealer.inventories[mine] = next.dealer.inventories[mine].filter((item) => !requested.has(item.uid));
+    const inventory = next.dealer.inventories[mine] || [];
+    const requested = new Set(Array.isArray(payload.itemIds) && payload.itemIds.length
+      ? payload.itemIds.map(String)
+      : inventory.map((item) => item.uid));
+    next.dealer.inventories[mine] = inventory.filter((item, index) => {
+      const key = item.uid || `debug-${item.id}-${index}`;
+      return !requested.has(String(key));
+    });
   } else if (action === "dealer-shop-ready") {
     next.dealer.shopReady = (next.dealer.shopReady || []).filter((id) => id !== mine);
     if (payload.ready !== false) next.dealer.shopReady.push(mine);

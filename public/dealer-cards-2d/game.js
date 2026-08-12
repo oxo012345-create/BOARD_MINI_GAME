@@ -462,13 +462,13 @@ const cardSymbol = (id) => ["$", "§", "↻", "↻", "+", "+", "×", "$", "♦",
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 async function act(action, extra = {}) {
-  if (busy) return;
+  if (busy) return false;
   if (actionBlockedByDeadline(action)) {
     ui.notice.textContent = "시간이 끝났습니다. 다음 단계로 이동합니다.";
     showToast("시간이 끝났습니다. 다음 단계로 이동합니다.", "error");
     renderLotActions();
     if (menuOpen && tab === "game") renderTab();
-    return;
+    return false;
   }
   busy = true;
   const requestId = makeRequestId();
@@ -489,7 +489,7 @@ async function act(action, extra = {}) {
       busy = false;
       delete document.body.dataset.busy;
     }
-    return;
+    return true;
   }
   try {
     const response = await fetchWithTimeout(`/api/rooms/${roomCode}`, {
@@ -509,6 +509,7 @@ async function act(action, extra = {}) {
     if (action === "dealer-select") lastManualSelectionRound = dealer?.round ?? null;
     render();
     showToast(actionSuccessMessage(action));
+    return true;
   } catch (error) {
     if (error?.name === "ROOM_CONFLICT") {
       const message = action === "dealer-bid"
@@ -517,17 +518,19 @@ async function act(action, extra = {}) {
       ui.notice.textContent = message;
       showToast(message, "error");
       await sync();
-      return;
+      return false;
     }
     const message = error?.name === "AbortError"
       ? "서버 응답이 늦어요. 최신 상태를 다시 확인합니다."
       : error.message || "다시 시도해 주세요.";
     ui.notice.textContent = message;
     showToast(message, "error");
+    return false;
   } finally {
     busy = false;
     delete document.body.dataset.busy;
   }
+  return false;
 }
 
 async function sync() {
@@ -808,7 +811,14 @@ function renderItems() {
   const clear = $("clear-selection");
   if (clear) clear.onclick = () => { selectedCheckoutIds.clear(); renderItems(); };
   const sell = $("sell-selected");
-  if (sell) sell.onclick = async () => { const itemIds = [...selectedCheckoutIds]; await act("dealer-checkout", { itemIds }); selectedCheckoutIds.clear(); };
+  if (sell) sell.onclick = async () => {
+    const itemIds = [...selectedCheckoutIds];
+    const completed = await act("dealer-checkout", { itemIds });
+    if (completed) {
+      selectedCheckoutIds.clear();
+      if (menuOpen && tab === "items") renderItems();
+    }
+  };
 }
 
 function renderCards() {
