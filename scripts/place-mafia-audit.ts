@@ -113,11 +113,17 @@ for (let count = 4; count <= 8; count += 1) {
 }
 
 {
-  const { state, now } = start();
+  const { roster, state, now } = start();
   setRoles(state, ["p1"]);
   state.phase = "vote";
   state.phaseEndsAt = now + 20_000;
   submitPlaceMafiaVote(state, "p1", "p2", now + 1_000);
+  const voterView = placeMafiaClientState(state, roster[0]!.id);
+  const otherView = placeMafiaClientState(state, roster[1]!.id);
+  assert.equal(voterView.my?.voteSubmitted, true, "투표자는 제출 완료 여부만 확인해야 한다");
+  assert.equal(otherView.voteSubmittedCount, 1, "다른 참가자에게는 제출 인원수만 보여야 한다");
+  assert.equal(otherView.my?.voteSubmitted, false);
+  assert.equal(JSON.stringify(otherView).includes('"votes"'), false, "개별 투표 대상은 다른 참가자에게 전송하면 안 된다");
   submitPlaceMafiaVote(state, "p2", "p1", now + 1_000);
   submitPlaceMafiaVote(state, "p3", "p4", now + 1_000);
   submitPlaceMafiaVote(state, "p4", "p3", now + 1_000);

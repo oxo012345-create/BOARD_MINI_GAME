@@ -10,6 +10,7 @@ import {
   type PlaceMafiaLocationId,
   type PlaceMafiaRole,
 } from "./place-mafia-shared";
+import { usePlaceMafiaExperience, type PlaceMafiaCue, type PlaceMafiaPreferences } from "./place-mafia-audio";
 
 type MafiaPlayer = { id: string; name: string; avatar: string; status: "active" | "waiting" };
 type ActionHandler = (payload: Record<string, unknown>) => Promise<unknown>;
@@ -31,6 +32,43 @@ function balanceCopy(balance: PlaceMafiaBalance) {
   if (balance === "citizen") return "첫날 공격 없음";
   if (balance === "mafia") return "첫날 2곳 공격";
   return "첫날 1곳 공격";
+}
+
+function PlaceMafiaExperienceControls({
+  preferences,
+  onToggle,
+  compact = false,
+}: {
+  preferences: PlaceMafiaPreferences;
+  onToggle: (key: keyof PlaceMafiaPreferences) => void;
+  compact?: boolean;
+}) {
+  const controls = [
+    ["music", "음악", "BGM"],
+    ["effects", "효과음", "SFX"],
+    ["haptics", "진동", "HAPTIC"],
+    ["reduceMotion", "모션 줄이기", "MOTION"],
+  ] as const;
+  return <details className={`pm-experience-menu ${compact ? "compact" : ""}`}>
+    <summary><span className="pm-sound-wave"><i /><i /><i /></span><strong>연출 설정</strong><small>음악 · 효과음 · 진동</small></summary>
+    <div>{controls.map(([key, label, code]) => {
+      const active = key === "reduceMotion" ? preferences.reduceMotion : preferences[key];
+      return <button type="button" key={key} className={active ? "active" : ""} aria-pressed={active} onClick={() => onToggle(key)}><span>{code}</span><strong>{label}</strong><i /></button>;
+    })}</div>
+    <p>브라우저 정책상 첫 화면 터치 후 음악이 시작됩니다.</p>
+  </details>;
+}
+
+function transitionCopy(phase: PlaceMafiaClientState["phase"], state: PlaceMafiaClientState) {
+  if (phase === "night") return { code: `NIGHT ${state.day}`, title: "도시가 잠듭니다", detail: "20초 동안 자신의 동선을 숨기세요" };
+  if (phase === "day_reveal") return state.night?.quiet
+    ? { code: `DAY ${state.day}`, title: "아침이 밝았습니다", detail: "밤사이 새로운 사건은 없었습니다" }
+    : { code: `INCIDENT ${state.day}`, title: "사건이 발생했습니다", detail: "밤의 기록을 확인하세요" };
+  if (phase === "discussion") return { code: "INVESTIGATION", title: "진술을 대조하세요", detail: "목격과 동선에서 모순을 찾으세요" };
+  if (phase === "vote") return { code: "SECRET BALLOT", title: "익명 투표", detail: "선택은 누구에게도 공개되지 않습니다" };
+  if (phase === "execution") return { code: "FINAL VERDICT", title: state.execution?.tied ? "의견이 갈렸습니다" : "판결을 공개합니다", detail: state.execution?.tied ? "오늘은 아무도 처형되지 않습니다" : "지목된 사람의 역할을 확인하세요" };
+  if (phase === "game_over") return { code: "CASE CLOSED", title: state.winner === "mafia" ? "도시가 어둠에 잠겼습니다" : "도시가 평화를 되찾았습니다", detail: "모든 역할과 결과를 공개합니다" };
+  return { code: "CLASSIFIED", title: "비밀 역할이 배정되었습니다", detail: "다른 사람이 보지 못하게 확인하세요" };
 }
 
 export function PlaceMafiaBriefing({
@@ -58,7 +96,8 @@ export function PlaceMafiaBriefing({
 }) {
   const valid = players.length >= 4 && players.length <= 8;
   const mafiaCount = players.length >= 7 ? 2 : 1;
-  return <main className="pm-shell pm-briefing-shell">
+  const experience = usePlaceMafiaExperience("briefing");
+  return <main className={`pm-shell pm-briefing-shell ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     {topBar}
     <section className="pm-briefing-hero">
       <img src="/place-mafia/city-board.png" alt="주택가와 경찰서, 광장과 공원, 골목과 병원으로 연결된 장소 마피아 도시 지도" />
@@ -66,6 +105,8 @@ export function PlaceMafiaBriefing({
       <div className="pm-briefing-title"><span>NOIR SOCIAL DEDUCTION</span><h1>장소 마피아</h1><p>위치와 동선, 거짓말을 추적하세요.</p></div>
       <div className="pm-briefing-badges"><span>4–8명</span><span>밤 20초</span><span>6개 장소</span></div>
     </section>
+
+    <PlaceMafiaExperienceControls preferences={experience.preferences} onToggle={experience.toggle} />
 
     <section className="pm-rules-panel">
       <header><span>CASE RULES</span><h2>범행이 가능했던 사람을 찾으세요</h2></header>
@@ -153,7 +194,7 @@ function PhaseHeader({ state, remaining }: { state: PlaceMafiaClientState; remai
           : state.phase === "vote" ? `DAY ${state.day} · VOTE`
             : state.phase === "execution" ? `DAY ${state.day} · VERDICT`
               : "CASE CLOSED";
-  return <header className={`pm-phase-header phase-${state.phase}`}>
+  return <header className={`pm-phase-header phase-${state.phase} ${state.phaseEndsAt && remaining <= 3_000 ? "urgent" : ""}`}>
     <div><span>{phase}</span><strong>{state.phase === "night" ? "도시가 잠들었습니다" : state.phase === "discussion" ? "진술을 대조하세요" : state.phase === "vote" ? "의심되는 한 명을 지목하세요" : state.phase === "game_over" ? "사건 종결" : "장소 마피아"}</strong></div>
     {state.phaseEndsAt && <time>{formatTimer(remaining)}</time>}
   </header>;
@@ -210,8 +251,12 @@ export function PlaceMafiaGame({
   const [voteConfirm, setVoteConfirm] = useState(false);
   const [working, setWorking] = useState(false);
   const [localNotice, setLocalNotice] = useState("");
+  const [transition, setTransition] = useState<ReturnType<typeof transitionCopy> | null>(null);
   const lastTickRef = useRef("");
   const lastCutRef = useRef(0);
+  const lastCountdownRef = useRef(0);
+  const previousPhaseRef = useRef(state.phase);
+  const experience = usePlaceMafiaExperience(state.phase);
   const synchronizedNow = now + clockOffsetMs;
   const remaining = Math.max(0, (state.phaseEndsAt ?? synchronizedNow) - synchronizedNow);
   const me = state.my;
@@ -228,6 +273,32 @@ export function PlaceMafiaGame({
     setVoteConfirm(false);
   }, [state.day, state.phase]);
   useEffect(() => {
+    const previous = previousPhaseRef.current;
+    if (previous === state.phase) return;
+    previousPhaseRef.current = state.phase;
+    const copy = transitionCopy(state.phase, state);
+    setTransition(copy);
+    const cue: PlaceMafiaCue = state.phase === "night" ? "night"
+      : state.phase === "day_reveal" ? state.night?.quiet ? "quiet" : "incident"
+        : state.phase === "vote" ? "vote"
+          : state.phase === "execution" ? state.execution?.tied ? "tie" : state.execution?.role === "mafia" ? "mafia-out" : "citizen-out"
+            : state.phase === "game_over" ? state.winner === "mafia" ? "mafia-win" : "citizen-win"
+              : "evidence";
+    experience.cue(cue);
+    const timer = window.setTimeout(() => setTransition(null), experience.preferences.reduceMotion ? 500 : 2300);
+    return () => window.clearTimeout(timer);
+  }, [experience.cue, experience.preferences.reduceMotion, state.day, state.execution?.role, state.execution?.tied, state.night?.quiet, state.phase, state.winner]);
+  useEffect(() => {
+    if (!state.phaseEndsAt || remaining <= 0 || remaining > 3_000) {
+      lastCountdownRef.current = 0;
+      return;
+    }
+    const second = Math.ceil(remaining / 1_000);
+    if (lastCountdownRef.current === second) return;
+    lastCountdownRef.current = second;
+    experience.cue("tick");
+  }, [experience.cue, remaining, state.phaseEndsAt]);
+  useEffect(() => {
     if (!state.phaseEndsAt || remaining > 0) return;
     const key = `${state.phase}:${state.day}:${state.phaseEndsAt}`;
     if (lastTickRef.current === key) return;
@@ -243,10 +314,14 @@ export function PlaceMafiaGame({
     return () => window.clearTimeout(timer);
   }, [players, state.lastDiscussionCut]);
 
-  const run = async (payload: Record<string, unknown>) => {
+  const run = async (payload: Record<string, unknown>, successCue?: PlaceMafiaCue) => {
     if (working) return;
     setWorking(true);
-    try { await onAction(payload); }
+    try {
+      await experience.unlock();
+      await onAction(payload);
+      if (successCue) experience.cue(successCue);
+    }
     catch (error) {
       setLocalNotice(error instanceof Error ? error.message : "행동을 처리하지 못했어요.");
       window.setTimeout(() => setLocalNotice(""), 2600);
@@ -254,8 +329,22 @@ export function PlaceMafiaGame({
   };
 
   const selectAttack = (location: PlaceMafiaLocationId) => {
+    experience.cue("select");
     const required = me?.requiredAttackCount ?? 1;
     setAttackChoices((items) => items.includes(location) ? items.filter((item) => item !== location) : [...items, location].slice(-required));
+  };
+
+  const selectMove = (location: PlaceMafiaLocationId) => {
+    setMoveChoice(location);
+    experience.cue("select");
+  };
+
+  const toggleRole = async () => {
+    await experience.unlock();
+    const opening = !roleOpen;
+    setRoleOpen(opening);
+    if (opening) experience.cue(me?.role === "mafia" ? "role-mafia" : "role-citizen");
+    else experience.cue("tap");
   };
 
   const mapMode = state.phase === "night" && me?.isKiller && me.moveConfirmed && !me.attackConfirmed && me.requiredAttackCount > 0 ? "attack"
@@ -264,9 +353,12 @@ export function PlaceMafiaGame({
   const mapSelected = state.phase === "night" ? mapMode === "attack" ? attackChoices : moveChoice ? [moveChoice] : me?.selectedMove ? [me.selectedMove] : [] : [];
   const mapSelectable = mapMode === "attack" ? me?.legalAttackLocations ?? [] : mapMode === "move" ? me?.legalMoves ?? [] : [];
 
-  return <main className={`pm-shell pm-game-shell pm-phase-${state.phase}`}>
+  return <main className={`pm-shell pm-game-shell pm-phase-${state.phase} ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     <header className="pm-topbar"><div className="pm-room-code"><i />{code}</div><strong>장소 마피아</strong><div>{isHost && <button type="button" disabled={busy} onClick={onLobby}>대기실</button>}<button type="button" onClick={onLeave}>나가기</button></div></header>
     <PhaseHeader state={state} remaining={remaining} />
+    <PlaceMafiaExperienceControls compact preferences={experience.preferences} onToggle={experience.toggle} />
+
+    {transition && <div className={`pm-cinematic pm-cinematic-${state.phase}`} role="status" aria-live="polite"><div className="pm-cinematic-orbit" /><span>{transition.code}</span><strong>{transition.title}</strong><small>{transition.detail}</small></div>}
 
     {state.phase === "role_reveal" && me && <section className="pm-role-stage">
       <div className={`pm-role-card ${roleOpen ? "open" : ""} ${me.role}`}>
@@ -274,24 +366,24 @@ export function PlaceMafiaGame({
         <strong>{roleOpen ? roleName(me.role) : "내 역할 확인"}</strong>
         <p>{roleOpen ? me.role === "mafia" ? "시민을 속이고 마지막까지 살아남으세요." : "목격과 동선을 조합해 마피아를 찾아내세요." : "휴대폰을 가리고 눌러 확인하세요."}</p>
         {roleOpen && me.role === "mafia" && me.teammateIds.length > 0 && <div className="pm-teammate">동료 마피아 · {me.teammateIds.map((id) => playerName(players, id)).join(", ")}</div>}
-        <button type="button" onClick={() => setRoleOpen((value) => !value)}>{roleOpen ? "역할 숨기기" : "비밀 카드 열기"}</button>
+        <button type="button" onClick={() => void toggleRole()}>{roleOpen ? "역할 숨기기" : "비밀 카드 열기"}</button>
       </div>
       <div className="pm-role-progress"><span>{state.roleReadyCount}/{state.participantIds.length}</span><div><strong>역할 확인</strong><small>모두 확인하면 20초의 밤이 시작됩니다.</small></div></div>
       <button type="button" className="pm-primary-button" disabled={!roleOpen || working || me.roleReady} onClick={() => void run({ action: "place-mafia-ready" })}>{me.roleReady ? "확인 완료 · 다른 참가자 대기 중" : "역할 확인 완료"}</button>
     </section>}
 
     {state.phase !== "role_reveal" && state.phase !== "game_over" && <>
-      {(["night", "day_reveal", "discussion"] as const).includes(state.phase as "night" | "day_reveal" | "discussion") && <PlaceMafiaMap state={state} players={players} mode={mapMode} selected={mapSelected} selectable={mapSelectable} onSelect={mapMode === "attack" ? selectAttack : mapMode === "move" ? setMoveChoice : undefined} />}
+      {(["night", "day_reveal", "discussion"] as const).includes(state.phase as "night" | "day_reveal" | "discussion") && <PlaceMafiaMap state={state} players={players} mode={mapMode} selected={mapSelected} selectable={mapSelectable} onSelect={mapMode === "attack" ? selectAttack : mapMode === "move" ? selectMove : undefined} />}
       {state.phase === "night" && <section className="pm-action-panel night">
         {!me?.alive ? <div className="pm-spectator"><span>OBSERVER</span><strong>관전 중</strong><small>밤이 끝나면 사건 기록이 공개됩니다.</small></div>
           : !me.moveConfirmed ? <>
             <span className="pm-panel-kicker">PRIVATE MOVEMENT</span><h2>{moveChoice ? `${placeMafiaLocationName(moveChoice)}으로 이동할까요?` : "이동할 장소를 선택하세요"}</h2>
             <p>현재 위치 또는 연결된 한 칸만 이동할 수 있습니다.</p>
-            <button type="button" className="pm-primary-button" disabled={!moveChoice || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-move", location: moveChoice })}>이동 확정</button>
+            <button type="button" className="pm-primary-button" disabled={!moveChoice || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-move", location: moveChoice }, "confirm")}>이동 확정</button>
           </> : me.isKiller && me.requiredAttackCount > 0 && !me.attackConfirmed ? <>
             <span className="pm-panel-kicker danger">ASSAULT ORDER</span><h2>오늘 밤 당신이 살인 담당입니다</h2>
             <p>최종 위치 기준 공격 가능한 {me.requiredAttackCount === 2 ? "서로 다른 2곳" : "장소 1곳"}을 선택하세요. 다른 사람의 위치는 표시되지 않습니다.</p>
-            <button type="button" className="pm-danger-button" disabled={attackChoices.length !== me.requiredAttackCount || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-attack", locations: attackChoices })}>{attackChoices.length === me.requiredAttackCount ? `${attackChoices.map(placeMafiaLocationName).join(" · ")} 습격 확정` : `공격 장소 ${me.requiredAttackCount}곳 선택`}</button>
+            <button type="button" className="pm-danger-button" disabled={attackChoices.length !== me.requiredAttackCount || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-attack", locations: attackChoices }, "attack")}>{attackChoices.length === me.requiredAttackCount ? `${attackChoices.map(placeMafiaLocationName).join(" · ")} 습격 확정` : `공격 장소 ${me.requiredAttackCount}곳 선택`}</button>
           </> : <div className="pm-night-wait"><i /><span><strong>{me.isKiller && me.attackConfirmed ? "습격 지시 완료" : "이동 확정 완료"}</strong><small>모두 끝내도 밤은 20초를 끝까지 유지합니다.</small></span><time>{formatTimer(remaining)}</time></div>}
       </section>}
 
@@ -311,9 +403,9 @@ export function PlaceMafiaGame({
         {!me?.alive ? <div className="pm-spectator"><span>OBSERVER</span><strong>투표를 지켜보는 중</strong></div>
           : me.voteSubmitted ? <div className="pm-sealed-vote"><span>SEALED</span><strong>투표를 봉인했습니다</strong><small>{state.voteSubmittedCount}/{livingPlayers.length}명 제출</small></div>
             : <>
-              <div className="pm-vote-grid">{livingPlayers.map((player) => <button type="button" key={player.id} disabled={player.id === meId} className={voteTarget === player.id ? "selected" : ""} onClick={() => { setVoteTarget(player.id); setVoteConfirm(false); }}><span>{player.avatar}</span><strong>{player.name}</strong><small>{player.id === meId ? "나" : voteTarget === player.id ? "지목 대상" : "선택"}</small></button>)}</div>
+              <div className="pm-vote-grid">{livingPlayers.map((player) => <button type="button" key={player.id} disabled={player.id === meId} className={voteTarget === player.id ? "selected" : ""} onClick={() => { setVoteTarget(player.id); setVoteConfirm(false); experience.cue("select"); }}><span>{player.avatar}</span><strong>{player.name}</strong><small>{player.id === meId ? "나" : voteTarget === player.id ? "지목 대상" : "선택"}</small></button>)}</div>
               {voteTarget && !voteConfirm && <button type="button" className="pm-primary-button" onClick={() => setVoteConfirm(true)}>{playerName(players, voteTarget)} 지목하기</button>}
-              {voteConfirm && <div className="pm-vote-confirm"><strong>{playerName(players, voteTarget)}님에게 투표할까요?</strong><div><button type="button" onClick={() => setVoteConfirm(false)}>취소</button><button type="button" disabled={working} onClick={() => void run({ action: "place-mafia-vote", targetId: voteTarget })}>투표 확정</button></div></div>}
+              {voteConfirm && <div className="pm-vote-confirm"><strong>{playerName(players, voteTarget)}님에게 익명 투표할까요?</strong><small>투표 대상은 결과 화면에도 공개되지 않습니다.</small><div><button type="button" onClick={() => setVoteConfirm(false)}>취소</button><button type="button" disabled={working} onClick={() => void run({ action: "place-mafia-vote", targetId: voteTarget }, "vote")}>익명 투표 확정</button></div></div>}
             </>}
       </section>}
 
