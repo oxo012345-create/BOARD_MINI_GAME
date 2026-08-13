@@ -4,6 +4,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gemAsset } from "./gem-heist-assets";
+import { PlaceMafiaBriefing, PlaceMafiaGame } from "./place-mafia";
+import type { PlaceMafiaBalance, PlaceMafiaClientState } from "./place-mafia-shared";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -86,6 +88,7 @@ type GameRound = {
   mazeCharacters?: Record<string, number>; mazeReadyPlayerIds?: string[];
   mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
   apartmentMaxFloor?: number; apartmentSubmitted?: string[]; apartmentMyChoice?: number; apartmentSelections?: Record<string, number>; apartmentFloorCounts?: Record<string, number>; apartmentPenaltyFloor?: number; apartmentPenaltyPlayerIds?: string[]; apartmentRevealed?: boolean;
+  placeMafia?: PlaceMafiaClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -118,6 +121,7 @@ const COOP_GAMES: GameMeta[] = [
   { id: "group-initial", title: "단체 초성 퀴즈", icon: "👥", description: "3초 안에 초성 단어를 말해요", category: "coop" },
 ];
 const BOARD_GAMES: GameMeta[] = [
+  { id: "place-mafia", title: "장소 마피아", icon: "⌖", description: "4~8인 위치·동선 추리 마피아", category: "board" },
   { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 프라이빗 경매와 사실적인 소장품 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
@@ -606,6 +610,8 @@ export default function Home() {
   const [gemSpecialRoles, setGemSpecialRoles] = useState(false);
   const [gemDifficulty, setGemDifficulty] = useState<"easy" | "normal" | "hard">("normal");
   const [gemSuspect, setGemSuspect] = useState("");
+  const [placeMafiaDiscussion, setPlaceMafiaDiscussion] = useState<60 | 90 | 120>(90);
+  const [placeMafiaBalance, setPlaceMafiaBalance] = useState<PlaceMafiaBalance>("normal");
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
   const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "right", y: 220 });
@@ -967,8 +973,8 @@ export default function Home() {
     setBusy(false);
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
-  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? placeMafiaBalance : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
   const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
   const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
   const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
@@ -1076,6 +1082,18 @@ export default function Home() {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
+    if (currentGame.id === "place-mafia") return <PlaceMafiaBriefing
+      players={room.players}
+      isHost={isHost}
+      busy={hostActionLocked}
+      discussionSeconds={placeMafiaDiscussion}
+      balance={placeMafiaBalance}
+      onDiscussionChange={setPlaceMafiaDiscussion}
+      onBalanceChange={setPlaceMafiaBalance}
+      onStart={() => void startGame()}
+      topBar={topBar("장소 마피아")}
+      overlays={commonOverlays}
+    />;
     if (currentGame.id === "maze-courier") {
       const readyCount = room.players.filter((player) => currentGame.mazeReadyPlayerIds?.includes(player.id)).length;
       return <main className="maze-courier-shell maze-selection-shell">
@@ -1217,6 +1235,20 @@ export default function Home() {
     </div>
     {commonOverlays}
   </main>;
+  if (currentGame.id === "place-mafia" && currentGame.placeMafia) return <PlaceMafiaGame
+    code={room.code}
+    players={room.players}
+    meId={room.meId}
+    state={currentGame.placeMafia}
+    clockOffsetMs={serverClockOffsetMs}
+    isHost={isHost}
+    busy={hostActionLocked}
+    onAction={applyAction}
+    onReplay={() => void startGame()}
+    onLobby={() => setConfirmType("lobby")}
+    onLeave={() => setConfirmType("leave")}
+    overlays={commonOverlays}
+  />;
   const privateRole = currentGame.privateRole;
   const submissions = [...(currentGame.photoSubmissions ?? [])].sort((a, b) => a.submittedAt - b.submittedAt);
   const hasPhoto = submissions.some((item) => item.playerId === room.meId);

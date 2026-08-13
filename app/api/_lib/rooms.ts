@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { assignedTelestrationChain, type GameRound } from "./rounds";
 import { clientSurprise, type SurpriseState } from "./surprise";
 import { dealerClientState } from "./dealer";
+import { placeMafiaClientState } from "./place-mafia";
 
 export type Player = {
   id: string;
@@ -58,6 +59,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const mazeStartedAt = internal.maze?.startedAt;
     const dealer = internal.dealer;
     const apartmentSelections = internal.apartmentSelections;
+    const placeMafia = internal.placeMafia;
 
     delete game.answer;
     delete game.liarId;
@@ -84,6 +86,11 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.maze;
     delete game.dealer;
     delete game.apartmentSelections;
+    delete game.placeMafia;
+
+    if (internal.id === "place-mafia" && placeMafia) {
+      game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
+    }
 
     if (internal.id === "apartment") {
       game.apartmentSubmitted = [...(internal.apartmentSubmitted ?? [])];
