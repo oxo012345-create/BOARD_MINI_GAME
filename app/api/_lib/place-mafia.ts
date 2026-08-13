@@ -6,6 +6,7 @@ import {
   placeMafiaLocationName,
   type PlaceMafiaBalance,
   type PlaceMafiaClientState,
+  type PlaceMafiaDebugRole,
   type PlaceMafiaExecution,
   type PlaceMafiaLocationId,
   type PlaceMafiaPhase,
@@ -32,6 +33,7 @@ export type PlaceMafiaState = {
   discussionSeconds: 60 | 90 | 120;
   balance: PlaceMafiaBalance;
   participantIds: string[];
+  participantProfiles: Array<{ id: string; name: string; avatar: string; bot?: boolean }>;
   players: Record<string, PlaceMafiaPlayer>;
   mafiaIds: string[];
   killerOrder: string[];
@@ -50,6 +52,11 @@ export type PlaceMafiaState = {
   execution?: PlaceMafiaExecution;
   revealedRoles: Record<string, PlaceMafiaRole>;
   winner?: PlaceMafiaWinner;
+  debug?: {
+    enabled: true;
+    controllerId: string;
+    botIds: string[];
+  };
 };
 
 function pick<T>(items: readonly T[]): T {
@@ -129,23 +136,42 @@ function beginNight(state: PlaceMafiaState, at: number, advanceKiller: boolean) 
   state.lastDiscussionCut = undefined;
   state.votes = {};
   state.execution = undefined;
+  autoPlayDebugNight(state, at + 10);
 }
 
 export function createPlaceMafiaState(
   players: Player[],
-  options: { discussionSeconds?: number; balance?: PlaceMafiaBalance } = {},
+  options: { discussionSeconds?: number; balance?: PlaceMafiaBalance; debugMode?: boolean; debugRole?: PlaceMafiaDebugRole } = {},
 ): PlaceMafiaState {
-  if (players.length < 4 || players.length > 8) throw new Error("장소 마피아는 4~8명이 함께할 수 있어요.");
-  const participantIds = players.map((player) => player.id);
-  const mafiaCount = players.length >= 7 ? 2 : 1;
-  const mafiaIds = shuffle(participantIds).slice(0, mafiaCount);
+  const debugEnabled = options.debugMode === true && players.length === 1;
+  if (!debugEnabled && (players.length < 4 || players.length > 8)) throw new Error("장소 마피아는 4~8명이 함께할 수 있어요.");
+  const controller = players[0];
+  const debugProfiles = debugEnabled ? [
+    { id: "pm-debug-bot-1", name: "가상 민지", avatar: "🕵️", bot: true },
+    { id: "pm-debug-bot-2", name: "가상 준호", avatar: "🧥", bot: true },
+    { id: "pm-debug-bot-3", name: "가상 유나", avatar: "🔎", bot: true },
+  ] : [];
+  const participantProfiles = [
+    ...players.map((player) => ({ id: player.id, name: player.name, avatar: player.avatar })),
+    ...debugProfiles,
+  ];
+  const participantIds = participantProfiles.map((player) => player.id);
+  const mafiaCount = participantIds.length >= 7 ? 2 : 1;
+  const forcedRole = options.debugRole === "citizen" || options.debugRole === "mafia" ? options.debugRole : "auto";
+  const mafiaIds = debugEnabled && controller && forcedRole === "mafia"
+    ? [controller.id]
+    : debugEnabled && forcedRole === "citizen"
+      ? [pick(debugProfiles).id]
+      : shuffle(participantIds).slice(0, mafiaCount);
   const killerOrder = shuffle(mafiaIds);
+  const debug = debugEnabled && controller ? { enabled: true as const, controllerId: controller.id, botIds: debugProfiles.map((player) => player.id) } : undefined;
   const state: PlaceMafiaState = {
     phase: "role_reveal",
     day: 1,
     discussionSeconds: options.discussionSeconds === 60 || options.discussionSeconds === 120 ? options.discussionSeconds : 90,
     balance: options.balance === "citizen" || options.balance === "mafia" ? options.balance : "normal",
     participantIds,
+    participantProfiles,
     players: Object.fromEntries(participantIds.map((id) => [id, {
       role: mafiaIds.includes(id) ? "mafia" as const : "citizen" as const,
       alive: true,
@@ -155,7 +181,7 @@ export function createPlaceMafiaState(
     killerOrder,
     killerIndex: 0,
     activeKillerId: killerOrder[0],
-    roleReadyIds: [],
+    roleReadyIds: debug ? [...debug.botIds] : [],
     moveChoices: {},
     moveConfirmedIds: [],
     attackChoices: [],
@@ -164,6 +190,7 @@ export function createPlaceMafiaState(
     discussionCutIds: [],
     votes: {},
     revealedRoles: {},
+    debug,
   };
   return state;
 }
@@ -199,6 +226,65 @@ export function submitPlaceMafiaAttack(state: PlaceMafiaState, playerId: string,
   }
   state.attackChoices = unique;
   state.attackConfirmed = true;
+}
+
+function autoPlayDebugNight(state: PlaceMafiaState, now: number) {
+  const debug = state.debug;
+  if (!debug || state.phase !== "night") return;
+  const livingBots = debug.botIds.filter((id) => state.players[id]?.alive);
+  const killerId = state.activeKillerId;
+  const killerIsBot = Boolean(killerId && livingBots.includes(killerId));
+  const protectedCitizens = livingBots.filter((id) => state.players[id]?.role === "citizen");
+  let plannedVictim: string | undefined;
+  let plannedKillerMove: PlaceMafiaLocationId | undefined;
+  let plannedVictimMove: PlaceMafiaLocationId | undefined;
+
+  if (killerIsBot && killerId && protectedCitizens.length) {
+    const victimId = pick(protectedCitizens);
+    const killerMoves = legalMovesFrom(state.players[killerId]!.location);
+    const victimMoves = legalMovesFrom(state.players[victimId]!.location);
+    outer: for (const killerMove of shuffle(killerMoves)) {
+      for (const victimMove of shuffle(victimMoves)) {
+        if (legalAttacksFrom(killerMove).includes(victimMove)) {
+          plannedVictim = victimId;
+          plannedKillerMove = killerMove;
+          plannedVictimMove = victimMove;
+          break outer;
+        }
+      }
+    }
+  }
+
+  for (const botId of livingBots) {
+    const player = state.players[botId]!;
+    const destination = botId === killerId && plannedKillerMove
+      ? plannedKillerMove
+      : botId === plannedVictim && plannedVictimMove
+        ? plannedVictimMove
+        : pick(legalMovesFrom(player.location));
+    submitPlaceMafiaMove(state, botId, destination, now);
+  }
+
+  const required = attackCount(state);
+  if (killerIsBot && killerId && required > 0 && !state.attackConfirmed) {
+    const killerDestination = state.moveChoices[killerId]!;
+    const legal = shuffle(legalAttacksFrom(killerDestination));
+    const primary = plannedVictim ? state.moveChoices[plannedVictim] : legal[0];
+    const choices = [primary, ...legal.filter((location) => location !== primary)].filter(Boolean).slice(0, required) as PlaceMafiaLocationId[];
+    if (choices.length === required) submitPlaceMafiaAttack(state, killerId, choices, now + 1);
+  }
+}
+
+function autoPlayDebugVotes(state: PlaceMafiaState, now: number) {
+  const debug = state.debug;
+  if (!debug || state.phase !== "vote") return;
+  const living = aliveIds(state);
+  for (const botId of debug.botIds.filter((id) => state.players[id]?.alive)) {
+    const nonControllerTargets = living.filter((id) => id !== botId && id !== debug.controllerId);
+    const targets = nonControllerTargets.length ? nonControllerTargets : living.filter((id) => id !== botId);
+    if (targets.length) state.votes[botId] = pick(targets);
+  }
+  if (living.every((id) => Boolean(state.votes[id]))) resolveVote(state, now);
 }
 
 function makePoliceCandidates(killerLocation: PlaceMafiaLocationId) {
@@ -276,6 +362,7 @@ function beginVote(state: PlaceMafiaState, at: number) {
   state.phase = "vote";
   state.phaseEndsAt = at + PLACE_MAFIA_VOTE_MS;
   state.votes = {};
+  autoPlayDebugVotes(state, at + 10);
 }
 
 function resolveVote(state: PlaceMafiaState, at: number) {
@@ -322,6 +409,27 @@ export function submitPlaceMafiaVote(state: PlaceMafiaState, playerId: string, t
   if (!state.players[targetId]?.alive) throw new Error("생존한 참가자를 선택해 주세요.");
   state.votes[playerId] = targetId;
   if (aliveIds(state).every((id) => Boolean(state.votes[id]))) resolveVote(state, now);
+}
+
+export function skipPlaceMafiaDebugPhase(state: PlaceMafiaState, playerId: string, now = Date.now()) {
+  if (!state.debug || state.debug.controllerId !== playerId) throw new Error("혼자 디버깅 모드에서만 사용할 수 있어요.");
+  if (state.phase === "game_over") return false;
+  if (state.phase === "role_reveal") {
+    state.roleReadyIds = [...state.participantIds];
+    beginNight(state, now, false);
+    return true;
+  }
+  if (state.phase === "night" && state.players[playerId]?.alive) {
+    if (!state.moveConfirmedIds.includes(playerId)) {
+      submitPlaceMafiaMove(state, playerId, pick(legalMovesFrom(state.players[playerId]!.location)), now);
+    }
+    if (state.activeKillerId === playerId && attackCount(state) > 0 && !state.attackConfirmed) {
+      const destination = state.moveChoices[playerId]!;
+      submitPlaceMafiaAttack(state, playerId, shuffle(legalAttacksFrom(destination)).slice(0, attackCount(state)), now + 1);
+    }
+  }
+  state.phaseEndsAt = now;
+  return advancePlaceMafiaIfDue(state, now);
 }
 
 export function advancePlaceMafiaIfDue(state: PlaceMafiaState, now = Date.now()) {
@@ -377,6 +485,7 @@ export function placeMafiaClientState(state: PlaceMafiaState, viewerId?: string)
     phaseEndsAt: state.phaseEndsAt,
     settings: { discussionSeconds: state.discussionSeconds, balance: state.balance },
     participantIds: [...state.participantIds],
+    participants: (state.participantProfiles ?? state.participantIds.map((id) => ({ id, name: id, avatar: "·" }))).map((player) => ({ ...player })),
     alivePlayerIds: living,
     deadPlayerIds: dead,
     revealedRoles: { ...state.revealedRoles },
@@ -387,6 +496,7 @@ export function placeMafiaClientState(state: PlaceMafiaState, viewerId?: string)
     execution: state.execution ? { ...state.execution } : undefined,
     winner: state.winner,
     finalRoles: state.phase === "game_over" ? Object.fromEntries(state.participantIds.map((id) => [id, state.players[id]!.role])) : undefined,
+    debug: state.debug ? { enabled: true, controller: state.debug.controllerId === viewerId, botCount: state.debug.botIds.length } : undefined,
     my: viewer ? {
       role: viewer.role,
       roleReady: state.roleReadyIds.includes(viewerId!),

@@ -4,7 +4,7 @@ import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/ses
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, removeDealerPlayer, tickDealer, type DealerState } from "../../_lib/dealer";
-import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, removePlaceMafiaPlayer, shortenPlaceMafiaDiscussion, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
+import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, removePlaceMafiaPlayer, shortenPlaceMafiaDiscussion, skipPlaceMafiaDebugPhase, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId } from "../../../place-mafia-shared";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
@@ -248,6 +248,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (payload.action === "start-game") {
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       const gameId = payload.gameId || String(room.game?.id ?? "");
+      const placeMafiaDebug = gameId === "place-mafia" && payload.debugMode === true;
       if (!GAME_IDS.includes(gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
       if (gameId === "gem-heist" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "사라진 보석은 4~8명이 함께할 수 있어요." }, { status: 409 });
@@ -261,7 +262,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "apartment" && room.players.length < 3) {
         return Response.json({ error: "아파트 게임은 3명 이상이 함께할 수 있어요." }, { status: 409 });
       }
-      if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
+      if (placeMafiaDebug && room.players.length !== 1) {
+        return Response.json({ error: "혼자 디버깅은 실제 참가자가 한 명일 때만 사용할 수 있어요." }, { status: 409 });
+      }
+      if (gameId === "place-mafia" && !placeMafiaDebug && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "장소 마피아는 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
       room.players.forEach((player) => { player.status = "active"; });
@@ -301,6 +305,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         game.placeMafia = createPlaceMafiaState(room.players, {
           discussionSeconds: payload.discussionSeconds,
           balance: payload.balance,
+          debugMode: placeMafiaDebug,
+          debugRole: payload.debugRole,
         });
       }
       room.view = "game";
@@ -380,6 +386,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           submitPlaceMafiaAttack(game.placeMafia, viewer.id, locations);
         } else if (payload.action === "place-mafia-shorten") shortenPlaceMafiaDiscussion(game.placeMafia, viewer.id);
         else if (payload.action === "place-mafia-vote") submitPlaceMafiaVote(game.placeMafia, viewer.id, String(payload.targetId ?? ""));
+        else if (payload.action === "place-mafia-debug-skip") skipPlaceMafiaDebugPhase(game.placeMafia, viewer.id);
         else if (payload.action !== "place-mafia-tick") throw new Error("지원하지 않는 장소 마피아 행동이에요.");
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
