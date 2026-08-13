@@ -972,6 +972,36 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-debug-toolbar button { min-height: 39px; padding: 0 11px; border: 1px solid rgba(91,177,193,.38); border-radius: 9px; background: rgba(66,153,168,.13); color: #a9e4ec; font-size: 8px; font-weight: 900; }
 .pm-debug-toolbar button:disabled { opacity: .4; }
 
+/* Place Mafia — map-first minimal play screen */
+.pm-game-shell > .pm-phase-header { min-height: 54px; padding: 6px 2px; }
+.pm-game-shell > .pm-phase-header > span { font-size: 9px; }
+.pm-game-shell > .pm-phase-header time { min-width: 76px; height: 40px; }
+.pm-game-shell > .pm-map,
+.pm-phase-day_reveal .pm-map,
+.pm-phase-discussion .pm-map,
+.pm-phase-vote .pm-map,
+.pm-phase-execution .pm-map { height: calc(100dvh - 130px - env(safe-area-inset-bottom)); min-height: 470px; max-height: 760px; }
+.pm-game-shell > .pm-action-panel { position: fixed; z-index: 54; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; width: min(calc(100vw - 24px), 492px); margin: auto; padding: 12px; border-radius: 17px; backdrop-filter: blur(18px); }
+.pm-game-shell > .pm-action-panel h2 { margin: 0 0 9px; font-size: 14px; }
+.pm-game-shell > .pm-action-panel .pm-primary-button,
+.pm-game-shell > .pm-action-panel .pm-danger-button { min-height: 49px; }
+.pm-game-shell > .pm-vote-panel { position: fixed; z-index: 55; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 10px; width: min(calc(100vw - 20px), 500px); max-height: min(68dvh, 610px); margin: auto; padding: 10px 12px 12px; overflow-y: auto; border: 1px solid rgba(255,255,255,.09); border-radius: 20px; background: rgba(12,16,22,.97); box-shadow: 0 20px 70px rgba(0,0,0,.62); backdrop-filter: blur(20px); }
+.pm-game-shell > .pm-vote-panel header { padding: 4px 0 1px; }
+.pm-game-shell > .pm-vote-panel header h2 { margin: 4px 0; font-size: 18px; }
+.pm-game-shell > .pm-vote-panel .pm-vote-grid { margin: 9px 0; }
+.pm-game-shell > .pm-vote-panel .pm-sealed-vote { min-height: 135px; }
+.pm-result-notice { position: fixed; z-index: 72; top: calc(66px + env(safe-area-inset-top)); left: 50%; display: grid; width: min(calc(100vw - 24px), 480px); padding: 13px 42px 13px 14px; border: 1px solid rgba(199,166,106,.34); border-radius: 15px; background: rgba(18,23,31,.97); color: #eee8dc; box-shadow: 0 18px 52px rgba(0,0,0,.5); transform: translateX(-50%); text-align: left; backdrop-filter: blur(20px); animation: pm-result-notice-in .35s ease both; }
+.pm-result-notice.danger { border-color: rgba(190,73,73,.54); background: rgba(31,18,21,.97); }
+.pm-result-notice > span { color: var(--pm-gold); font-size: 7px; font-weight: 900; }
+.pm-result-notice > strong { margin-top: 6px; font-size: 13px; line-height: 1.42; }
+.pm-result-notice > small { margin-top: 5px; color: #aeb5be; font-size: 9px; line-height: 1.35; }
+.pm-result-notice > i { position: absolute; top: 50%; right: 13px; color: #7f8790; font-size: 7px; font-style: normal; transform: translateY(-50%); }
+.pm-result-notice.collapsed { top: calc(70px + env(safe-area-inset-top)); width: auto; min-width: 116px; padding: 10px 38px 10px 12px; border-radius: 999px; }
+.pm-result-notice.collapsed > span { font-size: 8px; }
+.pm-discussion-cut { position: fixed; z-index: 52; right: max(16px, calc((100vw - 520px) / 2 + 16px)); bottom: calc(16px + env(safe-area-inset-bottom)); min-height: 42px; padding: 0 14px; border: 1px solid rgba(199,166,106,.3); border-radius: 999px; background: rgba(16,20,27,.9); color: #d7bd84; box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: 8px; font-weight: 900; backdrop-filter: blur(14px); }
+.pm-discussion-cut:disabled { opacity: .4; }
+@keyframes pm-result-notice-in { from { opacity: 0; transform: translate(-50%, -12px); } }
+
 .pm-cinematic { position: fixed; z-index: 120; inset: 0; display: grid; place-content: center; justify-items: center; padding: 30px; overflow: hidden; background: radial-gradient(circle at 50% 45%, rgba(64,80,103,.28), transparent 38%), #05070a; text-align: center; animation: pm-cinematic 2.3s ease both; }
 .pm-cinematic::before, .pm-cinematic::after { content: ""; position: absolute; inset: -20%; pointer-events: none; }
 .pm-cinematic::before { opacity: .28; background: repeating-linear-gradient(112deg, transparent 0 42px, rgba(255,255,255,.018) 43px 44px); animation: pm-rain 1.5s linear infinite; }

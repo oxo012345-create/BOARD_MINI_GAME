@@ -156,14 +156,12 @@ export function PlaceMafiaBriefing({
 
 function PlaceMafiaMap({
   state,
-  players,
   mode,
   selected,
   selectable,
   onSelect,
 }: {
   state: PlaceMafiaClientState;
-  players: MafiaPlayer[];
   mode: "move" | "attack" | "display";
   selected: PlaceMafiaLocationId[];
   selectable: PlaceMafiaLocationId[];
@@ -171,7 +169,6 @@ function PlaceMafiaMap({
 }) {
   const selectableSet = new Set(selectable);
   const selectedSet = new Set(selected);
-  const witnesses = state.my?.witnessIds ?? [];
   return <section className={`pm-map pm-map-${mode}`} aria-label="장소 마피아 도시 지도">
     <img src="/place-mafia/city-board.png" alt="" aria-hidden="true" />
     <div className="pm-map-vignette" />
@@ -180,12 +177,10 @@ function PlaceMafiaMap({
       const isCurrent = state.my?.location === location;
       const isSelectable = selectableSet.has(location);
       const isSelected = selectedSet.has(location);
-      const isIncident = state.night?.incidentLocation === location;
-      const witnessHere = isCurrent && state.phase !== "night" ? witnesses : [];
       return <button
         type="button"
         key={location}
-        className={`pm-location pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""} ${isIncident ? "incident" : ""}`}
+        className={`pm-location pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
         disabled={!isSelectable || !onSelect}
         onClick={() => onSelect?.(location)}
         aria-pressed={isSelected}
@@ -194,8 +189,6 @@ function PlaceMafiaMap({
         <span className="pm-location-code">{meta.symbol}</span>
         <strong>{meta.name}</strong>
         {isCurrent && <small>현재 위치</small>}
-        {isIncident && <small className="pm-incident-label">사건 발생</small>}
-        {witnessHere.length > 0 && <span className="pm-map-witness">함께 · {witnessHere.map((id) => playerName(players, id)).join(", ")}</span>}
       </button>;
     })}</div>
   </section>;
@@ -210,25 +203,30 @@ function PhaseHeader({ state, remaining }: { state: PlaceMafiaClientState; remai
             : state.phase === "execution" ? `DAY ${state.day} · VERDICT`
               : "CASE CLOSED";
   return <header className={`pm-phase-header phase-${state.phase} ${state.phaseEndsAt && remaining <= 3_000 ? "urgent" : ""}`}>
-    <div><span>{phase}</span><strong>{state.phase === "night" ? "도시가 잠들었습니다" : state.phase === "discussion" ? "진술을 대조하세요" : state.phase === "vote" ? "의심되는 한 명을 지목하세요" : state.phase === "game_over" ? "사건 종결" : "장소 마피아"}</strong></div>
+    <span>{phase}</span>
     {state.phaseEndsAt && <time>{formatTimer(remaining)}</time>}
   </header>;
 }
 
-function PublicNightReport({ state, players }: { state: PlaceMafiaClientState; players: MafiaPlayer[] }) {
+function MinimalResultNotice({ state, players, open, onToggle }: { state: PlaceMafiaClientState; players: MafiaPlayer[]; open: boolean; onToggle: () => void }) {
   const report = state.night;
-  if (!report) return null;
-  return <section className="pm-report-stack">
-    <article className={`pm-info-card incident ${report.quiet ? "quiet" : "danger"}`}>
-      <span>{report.quiet ? "NIGHT REPORT" : "INCIDENT"}</span>
-      <strong>{report.message}</strong>
-      {!report.quiet && report.victimId && <small>{playerName(players, report.victimId)} · {placeMafiaLocationName(report.incidentLocation)}</small>}
-    </article>
-    <div className="pm-report-grid">
-      <article className="pm-info-card square"><span>광장 기록</span><strong>{report.plazaVisitorIds.length ? report.plazaVisitorIds.map((id) => playerName(players, id)).join(", ") : "방문자 없음"}</strong><small>지난밤 광장 방문자</small></article>
-      <article className="pm-info-card police"><span>경찰 수사</span><strong>{report.policeCandidates.length ? report.policeCandidates.map((id) => PLACE_MAFIA_LOCATION_META[id].shortName).join(" / ") : "수사 정보 없음"}</strong><small>{report.policeCandidates.length ? "범인 위치 후보 3곳" : "살인 성공과 경찰서 방문이 필요"}</small></article>
-    </div>
-  </section>;
+  const execution = state.execution;
+  if (!report && !execution) return null;
+  const isVerdict = state.phase === "execution" && execution;
+  const title = isVerdict
+    ? execution.tied ? "오늘은 아무도 처형되지 않았습니다" : `${playerName(players, execution.playerId)} · ${roleName(execution.role)}`
+    : report?.message ?? "밤이 끝났습니다";
+  const details = isVerdict ? [] : [
+    ...(report?.victimId ? [`사망 · ${playerName(players, report.victimId)}`] : []),
+    ...(state.my?.witnessIds.length ? [`같은 장소 · ${state.my.witnessIds.map((id) => playerName(players, id)).join(", ")}`] : []),
+    ...(report?.plazaVisitorIds.length ? [`광장 · ${report.plazaVisitorIds.map((id) => playerName(players, id)).join(", ")}`] : []),
+    ...(report?.policeCandidates.length ? [`범인 위치 후보 · ${report.policeCandidates.map((id) => PLACE_MAFIA_LOCATION_META[id].shortName).join(" / ")}`] : []),
+  ];
+  return <button type="button" className={`pm-result-notice ${open ? "open" : "collapsed"} ${report && !report.quiet ? "danger" : ""}`} onClick={onToggle} aria-expanded={open}>
+    <span>{isVerdict ? "투표 결과" : "지난밤 결과"}</span>
+    {open && <><strong>{title}</strong>{details.map((detail) => <small key={detail}>{detail}</small>)}</>}
+    <i>{open ? "접기" : "보기"}</i>
+  </button>;
 }
 
 export function PlaceMafiaGame({
@@ -266,6 +264,7 @@ export function PlaceMafiaGame({
   const [voteConfirm, setVoteConfirm] = useState(false);
   const [working, setWorking] = useState(false);
   const [localNotice, setLocalNotice] = useState("");
+  const [resultNoticeOpen, setResultNoticeOpen] = useState(false);
   const [transition, setTransition] = useState<ReturnType<typeof transitionCopy> | null>(null);
   const lastTickRef = useRef("");
   const lastCutRef = useRef(0);
@@ -291,11 +290,18 @@ export function PlaceMafiaGame({
     setVoteConfirm(false);
   }, [state.day, state.phase]);
   useEffect(() => {
+    if (state.phase !== "day_reveal" && state.phase !== "execution") return;
+    setResultNoticeOpen(true);
+    const timer = window.setTimeout(() => setResultNoticeOpen(false), 5_500);
+    return () => window.clearTimeout(timer);
+  }, [state.day, state.phase]);
+  useEffect(() => {
     const previous = previousPhaseRef.current;
     if (previous === state.phase) return;
     previousPhaseRef.current = state.phase;
     const copy = transitionCopy(state.phase, state);
-    setTransition(copy);
+    const showTransition = state.phase === "night" || state.phase === "day_reveal" || state.phase === "game_over";
+    setTransition(showTransition ? copy : null);
     const cue: PlaceMafiaCue = state.phase === "night" ? "night"
       : state.phase === "day_reveal" ? state.night?.quiet ? "quiet" : "incident"
         : state.phase === "vote" ? "vote"
@@ -303,7 +309,7 @@ export function PlaceMafiaGame({
             : state.phase === "game_over" ? state.winner === "mafia" ? "mafia-win" : "citizen-win"
               : "evidence";
     experience.cue(cue);
-    const timer = window.setTimeout(() => setTransition(null), experience.preferences.reduceMotion ? 500 : 2300);
+    const timer = window.setTimeout(() => setTransition(null), showTransition ? experience.preferences.reduceMotion ? 500 : 2300 : 0);
     return () => window.clearTimeout(timer);
   }, [experience.cue, experience.preferences.reduceMotion, state.day, state.execution?.role, state.execution?.tied, state.night?.quiet, state.phase, state.winner]);
   useEffect(() => {
@@ -374,8 +380,6 @@ export function PlaceMafiaGame({
   return <main className={`pm-shell pm-game-shell pm-phase-${state.phase} ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     <header className="pm-topbar"><div className="pm-room-code"><i />{code}</div><strong>장소 마피아</strong><div>{isHost && <button type="button" disabled={busy} onClick={onLobby}>대기실</button>}<button type="button" onClick={onLeave}>나가기</button></div></header>
     <PhaseHeader state={state} remaining={remaining} />
-    <PlaceMafiaExperienceControls compact preferences={experience.preferences} onToggle={experience.toggle} />
-
     {state.debug?.controller && <aside className="pm-debug-toolbar" aria-label="혼자 디버깅 제어판">
       <div><span>SOLO DEBUG</span><strong>가상 참가자 {state.debug.botCount}명 작동 중</strong><small>{state.phase === "role_reveal" ? "역할 확인 화면" : state.phase === "night" ? "이동·공격 화면" : state.phase === "day_reveal" ? "아침 결과 화면" : state.phase === "discussion" ? "낮 토론 화면" : state.phase === "vote" ? "익명 투표 화면" : state.phase === "execution" ? "판결 화면" : "최종 결과 화면"}</small></div>
       {state.phase !== "game_over" && <button type="button" disabled={working} onClick={() => void run({ action: "place-mafia-debug-skip" }, "confirm")}>다음 단계 ›</button>}
@@ -396,33 +400,23 @@ export function PlaceMafiaGame({
     </section>}
 
     {state.phase !== "role_reveal" && state.phase !== "game_over" && <>
-      {(["night", "day_reveal", "discussion"] as const).includes(state.phase as "night" | "day_reveal" | "discussion") && <PlaceMafiaMap state={state} players={gamePlayers} mode={mapMode} selected={mapSelected} selectable={mapSelectable} onSelect={mapMode === "attack" ? selectAttack : mapMode === "move" ? selectMove : undefined} />}
+      <PlaceMafiaMap state={state} mode={mapMode} selected={mapSelected} selectable={mapSelectable} onSelect={mapMode === "attack" ? selectAttack : mapMode === "move" ? selectMove : undefined} />
+      {(["day_reveal", "discussion", "execution"] as const).includes(state.phase as "day_reveal" | "discussion" | "execution") && <MinimalResultNotice state={state} players={gamePlayers} open={resultNoticeOpen} onToggle={() => setResultNoticeOpen((value) => !value)} />}
       {state.phase === "night" && <section className="pm-action-panel night">
-        {!me?.alive ? <div className="pm-spectator"><span>OBSERVER</span><strong>관전 중</strong><small>밤이 끝나면 사건 기록이 공개됩니다.</small></div>
+        {!me?.alive ? <div className="pm-spectator"><strong>관전 중</strong></div>
           : !me.moveConfirmed ? <>
-            <span className="pm-panel-kicker">PRIVATE MOVEMENT</span><h2>{moveChoice ? `${placeMafiaLocationName(moveChoice)}으로 이동할까요?` : "이동할 장소를 선택하세요"}</h2>
-            <p>현재 위치 또는 연결된 한 칸만 이동할 수 있습니다.</p>
+            <h2>{moveChoice ? `${placeMafiaLocationName(moveChoice)}으로 이동` : "이동 장소를 선택하세요"}</h2>
             <button type="button" className="pm-primary-button" disabled={!moveChoice || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-move", location: moveChoice }, "confirm")}>이동 확정</button>
           </> : me.isKiller && me.requiredAttackCount > 0 && !me.attackConfirmed ? <>
-            <span className="pm-panel-kicker danger">ASSAULT ORDER</span><h2>오늘 밤 당신이 살인 담당입니다</h2>
-            <p>최종 위치 기준 공격 가능한 {me.requiredAttackCount === 2 ? "서로 다른 2곳" : "장소 1곳"}을 선택하세요. 다른 사람의 위치는 표시되지 않습니다.</p>
+            <h2>공격 장소 {me.requiredAttackCount}곳을 선택하세요</h2>
             <button type="button" className="pm-danger-button" disabled={attackChoices.length !== me.requiredAttackCount || working || remaining <= 0} onClick={() => void run({ action: "place-mafia-attack", locations: attackChoices }, "attack")}>{attackChoices.length === me.requiredAttackCount ? `${attackChoices.map(placeMafiaLocationName).join(" · ")} 습격 확정` : `공격 장소 ${me.requiredAttackCount}곳 선택`}</button>
           </> : <div className="pm-night-wait"><i /><span><strong>{me.isKiller && me.attackConfirmed ? "습격 지시 완료" : "이동 확정 완료"}</strong><small>모두 끝내도 밤은 20초를 끝까지 유지합니다.</small></span><time>{formatTimer(remaining)}</time></div>}
       </section>}
 
-      {state.phase === "day_reveal" && <>
-        <PublicNightReport state={state} players={gamePlayers} />
-        <section className="pm-personal-log"><span>내 목격 기록 · {placeMafiaLocationName(me?.location)}</span><strong>{me?.witnessIds.length ? me.witnessIds.map((id) => playerName(gamePlayers, id)).join(", ") : "아무도 만나지 못했습니다"}</strong><small>이 정보는 나에게만 보입니다. 토론에서 사실대로 말하거나 숨길 수 있어요.</small></section>
-      </>}
-
-      {state.phase === "discussion" && <>
-        <PublicNightReport state={state} players={gamePlayers} />
-        <section className="pm-discussion-panel"><div><span>DISCUSSION</span><strong>증언과 실제 동선을 대조하세요</strong><small>시스템은 결론을 알려주지 않습니다.</small></div><button type="button" disabled={!me?.alive || me.discussionCutUsed || remaining <= 20_000 || working} onClick={() => void run({ action: "place-mafia-shorten" })}>{me?.discussionCutUsed ? "오늘 사용 완료" : remaining <= 20_000 ? "마지막 20초" : "토론 단축  −10s"}</button></section>
-        <section className="pm-personal-log compact"><span>내 목격 기록</span><strong>{me?.witnessIds.length ? `${placeMafiaLocationName(me.location)} · ${me.witnessIds.map((id) => playerName(gamePlayers, id)).join(", ")}` : `${placeMafiaLocationName(me?.location)} · 목격자 없음`}</strong></section>
-      </>}
+      {state.phase === "discussion" && <button type="button" className="pm-discussion-cut" disabled={!me?.alive || me.discussionCutUsed || remaining <= 20_000 || working} onClick={() => void run({ action: "place-mafia-shorten" })}>{me?.discussionCutUsed ? "−10초 사용 완료" : remaining <= 20_000 ? "마지막 20초" : "토론 −10초"}</button>}
 
       {state.phase === "vote" && <section className="pm-vote-panel">
-        <header><span>SECRET BALLOT</span><h2>마피아라고 생각하는 사람은?</h2><p>선택은 다른 사람에게 공개되지 않습니다.</p></header>
+        <header><h2>익명 투표</h2><p>마피아라고 생각하는 한 명을 고르세요</p></header>
         {!me?.alive ? <div className="pm-spectator"><span>OBSERVER</span><strong>투표를 지켜보는 중</strong></div>
           : me.voteSubmitted ? <div className="pm-sealed-vote"><span>SEALED</span><strong>투표를 봉인했습니다</strong><small>{state.voteSubmittedCount}/{livingPlayers.length}명 제출</small></div>
             : <>
@@ -432,13 +426,6 @@ export function PlaceMafiaGame({
             </>}
       </section>}
 
-      {state.phase === "execution" && <section className={`pm-verdict-card ${state.execution?.tied ? "tied" : state.execution?.role ?? ""}`}>
-        <span>FINAL VERDICT</span>
-        <h2>{state.execution?.tied ? "처형 없음" : `${playerName(gamePlayers, state.execution?.playerId)} 처형`}</h2>
-        <p>{state.execution?.message}</p>
-        {!state.execution?.tied && <div><small>공개된 역할</small><strong>{roleName(state.execution?.role)}</strong></div>}
-        <time>{state.winner ? "곧 최종 결과가 공개됩니다" : `${Math.ceil(remaining / 1000)}초 후 다음 밤`}</time>
-      </section>}
     </>}
 
     {state.phase === "game_over" && <section className={`pm-game-over ${state.winner}`}>
