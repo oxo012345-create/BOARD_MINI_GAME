@@ -285,8 +285,9 @@ function resolveShots(state: CashNGunsState, now = Date.now()) {
     if (!bullet) { shots.push({ shooterId, targetId, result: "miss" }); continue; }
     shooter.bullets.splice(shooter.bullets.indexOf(bullet), 1);
     delete shooter.chosenBullet;
+    // Every fired card goes to the discard pile. The clip loot can recover a discarded BANG.
+    state.discardedBullets.push(bullet);
     if ((shooter.courage ?? "stand") === "crouch") {
-      state.discardedBullets.push(bullet);
       shots.push({ shooterId, targetId, result: "hidden" });
       continue;
     }
@@ -295,7 +296,6 @@ function resolveShots(state: CashNGunsState, now = Date.now()) {
       continue;
     }
     if (!standing.has(targetId)) {
-      state.discardedBullets.push(bullet);
       shots.push({ shooterId, targetId, result: "hidden" });
       continue;
     }
