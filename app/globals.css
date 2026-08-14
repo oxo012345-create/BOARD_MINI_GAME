@@ -1016,7 +1016,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-phase-day_reveal .pm-map,
 .pm-phase-discussion .pm-map,
 .pm-phase-vote .pm-map,
-.pm-phase-execution .pm-map { flex: 1 1 auto; width: 100%; height: auto; min-height: 0; max-height: none; }
+.pm-phase-execution .pm-map { flex: 0 1 auto; align-self: center; width: min(100%, calc(66.667vh - 86px)); width: min(100%, calc(66.667dvh - 86px)); height: auto; min-height: 0; max-height: calc(100dvh - 94px - env(safe-area-inset-bottom)); aspect-ratio: 2 / 3; }
 .pm-game-shell > .pm-debug-toolbar { position: absolute; z-index: 60; top: 50%; right: 2px; left: auto; width: 148px; margin: 0; padding: 7px; opacity: .94; transform: translateY(-50%); }
 .pm-game-shell > .pm-debug-toolbar small { display: none; }
 .pm-game-shell > .pm-debug-toolbar button { min-height: 34px; padding: 0 8px; }
@@ -1066,7 +1066,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-phase-discussion .pm-map,
 .pm-phase-vote .pm-map,
 .pm-phase-execution .pm-map {
-  min-height: 560px;
+  min-height: 0;
   overflow: hidden;
   border: 2px solid #675943;
   border-radius: 4px;
@@ -1075,37 +1075,17 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   image-rendering: pixelated;
 }
 .pm-map::after { content: ""; position: absolute; z-index: 20; inset: 5px; pointer-events: none; border: 1px solid rgba(203,168,101,.22); box-shadow: inset 0 0 24px rgba(0,0,0,.66); }
-.pm-pixel-sky { position: absolute; inset: 0 0 auto; height: 35%; overflow: hidden; background: linear-gradient(#287fbd 0 22%, #4fa6d0 22% 48%, #79c4dc 48% 72%, #e6bd83 72% 100%); image-rendering: pixelated; transition: background .3s ease; }
-.pm-map.is-night .pm-pixel-sky { background: linear-gradient(#070a22 0 22%, #101b3b 22% 50%, #24375b 50% 74%, #61475d 74% 100%); }
-.pm-pixel-sky::before { content: ""; position: absolute; inset: 0; opacity: .24; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,.045) 5px 6px), repeating-linear-gradient(90deg, transparent 0 7px, rgba(15,36,55,.055) 7px 8px); }
-.pm-sky-dither { position: absolute; right: 0; bottom: 14%; left: 0; height: 25%; opacity: .38; background: radial-gradient(circle, rgba(255,230,174,.7) 0 1px, transparent 1.4px) 0 0/7px 7px; mask-image: linear-gradient(transparent,#000); }
-.pm-stars { position: absolute; inset: 0; opacity: 0; transition: opacity .8s steps(6,end); background-image: radial-gradient(circle, #fff5bd 0 1px, transparent 1.5px), radial-gradient(circle, #a9dcff 0 1px, transparent 1.5px), radial-gradient(circle, #fff 0 1px, transparent 1.3px); background-position: 9px 12px, 31px 27px, 54px 8px; background-size: 47px 39px, 71px 59px, 89px 67px; }
-.pm-map.is-night .pm-stars { opacity: .88; animation: pm-pixel-stars 2.2s steps(2,end) infinite; }
-.pm-celestial { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.pm-sun, .pm-moon { position: absolute; width: 30px; height: 30px; border-radius: 0; image-rendering: pixelated; transition: opacity .28s ease; }
-.pm-sun { left: 18%; top: 23%; background: #ffdf65; box-shadow: 0 -4px #ffbd45, 0 4px #ffbd45, -4px 0 #ffbd45, 4px 0 #ffbd45, 0 0 0 2px #ff9d36, 0 0 18px 7px rgba(255,194,72,.42); clip-path: polygon(25% 0,75% 0,75% 12%,88% 12%,88% 25%,100% 25%,100% 75%,88% 75%,88% 88%,75% 88%,75% 100%,25% 100%,25% 88%,12% 88%,12% 75%,0 75%,0 25%,12% 25%,12% 12%,25% 12%); }
-.pm-moon { right: 18%; top: 19%; opacity: 0; background: #eaf4e7; box-shadow: inset -8px -4px #8aa1af, 0 0 0 2px #61788d, 0 0 16px 5px rgba(185,218,238,.32); clip-path: polygon(25% 0,75% 0,75% 8%,88% 8%,88% 21%,100% 21%,100% 79%,88% 79%,88% 92%,75% 92%,75% 100%,25% 100%,25% 92%,12% 92%,12% 79%,0 79%,0 21%,12% 21%,12% 8%,25% 8%); }
-.pm-map.is-day .pm-sun { opacity: 1; }
-.pm-map.is-day .pm-moon { opacity: 0; }
-.pm-map.is-night .pm-sun { opacity: 0; }
-.pm-map.is-night .pm-moon { opacity: 1; }
-.pm-cloud { position: absolute; z-index: 3; width: 48px; height: 7px; background: #eaf4ed; box-shadow: 7px -7px #eaf4ed, 14px -7px #eaf4ed, 20px 0 #eaf4ed, 29px -4px #eaf4ed, 36px 0 #eaf4ed, 0 4px rgba(136,174,190,.55), 20px 4px rgba(136,174,190,.55); opacity: .72; transition: opacity .8s steps(5,end), filter .8s steps(5,end); }
-.pm-cloud-a { top: 40%; left: -62px; animation: pm-cloud-drift 19s linear infinite; }
-.pm-cloud-b { top: 66%; left: -86px; animation: pm-cloud-drift 27s 6s linear infinite; transform: scale(.72); }
-.pm-map.is-night .pm-cloud { opacity: .18; filter: brightness(.58) saturate(.6); }
-.pm-skyline { position: absolute; right: -8px; bottom: 0; left: -8px; background-repeat: repeat-x; }
-.pm-skyline-far { height: 35%; opacity: .55; background: linear-gradient(90deg,#506978 0 8%,transparent 8% 10%,#506978 10% 18%,transparent 18% 21%,#506978 21% 35%,transparent 35% 38%,#506978 38% 46%,transparent 46% 49%,#506978 49% 63%,transparent 63% 66%,#506978 66% 78%,transparent 78% 81%,#506978 81% 100%); clip-path: polygon(0 58%,8% 58%,8% 29%,18% 29%,18% 48%,27% 48%,27% 14%,38% 14%,38% 53%,48% 53%,48% 32%,59% 32%,59% 5%,68% 5%,68% 43%,78% 43%,78% 24%,88% 24%,88% 51%,100% 51%,100% 100%,0 100%); }
-.pm-skyline-near { height: 22%; background: #182531; clip-path: polygon(0 42%,9% 42%,9% 10%,17% 10%,17% 56%,29% 56%,29% 22%,42% 22%,42% 48%,53% 48%,53% 5%,65% 5%,65% 54%,74% 54%,74% 28%,86% 28%,86% 48%,100% 48%,100% 100%,0 100%); box-shadow: inset 0 -6px #0e171f; }
-.pm-map.is-night .pm-skyline-far { filter: brightness(.38) saturate(.65); }
-.pm-map.is-night .pm-skyline-near { background: #080d17; }
-.pm-city-deck { position: absolute; inset: 22% 0 0; overflow: hidden; background: #31383a url('/place-mafia/city-ground-v2.png') center/100% 100% no-repeat; box-shadow: inset 0 12px 18px rgba(8,12,14,.46), inset 0 0 44px rgba(0,0,0,.28); transition: filter .3s ease; }
-.pm-city-deck::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 62%, rgba(6,9,11,.3) 100%); }
-.pm-map.is-day .pm-city-deck { filter: brightness(1.02) saturate(.9); }
-.pm-map.is-night .pm-city-deck { filter: brightness(.46) saturate(.65) contrast(1.05); }
-.pm-map-grid { z-index: 4; top: 23%; right: 2.2%; bottom: clamp(112px, 18%, 138px); left: 2.2%; gap: 3.4% 7%; }
+.pm-city-deck { position: absolute; inset: 0; overflow: hidden; background: #101820; }
+.pm-city-deck::after { content: ""; position: absolute; z-index: 2; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 66%, rgba(5,8,11,.28) 100%); }
+.pm-city-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; transition: opacity .28s ease; }
+.pm-city-day { opacity: 1; }
+.pm-city-night { opacity: 0; }
+.pm-map.is-night .pm-city-day { opacity: 0; }
+.pm-map.is-night .pm-city-night { opacity: 1; }
+.pm-map-grid { z-index: 4; top: 17%; right: 2.5%; bottom: 18%; left: 2.5%; gap: 2.6% 5%; }
 .pm-location,
 .pm-phase-night .pm-location {
-  overflow: visible;
+  overflow: hidden;
   border: 0;
   border-radius: 0;
   opacity: 1;
@@ -1147,8 +1127,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-location:active:not(:disabled) { transform: translateY(2px) scale(.985); }
 .pm-location.selected::before { display: none; }
 
-@keyframes pm-cloud-drift { to { transform: translateX(620px); } }
-@keyframes pm-pixel-stars { 50% { opacity: .45; } }
 @keyframes pm-pixel-marker { 50% { opacity: .35; } }
 @keyframes pm-selected-building { from { filter: brightness(.62) saturate(.72) contrast(1.08); } 70% { filter: brightness(1.18) saturate(1.12) contrast(1.1) drop-shadow(0 0 12px rgba(255,194,73,.82)); } }
 @keyframes pm-rooftop-ring { 50% { transform: scale(1.25); opacity: .45; } }
@@ -1214,13 +1192,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .pm-rules-panel, .pm-settings-panel, .pm-briefing-shell > .pm-experience-menu { margin-top: 0; }
   .pm-game-shell { display: grid; grid-template-columns: minmax(440px, 1.25fr) minmax(320px, .75fr); column-gap: 16px; align-content: start; }
   .pm-game-shell > .pm-topbar, .pm-game-shell > .pm-phase-header, .pm-game-shell > .pm-experience-menu, .pm-game-shell > .pm-debug-toolbar, .pm-game-shell > .pm-role-stage, .pm-game-shell > .pm-game-over, .pm-game-shell > .pm-verdict-card { grid-column: 1 / -1; }
-  .pm-game-shell > .pm-map { grid-column: 1; height: 700px; max-height: calc(100dvh - 160px); position: sticky; top: 88px; }
+  .pm-game-shell > .pm-map { grid-column: 1; width: min(100%, calc(66.667dvh - 107px)); height: auto; max-height: calc(100dvh - 160px); aspect-ratio: 2 / 3; position: sticky; top: 88px; }
   .pm-game-shell > .pm-action-panel, .pm-game-shell > .pm-report-stack, .pm-game-shell > .pm-personal-log, .pm-game-shell > .pm-discussion-panel, .pm-game-shell > .pm-vote-panel { grid-column: 2; margin-top: 0; }
 }
 @media (max-width: 390px) {
   .pm-shell { padding-right: 10px; padding-left: 10px; }
   .pm-briefing-hero { margin-right: -10px; margin-left: -10px; }
-  .pm-map { min-height: 405px; }
+  .pm-map { min-height: 0; }
   .pm-location > strong { font-size: 10px; }
   .pm-info-card { padding: 11px; }
 }

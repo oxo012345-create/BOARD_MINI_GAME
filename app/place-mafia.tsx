@@ -174,14 +174,10 @@ function PlaceMafiaMap({
     hospital: "hospital",
   };
   return <section className={`pm-map pm-map-${mode} ${isNight ? "is-night" : "is-day"}`} aria-label="장소 마피아 도시 지도">
-    <div className="pm-pixel-sky" aria-hidden="true">
-      <div className="pm-stars" />
-      <div className="pm-sky-dither" />
-      <div className="pm-celestial"><i className="pm-sun" /><i className="pm-moon" /></div>
-      <div className="pm-cloud pm-cloud-a" /><div className="pm-cloud pm-cloud-b" />
-      <div className="pm-skyline pm-skyline-far" /><div className="pm-skyline pm-skyline-near" />
+    <div className="pm-city-deck" aria-hidden="true">
+      <img className="pm-city-layer pm-city-day" src="/place-mafia/city-pixel-day-v3.png" alt="" />
+      <img className="pm-city-layer pm-city-night" src="/place-mafia/city-pixel-night-v3.png" alt="" />
     </div>
-    <div className="pm-city-deck" aria-hidden="true" />
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {
       const meta = PLACE_MAFIA_LOCATION_META[location];
       const isCurrent = displayedCurrentLocation === location;
