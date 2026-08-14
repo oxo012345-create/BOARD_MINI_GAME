@@ -1016,6 +1016,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-game-shell > .pm-debug-toolbar { position: absolute; z-index: 60; top: calc(98px + env(safe-area-inset-top)); right: 13px; left: 13px; margin: 0; opacity: .9; }
 .pm-game-shell > .pm-role-stage,
 .pm-game-shell > .pm-game-over { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.pm-game-shell > .pm-role-stage { grid-template-rows: minmax(0, 1fr) auto auto; }
 .pm-game-shell > .pm-game-over { display: flex; flex-direction: column; padding-top: 4px; }
 .pm-game-shell > .pm-game-over .pm-result-mark { min-height: 160px; flex: 0 0 auto; }
 .pm-game-shell > .pm-game-over .pm-final-roles { min-height: 0; flex: 1 1 auto; display: grid; grid-template-columns: repeat(2,1fr); align-content: center; }
