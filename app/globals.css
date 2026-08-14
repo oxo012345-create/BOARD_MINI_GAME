@@ -826,15 +826,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-briefing-shell > .pm-sticky-action { position: static; flex: 0 0 auto; width: 100%; max-width: none; margin: 0; padding: 0 0 max(6px, env(safe-area-inset-bottom)); background: none; }
 .pm-briefing-shell > .pm-sticky-action .pm-primary-button,
 .pm-briefing-shell > .pm-sticky-action .pm-waiting { min-height: 46px; border-radius: 12px; }
-.pm-briefing-settings .pm-debug-setup { margin-top: 1px; border-radius: 8px; }
-.pm-briefing-settings .pm-debug-toggle { min-height: 34px; padding: 4px 7px; }
-.pm-briefing-settings .pm-debug-toggle span b,
-.pm-briefing-settings .pm-debug-toggle span small { display: none; }
-.pm-briefing-settings .pm-debug-toggle span strong { margin: 0; font-size: 8px; }
-.pm-briefing-settings .pm-debug-role { padding: 0 6px 6px; }
-.pm-briefing-settings .pm-debug-role > span { margin: 5px 0; }
-.pm-briefing-settings .pm-debug-role button { min-height: 25px; }
-.pm-briefing-settings .pm-debug-role p { display: none; }
 .pm-sticky-action { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; max-width: 520px; margin: auto; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, #090c11 22%); }
 .pm-primary-button, .pm-danger-button { width: 100%; min-height: 55px; border: 1px solid rgba(225,204,164,.36); border-radius: 14px; background: linear-gradient(180deg, #d3b779, #a98b54); color: #0d0d0c; box-shadow: inset 0 1px rgba(255,255,255,.26), 0 10px 28px rgba(0,0,0,.22); font-size: 13px; font-weight: 950; }
 .pm-danger-button { border-color: rgba(209,106,106,.48); background: linear-gradient(180deg, #b75454, #823434); color: #fff6f3; }
@@ -1003,30 +994,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-experience-menu.compact summary { min-height: 37px; grid-template-columns: 24px 1fr auto; padding: 0 9px; }
 .pm-experience-menu.compact:not([open]) summary small { display: none; }
 
-.pm-debug-setup { margin-top: 20px; border: 1px solid rgba(91,177,193,.2); border-radius: 15px; background: linear-gradient(145deg, rgba(32,72,82,.12), rgba(10,17,23,.86)); overflow: hidden; }
-.pm-debug-setup.enabled { border-color: rgba(91,177,193,.48); box-shadow: inset 0 0 24px rgba(77,164,180,.06); }
-.pm-debug-toggle { display: grid; grid-template-columns: 1fr 34px; align-items: center; width: 100%; min-height: 67px; padding: 10px 13px; border: 0; background: transparent; color: #d9e4e6; text-align: left; }
-.pm-debug-toggle span b, .pm-debug-toggle span strong, .pm-debug-toggle span small { display: block; }
-.pm-debug-toggle span b { color: #67b9c7; font: 850 6px/1 ui-monospace, monospace; letter-spacing: .16em; }
-.pm-debug-toggle span strong { margin-top: 5px; font-size: 11px; }
-.pm-debug-toggle span small { margin-top: 3px; color: #768b91; font-size: 7.5px; }
-.pm-debug-toggle > i { position: relative; width: 34px; height: 20px; border-radius: 99px; background: #293139; transition: background .2s ease; }
-.pm-debug-toggle > i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #7c858d; transition: transform .2s ease, background .2s ease; }
-.pm-debug-setup.enabled .pm-debug-toggle > i { background: rgba(69,160,176,.45); }
-.pm-debug-setup.enabled .pm-debug-toggle > i::after { background: #8de1ed; transform: translateX(14px); }
-.pm-debug-role { padding: 0 12px 12px; border-top: 1px solid rgba(91,177,193,.12); }
-.pm-debug-role > span { display: block; margin: 11px 0 8px; color: #91a7ac; font-size: 8px; font-weight: 800; }
-.pm-debug-role > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-.pm-debug-role button { min-height: 39px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: #0c141a; color: #77868c; font-size: 8px; font-weight: 850; }
-.pm-debug-role button.selected { border-color: rgba(91,177,193,.5); background: rgba(66,153,168,.13); color: #b4edf4; }
-.pm-debug-role p { margin: 8px 0 0; color: #607078; font-size: 7px; }
-.pm-debug-toolbar { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 9px; margin-bottom: 8px; padding: 10px 11px; border: 1px solid rgba(91,177,193,.32); border-radius: 13px; background: rgba(16,32,39,.92); box-shadow: 0 10px 26px rgba(0,0,0,.18); }
-.pm-debug-toolbar span, .pm-debug-toolbar strong, .pm-debug-toolbar small { display: block; }
-.pm-debug-toolbar span { color: #67b9c7; font: 900 6px/1 ui-monospace, monospace; letter-spacing: .15em; }
-.pm-debug-toolbar strong { margin-top: 4px; color: #d5e7e9; font-size: 9px; }
-.pm-debug-toolbar small { margin-top: 3px; color: #778c91; font-size: 7px; }
-.pm-debug-toolbar button { min-height: 39px; padding: 0 11px; border: 1px solid rgba(91,177,193,.38); border-radius: 9px; background: rgba(66,153,168,.13); color: #a9e4ec; font-size: 8px; font-weight: 900; }
-.pm-debug-toolbar button:disabled { opacity: .4; }
 
 /* Place Mafia — map-first minimal play screen */
 .pm-game-shell > .pm-phase-header { min-height: 54px; padding: 6px 2px; }
@@ -1078,9 +1045,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-phase-discussion .pm-map,
 .pm-phase-vote .pm-map,
 .pm-phase-execution .pm-map { flex: 0 1 auto; align-self: center; width: min(100%, calc(66.667vh - 86px)); width: min(100%, calc(66.667dvh - 86px)); height: auto; min-height: 0; max-height: calc(100dvh - 94px - env(safe-area-inset-bottom)); aspect-ratio: 2 / 3; }
-.pm-game-shell > .pm-debug-toolbar { position: absolute; z-index: 60; top: 50%; right: 2px; left: auto; width: 148px; margin: 0; padding: 7px; opacity: .94; transform: translateY(-50%); }
-.pm-game-shell > .pm-debug-toolbar small { display: none; }
-.pm-game-shell > .pm-debug-toolbar button { min-height: 34px; padding: 0 8px; }
 .pm-game-shell > .pm-role-stage,
 .pm-game-shell > .pm-game-over { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .pm-game-shell > .pm-role-stage { grid-template-rows: minmax(0, 1fr) auto auto; }
@@ -1089,7 +1053,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-game-shell > .pm-game-over .pm-final-roles { min-height: 0; flex: 1 1 auto; display: grid; grid-template-columns: repeat(2,1fr); align-content: center; }
 .pm-game-shell > .pm-game-over .pm-result-actions { flex: 0 0 auto; }
 .pm-game-shell .pm-topbar,
-.pm-game-shell .pm-debug-toolbar,
 .pm-game-shell .pm-action-panel,
 .pm-game-shell .pm-vote-panel,
 .pm-game-shell .pm-result-notice,
@@ -1250,7 +1213,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .pm-briefing-shell { max-width: 560px; padding-right: 20px; padding-left: 20px; }
   .pm-briefing-hero { margin: 0; border: 1px solid rgba(199,166,106,.16); border-radius: 22px; }
   .pm-game-shell { display: grid; grid-template-columns: minmax(440px, 1.25fr) minmax(320px, .75fr); column-gap: 16px; align-content: start; }
-  .pm-game-shell > .pm-topbar, .pm-game-shell > .pm-phase-header, .pm-game-shell > .pm-experience-menu, .pm-game-shell > .pm-debug-toolbar, .pm-game-shell > .pm-role-stage, .pm-game-shell > .pm-game-over, .pm-game-shell > .pm-verdict-card { grid-column: 1 / -1; }
+  .pm-game-shell > .pm-topbar, .pm-game-shell > .pm-phase-header, .pm-game-shell > .pm-experience-menu, .pm-game-shell > .pm-role-stage, .pm-game-shell > .pm-game-over, .pm-game-shell > .pm-verdict-card { grid-column: 1 / -1; }
   .pm-game-shell > .pm-map { grid-column: 1; width: min(100%, calc(66.667dvh - 107px)); height: auto; max-height: calc(100dvh - 160px); aspect-ratio: 2 / 3; position: sticky; top: 88px; }
   .pm-game-shell > .pm-action-panel, .pm-game-shell > .pm-report-stack, .pm-game-shell > .pm-personal-log, .pm-game-shell > .pm-discussion-panel, .pm-game-shell > .pm-vote-panel { grid-column: 2; margin-top: 0; }
 }
@@ -1283,9 +1246,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .pm-game-shell > .pm-topbar { flex-basis: 44px; min-height: 44px; }
   .pm-game-shell > .pm-phase-header { flex-basis: 38px; min-height: 38px; }
   .pm-game-shell > .pm-phase-header time { height: 30px; min-width: 62px; font-size: 14px; }
-  .pm-game-shell > .pm-debug-toolbar { top: 50%; width: 108px; padding: 5px; }
-  .pm-game-shell > .pm-debug-toolbar strong { display: none; }
-  .pm-game-shell > .pm-debug-toolbar button { min-height: 31px; padding: 0 6px; }
   .pm-location-label { min-height: 19px; padding: 2px 5px; }
   .pm-location-label strong { font-size: 9px; }
   .pm-game-shell > .pm-action-panel { bottom: calc(7px + env(safe-area-inset-bottom)); padding: 8px; }

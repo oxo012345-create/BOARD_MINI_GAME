@@ -4,13 +4,10 @@ export type PlaceMafiaLocationId = typeof PLACE_MAFIA_LOCATION_IDS[number];
 export type PlaceMafiaRole = "citizen" | "mafia";
 export type PlaceMafiaWinner = "citizen" | "mafia";
 export type PlaceMafiaBalance = "citizen" | "normal" | "mafia";
-export type PlaceMafiaDebugRole = "auto" | "citizen" | "mafia";
 export type PlaceMafiaSetup = {
   discussionSeconds: 60 | 90 | 120;
   balance: PlaceMafiaBalance;
   mafiaCount: 1 | 2;
-  debugMode?: boolean;
-  debugRole?: PlaceMafiaDebugRole;
 };
 export type PlaceMafiaPhase = "role_reveal" | "night" | "day_reveal" | "discussion" | "vote" | "execution" | "game_over";
 
@@ -91,11 +88,6 @@ export type PlaceMafiaClientState = {
   execution?: PlaceMafiaExecution;
   winner?: PlaceMafiaWinner;
   finalRoles?: Record<string, PlaceMafiaRole>;
-  debug?: {
-    enabled: true;
-    controller: boolean;
-    botCount: number;
-  };
   my?: {
     role: PlaceMafiaRole;
     roleReady: boolean;

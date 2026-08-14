@@ -9,7 +9,6 @@ import {
   placeMafiaReachableLocations,
   type PlaceMafiaBalance,
   type PlaceMafiaClientState,
-  type PlaceMafiaDebugRole,
   type PlaceMafiaLocationId,
   type PlaceMafiaRole,
 } from "./place-mafia-shared";
@@ -69,8 +68,6 @@ export function PlaceMafiaBriefing({
   discussionSeconds,
   balance,
   mafiaCount,
-  debugMode,
-  debugRole,
   onDiscussionChange,
   onBalanceChange,
   onMafiaCountChange,
@@ -86,20 +83,14 @@ export function PlaceMafiaBriefing({
   discussionSeconds: 60 | 90 | 120;
   balance: PlaceMafiaBalance;
   mafiaCount: 1 | 2;
-  debugMode: boolean;
-  debugRole: PlaceMafiaDebugRole;
   onDiscussionChange: (seconds: 60 | 90 | 120) => void;
   onBalanceChange: (balance: PlaceMafiaBalance) => void;
   onMafiaCountChange: (count: 1 | 2) => void;
-  onDebugModeChange: (enabled: boolean) => void;
-  onDebugRoleChange: (role: PlaceMafiaDebugRole) => void;
   onStart: () => void;
   topBar: ReactNode;
   overlays?: ReactNode;
 }) {
-  const soloDebug = debugMode && players.length === 1 && isHost;
-  const effectiveCount = soloDebug ? 4 : players.length;
-  const valid = soloDebug || (players.length >= 4 && players.length <= 8);
+  const valid = players.length >= 4 && players.length <= 8;
   const experience = usePlaceMafiaExperience("briefing");
   return <main className={`pm-shell pm-briefing-shell ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     {topBar}
@@ -146,11 +137,7 @@ export function PlaceMafiaBriefing({
           {([1, 2] as const).map((count) => <button type="button" key={count} disabled={!isHost} className={mafiaCount === count ? "selected" : ""} onClick={() => onMafiaCountChange(count)}><strong>{count}명</strong></button>)}
         </div>
       </div>
-      {isHost && players.length === 1 && <section className={`pm-debug-setup ${debugMode ? "enabled" : ""}`}>
-        <button type="button" className="pm-debug-toggle" aria-pressed={debugMode} onClick={() => onDebugModeChange(!debugMode)}><span><b>SOLO DEBUG</b><strong>혼자 디버깅</strong><small>가상 참가자 3명이 자동으로 행동합니다</small></span><i /></button>
-        {debugMode && <div className="pm-debug-role"><span>확인할 내 역할</span><div>{(["auto", "citizen", "mafia"] as const).map((role) => <button type="button" key={role} className={debugRole === role ? "selected" : ""} onClick={() => onDebugRoleChange(role)}>{role === "auto" ? "자동" : role === "citizen" ? "시민" : "마피아"}</button>)}</div><p>단계 건너뛰기 버튼으로 모든 화면을 빠르게 확인할 수 있어요.</p></div>}
-      </section>}
-      <div className={`pm-player-check ${valid ? "valid" : "invalid"}`}><span>{effectiveCount}</span><div><strong>{soloDebug ? "1명 + 가상 참가자 3명" : valid ? `${players.length}명 · 마피아 ${mafiaCount}명` : "4~8명이 필요해요"}</strong></div></div>
+      <div className={`pm-player-check ${valid ? "valid" : "invalid"}`}><span>{players.length}</span><div><strong>{valid ? `${players.length}명 · 마피아 ${mafiaCount}명` : "4~8명이 필요해요"}</strong></div></div>
     </section>
 
     <div className="pm-sticky-action">{isHost
@@ -425,11 +412,6 @@ export function PlaceMafiaGame({
   return <main className={`pm-shell pm-game-shell pm-phase-${state.phase} ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     <header className="pm-topbar"><div className="pm-room-code"><i />{code}</div><strong>장소 마피아</strong><div>{isHost && <button type="button" disabled={busy} onClick={onLobby}>대기실</button>}<button type="button" onClick={onLeave}>나가기</button></div></header>
     <PhaseHeader state={state} remaining={remaining} />
-    {state.debug?.controller && <aside className="pm-debug-toolbar" aria-label="혼자 디버깅 제어판">
-      <div><span>SOLO DEBUG</span><strong>가상 참가자 {state.debug.botCount}명 작동 중</strong><small>{state.phase === "role_reveal" ? "역할 확인 화면" : state.phase === "night" ? "이동·공격 화면" : state.phase === "day_reveal" ? "아침 결과 화면" : state.phase === "discussion" ? "낮 토론 화면" : state.phase === "vote" ? "익명 투표 화면" : state.phase === "execution" ? "판결 화면" : "최종 결과 화면"}</small></div>
-      {state.phase !== "game_over" && <button type="button" disabled={working} onClick={() => void run({ action: "place-mafia-debug-skip" }, "confirm")}>다음 단계 ›</button>}
-    </aside>}
-
     {state.phase === "role_reveal" && me && <section className="pm-role-stage">
       <div
         className={`pm-role-card ${roleOpen ? "open" : ""} ${me.role}`}

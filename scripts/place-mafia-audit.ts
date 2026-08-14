@@ -10,7 +10,6 @@ import {
   submitPlaceMafiaAttack,
   submitPlaceMafiaMove,
   submitPlaceMafiaVote,
-  skipPlaceMafiaDebugPhase,
   type PlaceMafiaState,
 } from "../app/api/_lib/place-mafia";
 import { PLACE_MAFIA_GRAPH, placeMafiaLegalMoveLocations, type PlaceMafiaLocationId } from "../app/place-mafia-shared";
@@ -87,38 +86,9 @@ for (let count = 4; count <= 8; count += 1) {
     assert.equal(Object.keys(state.players).length, count);
   }
 }
-
-{
-  const roster = players(1);
-  const state = createPlaceMafiaState(roster, { debugMode: true, debugRole: "citizen", discussionSeconds: 60 });
-  assert.equal(state.participantIds.length, 4, "혼자 디버깅은 가상 참가자 3명을 추가해야 한다");
-  assert.equal(state.debug?.botIds.length, 3);
-  assert.equal(state.players.p1?.role, "citizen", "시민 역할 강제 선택이 적용돼야 한다");
-  acknowledgePlaceMafiaRole(state, "p1", 20_000);
-  assert.equal(state.phase, "night", "가상 참가자는 역할 확인을 자동 완료해야 한다");
-  assert.equal(state.moveConfirmedIds.length, 3, "가상 참가자는 밤 이동을 자동 제출해야 한다");
-  skipPlaceMafiaDebugPhase(state, "p1", 21_000);
-  assert.equal(state.players.p1?.alive, true, "혼자 디버깅 제어자는 가상 마피아 공격에서 제외되어야 한다");
-  assert.equal(state.phase, "day_reveal", "디버그 단계 건너뛰기로 밤 판정을 확인할 수 있어야 한다");
-  const view = placeMafiaClientState(state, "p1");
-  assert.equal(view.participants.length, 4);
-  assert.equal(view.debug?.controller, true);
-  assert.equal(JSON.stringify(view).includes("sessionHash"), false);
-  skipPlaceMafiaDebugPhase(state, "p1", 22_000);
-  assert.equal(state.phase, "discussion");
-  skipPlaceMafiaDebugPhase(state, "p1", 23_000);
-  assert.equal(state.phase, "vote");
-  assert.equal(Object.keys(state.votes).length, state.debug?.botIds.filter((id) => state.players[id]?.alive).length, "가상 참가자는 익명 투표를 자동 제출해야 한다");
-  skipPlaceMafiaDebugPhase(state, "p1", 24_000);
-  assert.ok(["execution", "game_over"].includes(state.phase), "익명 투표 판결 화면까지 혼자 진행할 수 있어야 한다");
-}
-
-{
-  const roster = players(1);
-  const state = createPlaceMafiaState(roster, { debugMode: true, debugRole: "mafia" });
-  assert.equal(state.players.p1?.role, "mafia", "마피아 역할 강제 선택이 적용돼야 한다");
-  assert.throws(() => skipPlaceMafiaDebugPhase(state, "pm-debug-bot-1", 1), /혼자 디버깅/, "가상 참가자는 제어판을 사용할 수 없어야 한다");
-}
+assert.throws(() => createPlaceMafiaState(players(1)), /4~8명/, "혼자 디버깅 없이 1명으로 시작할 수 없어야 한다");
+assert.throws(() => createPlaceMafiaState(players(3)), /4~8명/, "최소 인원은 4명이어야 한다");
+assert.throws(() => createPlaceMafiaState(players(9)), /4~8명/, "최대 인원은 8명이어야 한다");
 
 {
   const { roster, state, now } = start();
