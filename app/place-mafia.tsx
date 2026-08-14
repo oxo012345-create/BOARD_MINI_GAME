@@ -169,9 +169,23 @@ function PlaceMafiaMap({
 }) {
   const selectableSet = new Set(selectable);
   const selectedSet = new Set(selected);
-  return <section className={`pm-map pm-map-${mode}`} aria-label="장소 마피아 도시 지도">
-    <img src="/place-mafia/city-board.png" alt="" aria-hidden="true" />
-    <div className="pm-map-vignette" />
+  const isNight = state.phase === "night";
+  const buildingSprites: Record<PlaceMafiaLocationId, string> = {
+    residential: "/place-mafia/pixel/residential-70-v1.png",
+    police: "/place-mafia/pixel/police-70-v1.png",
+    square: "/place-mafia/pixel/plaza-70-v1.png",
+    park: "/place-mafia/pixel/park-70-v1.png",
+    alley: "/place-mafia/pixel/alley-70-v1.png",
+    hospital: "/place-mafia/pixel/hospital-70-v1.png",
+  };
+  return <section className={`pm-map pm-map-${mode} ${isNight ? "is-night" : "is-day"}`} aria-label="장소 마피아 도시 지도">
+    <div className="pm-pixel-sky" aria-hidden="true">
+      <div className="pm-stars" />
+      <div className="pm-celestial"><i className="pm-sun" /><i className="pm-moon" /></div>
+      <div className="pm-cloud pm-cloud-a" /><div className="pm-cloud pm-cloud-b" />
+      <div className="pm-horizon" />
+    </div>
+    <div className="pm-city-deck" aria-hidden="true" />
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {
       const meta = PLACE_MAFIA_LOCATION_META[location];
       const isCurrent = state.my?.location === location;
@@ -180,15 +194,19 @@ function PlaceMafiaMap({
       return <button
         type="button"
         key={location}
-        className={`pm-location pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
+        className={`pm-location pm-location-${location} pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
         disabled={!isSelectable || !onSelect}
         onClick={() => onSelect?.(location)}
         aria-pressed={isSelected}
         aria-label={`${meta.name}${isCurrent ? ", 현재 위치" : ""}${isSelectable ? ", 선택 가능" : ""}`}
       >
-        <span className="pm-location-code">{meta.symbol}</span>
-        <strong>{meta.name}</strong>
-        {isCurrent && <small>현재 위치</small>}
+        <span className="pm-building-sprite" aria-hidden="true">
+          <img src={buildingSprites[location]} alt="" />
+          <span className="pm-window-bank">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</span>
+          {isCurrent && <span className="pm-rooftop-player"><i /><b>◆</b></span>}
+        </span>
+        <span className="pm-location-label"><b>{meta.symbol}</b><strong>{meta.name}</strong></span>
+        {isCurrent && <small className="pm-current-marker"><i />현재</small>}
       </button>;
     })}</div>
   </section>;
