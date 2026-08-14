@@ -6,6 +6,7 @@ import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
+import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -124,6 +125,7 @@ async function persistAndRespond(room: RoomState, viewerId: string) {
   tickSurprise(room);
   const activeGame = room.game as GameRound | undefined;
   if (activeGame?.id === "place-mafia" && activeGame.placeMafia) advancePlaceMafiaIfDue(activeGame.placeMafia);
+  if (activeGame?.id === "cash-n-guns" && activeGame.cashNGuns) advanceCashNGunsIfDue(activeGame.cashNGuns);
   if (!await writeRoomIfRevision(room, expectedRevision)) {
     return Response.json({ error: "다른 참가자의 입력을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
   }
@@ -172,7 +174,9 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const dealerChanged = handleDealerTimeout(room);
     const activePlaceMafia = (room.game as GameRound | undefined)?.placeMafia;
     const placeMafiaChanged = activePlaceMafia ? advancePlaceMafiaIfDue(activePlaceMafia) : false;
-    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged;
+    const activeCashNGuns = (room.game as GameRound | undefined)?.cashNGuns;
+    const cashNGunsChanged = activeCashNGuns ? advanceCashNGunsIfDue(activeCashNGuns) : false;
+    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged || cashNGunsChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
@@ -202,6 +206,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       permanent?: boolean;
       location?: string;
       locations?: string[];
+      bullet?: "click" | "bang";
+      courage?: "crouch" | "stand";
+      lootId?: string;
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
       mafiaCount?: number;
@@ -224,7 +231,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (room.players.length >= 12) return Response.json({ error: "방이 가득 찼어요." }, { status: 409 });
       if (room.players.some((item) => item.name.toLowerCase() === profile.name.toLowerCase())) return Response.json({ error: "이미 사용 중인 이름이에요." }, { status: 409 });
       const activeGame = room.game as GameRound | undefined;
-      if (["double-dealers", "place-mafia"].includes(String(activeGame?.id)) && ["game", "result"].includes(room.view)) {
+      if (["double-dealers", "place-mafia", "cash-n-guns"].includes(String(activeGame?.id)) && ["game", "result"].includes(room.view)) {
         return Response.json({ error: "게임이 이미 시작되어 늦은 참가자를 받을 수 없습니다.", code: "GAME_IN_PROGRESS" }, { status: 409 });
       }
       const session = await createSession();
@@ -315,6 +322,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "apartment" && room.players.length < 3) {
         return Response.json({ error: "아파트 게임은 3명 이상이 함께할 수 있어요." }, { status: 409 });
       }
+      if (gameId === "cash-n-guns" && (room.players.length < 4 || room.players.length > 8)) {
+        return Response.json({ error: "캐시 앤 건즈는 4~8명이 필요해요." }, { status: 409 });
+      }
       if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "장소 마피아는 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
@@ -363,6 +373,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           mafiaCount: setup.mafiaCount,
         });
       }
+      if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players);
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -426,6 +437,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         removeDealerPlayer(activeGame.dealer, viewer.id, dealerPlayers(room, activeGame.dealer));
       }
       if (activeGame?.id === "place-mafia" && activeGame.placeMafia) removePlaceMafiaPlayer(activeGame.placeMafia, viewer.id);
+      if (activeGame?.id === "cash-n-guns" && activeGame.cashNGuns) removeCashNGunsPlayer(activeGame.cashNGuns, viewer.id);
       if (room.players.length === 0) {
         await deleteRoom(room.code);
         return Response.json({ room: null }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
@@ -463,6 +475,21 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         else if (payload.action === "place-mafia-vote-shorten") shortenPlaceMafiaVote(game.placeMafia, viewer.id);
         else if (payload.action === "place-mafia-vote") submitPlaceMafiaVote(game.placeMafia, viewer.id, String(payload.targetId ?? ""));
         else if (payload.action !== "place-mafia-tick") throw new Error("지원하지 않는 장소 마피아 행동이에요.");
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
+      }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (String(payload.action).startsWith("cash-n-guns-")) {
+      if (game.id !== "cash-n-guns" || !game.cashNGuns || room.view !== "game") return Response.json({ error: "캐시 앤 건즈가 진행 중이 아니에요." }, { status: 409 });
+      try {
+        handleCashNGunsAction(game.cashNGuns, viewer.id, String(payload.action), {
+          bullet: payload.bullet,
+          targetId: payload.targetId,
+          courage: payload.courage,
+          lootId: payload.lootId,
+        });
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
       }

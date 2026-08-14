@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { gemAsset } from "./gem-heist-assets";
 import { PlaceMafiaBriefing, PlaceMafiaGame } from "./place-mafia";
 import type { PlaceMafiaBalance, PlaceMafiaClientState, PlaceMafiaSetup } from "./place-mafia-shared";
+import { CashNGunsGame } from "./cash-n-guns";
+import type { CashNGunsClientState } from "./cash-n-guns";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -90,6 +92,7 @@ type GameRound = {
   apartmentMaxFloor?: number; apartmentSubmitted?: string[]; apartmentMyChoice?: number; apartmentSelections?: Record<string, number>; apartmentFloorCounts?: Record<string, number>; apartmentPenaltyFloor?: number; apartmentPenaltyPlayerIds?: string[]; apartmentRevealed?: boolean;
   placeMafia?: PlaceMafiaClientState;
   placeMafiaSetup?: PlaceMafiaSetup;
+  cashNGuns?: CashNGunsClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -127,8 +130,10 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
+BOARD_GAMES.push({ id: "cash-n-guns", title: "캐시 앤 건즈", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
+const randomGamesForPlayers = (count: number) => RANDOM_GAMES.filter((game) => game.id !== "cash-n-guns" || (count >= 4 && count <= 8));
 const LIAR_OPTION_GAMES = ["liar", "body-liar", "face-liar", "unknown"];
 const FAST_SYNC_INTERVAL_MS = 500;
 const IDLE_SYNC_INTERVAL_MS = 1400;
@@ -231,9 +236,10 @@ function ApartmentResultSummary({ maxFloor, players, selections, counts, penalty
   for (const player of players) {
     const floor = selections?.[player.id];
     if (!Number.isInteger(floor)) continue;
-    const names = groups.get(floor) ?? [];
+    const normalizedFloor = Number(floor);
+    const names = groups.get(normalizedFloor) ?? [];
     names.push(player.name);
-    groups.set(floor, names);
+    groups.set(normalizedFloor, names);
   }
   const rows = Array.from({ length: maxFloor }, (_, index) => maxFloor - index).filter((floor) => groups.has(floor));
   const penaltyNames = (penaltyPlayerIds ?? []).map((id) => players.find((player) => player.id === id)?.name ?? "참가자");
@@ -1128,6 +1134,7 @@ export default function Home() {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
+    const cashNGunsPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     if (currentGame.id === "place-mafia") return <PlaceMafiaBriefing
       players={room.players}
       isHost={isHost}
@@ -1167,6 +1174,7 @@ export default function Home() {
         <div className="eyebrow">시작 전 설명</div>
         <h1>{currentGame.title}</h1>
         <p>{currentGame.briefing ?? currentGame.prompt}</p>
+        {currentGame.id === "cash-n-guns" && <div className={`cng-briefing-note ${cashNGunsPlayerCountValid ? "ready" : "warning"}`}><b>4~8명 · POWER MODE 없음</b><span>8라운드 · 탄환 선택 → 조준 → 숨기/서기 → 전리품 분배</span></div>}
         {currentGame.id === "apartment" && <div className="apartment-briefing"><ApartmentBuilding maxFloor={room.players.length + 2} submittedIds={[]} players={room.players} preview /></div>}
         {currentGame.id === "apartment" && room.players.length < 3 && <div className="count-warning">아파트 게임은 3명 이상 필요해요.</div>}
         {LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}
@@ -1289,6 +1297,19 @@ export default function Home() {
     meId={room.meId}
     state={currentGame.placeMafia}
     clockOffsetMs={serverClockOffsetMs}
+    isHost={isHost}
+    busy={hostActionLocked}
+    onAction={applyAction}
+    onReplay={() => void startGame()}
+    onLobby={() => setConfirmType("lobby")}
+    onLeave={() => setConfirmType("leave")}
+    overlays={commonOverlays}
+  />;
+  if (currentGame.id === "cash-n-guns" && currentGame.cashNGuns) return <CashNGunsGame
+    code={room.code}
+    players={room.players}
+    meId={room.meId}
+    state={currentGame.cashNGuns}
     isHost={isHost}
     busy={hostActionLocked}
     onAction={applyAction}

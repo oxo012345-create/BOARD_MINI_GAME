@@ -120,6 +120,7 @@ export type GameRound = {
   apartmentRevealed?: boolean;
   placeMafia?: import("./place-mafia").PlaceMafiaState;
   placeMafiaSetup?: import("../../place-mafia-shared").PlaceMafiaSetup;
+  cashNGuns?: import("./cash-n-guns").CashNGunsState;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -150,6 +151,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   "group-initial": { title: "단체 초성 퀴즈", briefing: "랜덤으로 지목된 사람이 3초 안에 초성에 맞는 단어를 말합니다. 방장이 다음 문제를 진행합니다.", category: "coop" },
 };
 
+GAME_INFO["cash-n-guns"] = { title: "캐시 앤 건즈", briefing: "총을 겨누고, 숨고, 전리품을 나누세요. 8라운드 동안 살아남아 가장 많은 돈을 모으는 게임입니다.", category: "solo" };
 export const GAME_IDS = Object.keys(GAME_INFO);
 const CONTENT = GAME_CONTENT as Record<string, unknown>;
 export const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
@@ -854,6 +856,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "double-dealers") return { ...base, prompt: "2D 카드 비밀 경매" };
   if (id === "apartment") return { ...base, prompt: "층을 선택하세요", apartmentMaxFloor: players.length + 2, apartmentSelections: {}, apartmentSubmitted: [], apartmentRevealed: false };
   if (id === "place-mafia") return { ...base, prompt: "위치, 동선, 거짓말" };
+  if (id === "cash-n-guns") return { ...base, prompt: "총을 겨누고 전리품을 차지하세요" };
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));

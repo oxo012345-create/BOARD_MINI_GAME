@@ -3,6 +3,7 @@ import { assignedTelestrationChain, type GameRound } from "./rounds";
 import { clientSurprise, type SurpriseState } from "./surprise";
 import { dealerClientState } from "./dealer";
 import { placeMafiaClientState } from "./place-mafia";
+import { cashNGunsClientState } from "./cash-n-guns";
 
 export type Player = {
   id: string;
@@ -60,6 +61,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const dealer = internal.dealer;
     const apartmentSelections = internal.apartmentSelections;
     const placeMafia = internal.placeMafia;
+    const cashNGuns = internal.cashNGuns;
 
     delete game.answer;
     delete game.liarId;
@@ -87,9 +89,13 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.dealer;
     delete game.apartmentSelections;
     delete game.placeMafia;
+    delete game.cashNGuns;
 
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
+    }
+    if (internal.id === "cash-n-guns" && cashNGuns) {
+      game.cashNGuns = cashNGunsClientState(cashNGuns, viewerId);
     }
 
     if (internal.id === "apartment") {
