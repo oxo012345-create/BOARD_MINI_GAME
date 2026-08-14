@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gemAsset } from "./gem-heist-assets";
 import { PlaceMafiaBriefing, PlaceMafiaGame } from "./place-mafia";
-import type { PlaceMafiaBalance, PlaceMafiaClientState, PlaceMafiaDebugRole } from "./place-mafia-shared";
+import type { PlaceMafiaBalance, PlaceMafiaClientState, PlaceMafiaDebugRole, PlaceMafiaSetup } from "./place-mafia-shared";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -89,6 +89,7 @@ type GameRound = {
   mazeResults?: Array<{ playerId: string; score: number; recipeIndex: number }>;
   apartmentMaxFloor?: number; apartmentSubmitted?: string[]; apartmentMyChoice?: number; apartmentSelections?: Record<string, number>; apartmentFloorCounts?: Record<string, number>; apartmentPenaltyFloor?: number; apartmentPenaltyPlayerIds?: string[]; apartmentRevealed?: boolean;
   placeMafia?: PlaceMafiaClientState;
+  placeMafiaSetup?: PlaceMafiaSetup;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -934,6 +935,7 @@ export default function Home() {
   };
   const leaveRoom = async () => {
     if (!room) return;
+    const canResumePlaceMafia = room.view === "game" && currentGame?.id === "place-mafia" && currentGame.placeMafia?.phase !== "game_over";
     const sequence = nextRoomRequestSequence();
     setBusy(true); leavingRef.current = true;
     try {
@@ -947,7 +949,10 @@ export default function Home() {
       showNotice(error instanceof Error ? error.message : "방에서 나가지 못했어요.");
       return;
     }
-    localStorage.removeItem("hanpan-room");
+    if (canResumePlaceMafia) {
+      localStorage.setItem("hanpan-room", room.code);
+      setResumeRoom(room);
+    } else localStorage.removeItem("hanpan-room");
     history.replaceState(null, "", location.pathname);
     applyRoomSnapshot(null, sequence);
     setJoinCode("");
@@ -955,12 +960,19 @@ export default function Home() {
     setBusy(false);
     setConfirmType(null);
   };
-  const continuePreviousRoom = () => {
+  const continuePreviousRoom = async () => {
     if (!resumeRoom) return;
     const sequence = nextRoomRequestSequence();
-    history.replaceState(null, "", `?room=${resumeRoom.code}`);
-    applyRoomSnapshot(resumeRoom, sequence);
-    setResumeRoom(null);
+    setBusy(true);
+    try {
+      const { response, body } = await patchRoomWithConflictRetry(resumeRoom.code, { action: "join" });
+      if (!response.ok || !body.room) throw new Error(body.error || "게임에 다시 들어가지 못했어요.");
+      localStorage.setItem("hanpan-room", resumeRoom.code);
+      history.replaceState(null, "", `?room=${resumeRoom.code}`);
+      applyRoomSnapshot(body.room, sequence);
+      setResumeRoom(null);
+    } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); }
+    finally { setBusy(false); }
   };
   const discardPreviousRoom = async () => {
     if (!resumeRoom) return;
@@ -977,7 +989,17 @@ export default function Home() {
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); setPlaceMafiaCount(1); setPlaceMafiaDebug(false); setPlaceMafiaDebugRole("auto"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; const placeMafiaDebugActive = currentGame.id === "place-mafia" && placeMafiaDebug && room?.players.length === 1; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && !placeMafiaDebugActive && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요. 혼자라면 디버깅 모드를 켜세요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? placeMafiaCount : undefined, debugMode: currentGame.id === "place-mafia" ? placeMafiaDebugActive : undefined, debugRole: currentGame.id === "place-mafia" ? placeMafiaDebugRole : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; const setup = currentGame.placeMafiaSetup; const replayDebug = Boolean(currentGame.placeMafia?.debug?.controller); const placeMafiaDebugActive = currentGame.id === "place-mafia" && (setup?.debugMode || placeMafiaDebug || replayDebug) && room?.players.length === 1; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && !placeMafiaDebugActive && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요. 혼자라면 디버깅 모드를 켜세요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? setup?.discussionSeconds ?? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined, debugMode: currentGame.id === "place-mafia" ? placeMafiaDebugActive : undefined, debugRole: currentGame.id === "place-mafia" ? setup?.debugRole ?? placeMafiaDebugRole : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const updatePlaceMafiaSetup = async (patch: Partial<PlaceMafiaSetup>) => {
+    if (!isHost || currentGame?.id !== "place-mafia") return;
+    if (patch.discussionSeconds) setPlaceMafiaDiscussion(patch.discussionSeconds);
+    if (patch.balance) setPlaceMafiaBalance(patch.balance);
+    if (patch.mafiaCount) setPlaceMafiaCount(patch.mafiaCount);
+    if (typeof patch.debugMode === "boolean") setPlaceMafiaDebug(patch.debugMode);
+    if (patch.debugRole) setPlaceMafiaDebugRole(patch.debugRole);
+    try { await applyAction({ action: "place-mafia-settings", ...patch }); }
+    catch (error) { showNotice(error instanceof Error ? error.message : "설정을 공유하지 못했어요."); }
+  };
   const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
   const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
   const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
@@ -1051,8 +1073,8 @@ export default function Home() {
         <span>{resumeRoom.players.find((player) => player.id === resumeRoom.meId)?.avatar ?? "👤"}</span>
         <div><strong>{resumeRoom.players.find((player) => player.id === resumeRoom.meId)?.name ?? "참가자"}</strong><small>{resumeRoom.view === "game" ? `${resumeRoom.game?.title ?? "게임"} 진행 중` : resumeRoom.view === "lobby" ? "대기실" : "게임을 고르는 중"}</small></div>
       </div>
-      <button className="button primary xl" disabled={busy} onClick={continuePreviousRoom}>이어서 참여하기</button>
-      <button className="button secondary xl" disabled={busy} onClick={() => void discardPreviousRoom()}>{busy ? "정리하는 중…" : "나가고 처음으로"}</button>
+      <button className="button primary xl" disabled={busy} onClick={() => void continuePreviousRoom()}>{busy ? "다시 들어가는 중…" : "이어서 참여하기"}</button>
+      {resumeRoom.game?.id !== "place-mafia" && <button className="button secondary xl" disabled={busy} onClick={() => void discardPreviousRoom()}>{busy ? "정리하는 중…" : "나가고 처음으로"}</button>}
     </section> : !intent ? <section className="hero">
       <div className="eyebrow">점수 없이 바로 노는 술게임</div>
       <h1>모이면,<br /><em>한판이면 돼.</em></h1>
@@ -1089,16 +1111,16 @@ export default function Home() {
       players={room.players}
       isHost={isHost}
       busy={hostActionLocked}
-      discussionSeconds={placeMafiaDiscussion}
-      balance={placeMafiaBalance}
-      mafiaCount={placeMafiaCount}
-      debugMode={placeMafiaDebug}
-      debugRole={placeMafiaDebugRole}
-      onDiscussionChange={setPlaceMafiaDiscussion}
-      onBalanceChange={setPlaceMafiaBalance}
-      onMafiaCountChange={setPlaceMafiaCount}
-      onDebugModeChange={setPlaceMafiaDebug}
-      onDebugRoleChange={setPlaceMafiaDebugRole}
+      discussionSeconds={currentGame.placeMafiaSetup?.discussionSeconds ?? placeMafiaDiscussion}
+      balance={currentGame.placeMafiaSetup?.balance ?? placeMafiaBalance}
+      mafiaCount={currentGame.placeMafiaSetup?.mafiaCount ?? placeMafiaCount}
+      debugMode={currentGame.placeMafiaSetup?.debugMode ?? placeMafiaDebug}
+      debugRole={currentGame.placeMafiaSetup?.debugRole ?? placeMafiaDebugRole}
+      onDiscussionChange={(value) => void updatePlaceMafiaSetup({ discussionSeconds: value })}
+      onBalanceChange={(value) => void updatePlaceMafiaSetup({ balance: value })}
+      onMafiaCountChange={(value) => void updatePlaceMafiaSetup({ mafiaCount: value })}
+      onDebugModeChange={(value) => void updatePlaceMafiaSetup({ debugMode: value })}
+      onDebugRoleChange={(value) => void updatePlaceMafiaSetup({ debugRole: value })}
       onStart={() => void startGame()}
       topBar={topBar("장소 마피아")}
       overlays={commonOverlays}

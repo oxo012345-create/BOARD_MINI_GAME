@@ -119,6 +119,7 @@ export type GameRound = {
   apartmentPenaltyPlayerIds?: string[];
   apartmentRevealed?: boolean;
   placeMafia?: import("./place-mafia").PlaceMafiaState;
+  placeMafiaSetup?: import("../../place-mafia-shared").PlaceMafiaSetup;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {

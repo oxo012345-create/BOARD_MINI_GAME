@@ -18,7 +18,7 @@ import {
 
 export const PLACE_MAFIA_NIGHT_MS = 20_000;
 export const PLACE_MAFIA_REVEAL_MS = 8_000;
-export const PLACE_MAFIA_VOTE_MS = 20_000;
+export const PLACE_MAFIA_VOTE_MS = 50_000;
 export const PLACE_MAFIA_EXECUTION_MS = 7_000;
 
 type PlaceMafiaPlayer = {
@@ -50,6 +50,9 @@ export type PlaceMafiaState = {
   night?: PlaceMafiaPublicNight;
   discussionCutIds: string[];
   lastDiscussionCut?: { playerId: string; at: number };
+  voteCutIds: string[];
+  lastVoteCut?: { playerId: string; at: number };
+  pause?: { playerIds: string[]; remainingMs?: number };
   votes: Record<string, string>;
   execution?: PlaceMafiaExecution;
   revealedRoles: Record<string, PlaceMafiaRole>;
@@ -134,6 +137,8 @@ function beginNight(state: PlaceMafiaState, at: number, advanceKiller: boolean) 
   state.night = undefined;
   state.discussionCutIds = [];
   state.lastDiscussionCut = undefined;
+  state.voteCutIds = [];
+  state.lastVoteCut = undefined;
   state.votes = {};
   state.execution = undefined;
   autoPlayDebugNight(state, at + 10);
@@ -189,6 +194,7 @@ export function createPlaceMafiaState(
     attackConfirmed: false,
     witnesses: {},
     discussionCutIds: [],
+    voteCutIds: [],
     votes: {},
     revealedRoles: {},
     debug,
@@ -364,6 +370,8 @@ function beginVote(state: PlaceMafiaState, at: number) {
   state.phase = "vote";
   state.phaseEndsAt = at + PLACE_MAFIA_VOTE_MS;
   state.votes = {};
+  state.voteCutIds = [];
+  state.lastVoteCut = undefined;
   autoPlayDebugVotes(state, at + 10);
 }
 
@@ -403,6 +411,35 @@ export function shortenPlaceMafiaDiscussion(state: PlaceMafiaState, playerId: st
   state.phaseEndsAt = Math.max(now + 20_000, (state.phaseEndsAt ?? now) - 10_000);
 }
 
+export function shortenPlaceMafiaVote(state: PlaceMafiaState, playerId: string, now = Date.now()) {
+  if (state.phase !== "vote" || !state.players[playerId]?.alive) throw new Error("지금은 투표 시간을 줄일 수 없어요.");
+  state.voteCutIds ??= [];
+  if (state.voteCutIds.includes(playerId)) throw new Error("오늘은 이미 투표 단축을 사용했어요.");
+  const remaining = (state.phaseEndsAt ?? now) - now;
+  if (remaining <= 20_000) throw new Error("마지막 20초는 투표 시간으로 남겨둘게요.");
+  state.voteCutIds.push(playerId);
+  state.lastVoteCut = { playerId, at: now };
+  state.phaseEndsAt = Math.max(now + 20_000, (state.phaseEndsAt ?? now) - 10_000);
+}
+
+export function pausePlaceMafia(state: PlaceMafiaState, playerId: string, now = Date.now()) {
+  if (!state.participantIds.includes(playerId) || state.phase === "game_over") return false;
+  if (!state.pause) state.pause = { playerIds: [], remainingMs: state.phaseEndsAt === undefined ? undefined : Math.max(0, state.phaseEndsAt - now) };
+  if (!state.pause.playerIds.includes(playerId)) state.pause.playerIds.push(playerId);
+  state.phaseEndsAt = undefined;
+  return true;
+}
+
+export function resumePlaceMafia(state: PlaceMafiaState, playerId: string, now = Date.now()) {
+  if (!state.pause?.playerIds.includes(playerId)) return false;
+  state.pause.playerIds = state.pause.playerIds.filter((id) => id !== playerId);
+  if (state.pause.playerIds.length) return true;
+  const remainingMs = state.pause.remainingMs;
+  state.pause = undefined;
+  if (remainingMs !== undefined) state.phaseEndsAt = now + remainingMs;
+  return true;
+}
+
 export function submitPlaceMafiaVote(state: PlaceMafiaState, playerId: string, targetId: string, now = Date.now()) {
   if (state.phase !== "vote" || (state.phaseEndsAt ?? 0) <= now) throw new Error("투표 시간이 끝났어요.");
   if (!state.players[playerId]?.alive) throw new Error("생존한 참가자만 투표할 수 있어요.");
@@ -435,6 +472,7 @@ export function skipPlaceMafiaDebugPhase(state: PlaceMafiaState, playerId: strin
 }
 
 export function advancePlaceMafiaIfDue(state: PlaceMafiaState, now = Date.now()) {
+  if (state.pause?.playerIds.length) return false;
   let changed = false;
   for (let steps = 0; steps < 5; steps += 1) {
     const deadline = state.phaseEndsAt;
@@ -494,6 +532,8 @@ export function placeMafiaClientState(state: PlaceMafiaState, viewerId?: string)
     roleReadyCount: state.roleReadyIds.length,
     voteSubmittedCount: Object.keys(state.votes).length,
     lastDiscussionCut: state.lastDiscussionCut ? { ...state.lastDiscussionCut } : undefined,
+    lastVoteCut: state.lastVoteCut ? { ...state.lastVoteCut } : undefined,
+    pause: state.pause ? { playerIds: [...state.pause.playerIds] } : undefined,
     night: state.night ? { ...state.night, plazaVisitorIds: [...state.night.plazaVisitorIds], policeCandidates: [...state.night.policeCandidates] } : undefined,
     execution: state.execution ? { ...state.execution } : undefined,
     winner: state.winner,
@@ -516,6 +556,7 @@ export function placeMafiaClientState(state: PlaceMafiaState, viewerId?: string)
       selectedAttackLocations: state.activeKillerId === viewerId ? [...state.attackChoices] : [],
       attackConfirmed: state.activeKillerId === viewerId && state.attackConfirmed,
       discussionCutUsed: state.discussionCutIds.includes(viewerId!),
+      voteCutUsed: (state.voteCutIds ?? []).includes(viewerId!),
       voteSubmitted: Boolean(state.votes[viewerId!]),
     } : undefined,
   };

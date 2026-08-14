@@ -4,8 +4,8 @@ import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/ses
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, removeDealerPlayer, tickDealer, type DealerState } from "../../_lib/dealer";
-import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, removePlaceMafiaPlayer, shortenPlaceMafiaDiscussion, skipPlaceMafiaDebugPhase, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
-import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaDebugRole, type PlaceMafiaLocationId } from "../../../place-mafia-shared";
+import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, skipPlaceMafiaDebugPhase, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
+import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaDebugRole, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -181,7 +181,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "join") {
       const existing = await authenticatePlayer(request, room);
-      if (existing) return Response.json({ room: toClientRoom(room, existing.id) });
+      if (existing) {
+        existing.status = "active";
+        existing.lastSeen = Date.now();
+        const activeGame = room.game as GameRound | undefined;
+        if (activeGame?.id === "place-mafia" && activeGame.placeMafia) resumePlaceMafia(activeGame.placeMafia, existing.id);
+        return persistAndRespond(room, existing.id);
+      }
       const rate = await checkRateLimit(request, "join", 12, 60);
       if (!rate.allowed) return Response.json({ error: "참가 시도가 너무 많아요. 잠시 후 다시 시도해 주세요." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
       const profile = cleanProfile(payload.player);
@@ -225,7 +231,22 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       room.game = {
         id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing,
         liarMode: "normal", previousContentKey, startedAt: Date.now(),
+        ...(payload.gameId === "place-mafia" ? { placeMafiaSetup: { discussionSeconds: 90, balance: "normal", mafiaCount: 1, debugMode: false, debugRole: "auto" } satisfies PlaceMafiaSetup } : {}),
         ...(payload.gameId === "maze-courier" ? { mazeCharacters: {}, mazeReadyPlayerIds: [] } : {}),
+      };
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "place-mafia-settings") {
+      const pending = room.game as GameRound | undefined;
+      if (!isHost || room.view !== "briefing" || pending?.id !== "place-mafia") return Response.json({ error: "준비 화면에서 방장만 설정을 바꿀 수 있어요." }, { status: 403 });
+      const previous = pending.placeMafiaSetup ?? { discussionSeconds: 90, balance: "normal", mafiaCount: 1, debugMode: false, debugRole: "auto" };
+      pending.placeMafiaSetup = {
+        discussionSeconds: payload.discussionSeconds === 60 || payload.discussionSeconds === 90 || payload.discussionSeconds === 120 ? payload.discussionSeconds : previous.discussionSeconds,
+        balance: payload.balance === "citizen" || payload.balance === "mafia" || payload.balance === "normal" ? payload.balance : previous.balance,
+        mafiaCount: payload.mafiaCount === 1 || payload.mafiaCount === 2 ? payload.mafiaCount : previous.mafiaCount,
+        debugMode: typeof payload.debugMode === "boolean" ? payload.debugMode : previous.debugMode,
+        debugRole: payload.debugRole === "citizen" || payload.debugRole === "mafia" || payload.debugRole === "auto" ? payload.debugRole : previous.debugRole,
       };
       return persistAndRespond(room, viewer.id);
     }
@@ -251,7 +272,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (payload.action === "start-game") {
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       const gameId = payload.gameId || String(room.game?.id ?? "");
-      const placeMafiaDebug = gameId === "place-mafia" && payload.debugMode === true;
+      const pendingGame = room.game as GameRound | undefined;
+      const previousPlaceMafia = pendingGame?.id === "place-mafia" ? pendingGame.placeMafia : undefined;
+      const pendingPlaceMafiaSetup = pendingGame?.id === "place-mafia" ? pendingGame.placeMafiaSetup : undefined;
+      const placeMafiaDebug = gameId === "place-mafia" && (payload.debugMode === true || Boolean(previousPlaceMafia?.debug));
       if (!GAME_IDS.includes(gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
       if (gameId === "gem-heist" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "사라진 보석은 4~8명이 함께할 수 있어요." }, { status: 409 });
@@ -272,7 +296,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         return Response.json({ error: "장소 마피아는 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
       room.players.forEach((player) => { player.status = "active"; });
-      const pendingGame = room.game as GameRound | undefined;
       const previousContentKey = pendingGame?.id === gameId
         ? pendingGame.previousContentKey ?? (room.view === "briefing" ? undefined : roundContentKey(pendingGame))
         : undefined;
@@ -305,12 +328,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       }
       if (gameId === "double-dealers") game.dealer = createDealerState(room.players);
       if (gameId === "place-mafia") {
-        game.placeMafia = createPlaceMafiaState(room.players, {
-          discussionSeconds: payload.discussionSeconds,
-          balance: payload.balance,
-          mafiaCount: payload.mafiaCount,
+        const setup: PlaceMafiaSetup = {
+          discussionSeconds: payload.discussionSeconds === 60 || payload.discussionSeconds === 90 || payload.discussionSeconds === 120 ? payload.discussionSeconds : pendingPlaceMafiaSetup?.discussionSeconds ?? previousPlaceMafia?.discussionSeconds ?? 90,
+          balance: payload.balance === "citizen" || payload.balance === "mafia" || payload.balance === "normal" ? payload.balance : pendingPlaceMafiaSetup?.balance ?? previousPlaceMafia?.balance ?? "normal",
+          mafiaCount: payload.mafiaCount === 1 || payload.mafiaCount === 2 ? payload.mafiaCount : pendingPlaceMafiaSetup?.mafiaCount ?? previousPlaceMafia?.mafiaCount ?? 1,
           debugMode: placeMafiaDebug,
-          debugRole: payload.debugRole,
+          debugRole: payload.debugRole === "citizen" || payload.debugRole === "mafia" || payload.debugRole === "auto" ? payload.debugRole : pendingPlaceMafiaSetup?.debugRole ?? "auto",
+        };
+        game.placeMafiaSetup = setup;
+        game.placeMafia = createPlaceMafiaState(room.players, {
+          discussionSeconds: setup.discussionSeconds,
+          balance: setup.balance,
+          mafiaCount: setup.mafiaCount,
+          debugMode: placeMafiaDebug,
+          debugRole: setup.debugRole,
         });
       }
       room.view = "game";
@@ -350,6 +381,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "leave") {
       const activeGame = room.game as GameRound | undefined;
+      if (activeGame?.id === "place-mafia" && activeGame.placeMafia && room.view === "game" && activeGame.placeMafia.phase !== "game_over") {
+        viewer.status = "waiting";
+        pausePlaceMafia(activeGame.placeMafia, viewer.id);
+        if (room.hostId === viewer.id) {
+          const nextHost = room.players.find((player) => player.id !== viewer.id && player.status === "active");
+          if (nextHost) room.hostId = nextHost.id;
+        }
+        if (!await writeRoomIfRevision(room, room.revision ?? 0)) return Response.json({ error: "다른 참가자의 변경을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+        return Response.json({ room: null });
+      }
       removePlayerFromRound(activeGame, viewer.id);
       room.players = room.players.filter((item) => item.id !== viewer.id);
       if (activeGame?.id === "double-dealers" && activeGame.dealer) {
@@ -379,6 +420,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (game.id !== "place-mafia" || !game.placeMafia || room.view !== "game") return Response.json({ error: "장소 마피아가 진행 중이 아니에요." }, { status: 409 });
       advancePlaceMafiaIfDue(game.placeMafia);
       try {
+        if (game.placeMafia.pause?.playerIds.length && payload.action !== "place-mafia-tick") throw new Error("참가자를 기다리는 동안 게임이 멈춰 있어요.");
         if (payload.action === "place-mafia-ready") acknowledgePlaceMafiaRole(game.placeMafia, viewer.id);
         else if (payload.action === "place-mafia-move") {
           const location = String(payload.location) as PlaceMafiaLocationId;
@@ -389,6 +431,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           if (locations.some((location) => !PLACE_MAFIA_LOCATION_IDS.includes(location))) throw new Error("공격할 장소를 다시 선택해 주세요.");
           submitPlaceMafiaAttack(game.placeMafia, viewer.id, locations);
         } else if (payload.action === "place-mafia-shorten") shortenPlaceMafiaDiscussion(game.placeMafia, viewer.id);
+        else if (payload.action === "place-mafia-vote-shorten") shortenPlaceMafiaVote(game.placeMafia, viewer.id);
         else if (payload.action === "place-mafia-vote") submitPlaceMafiaVote(game.placeMafia, viewer.id, String(payload.targetId ?? ""));
         else if (payload.action === "place-mafia-debug-skip") skipPlaceMafiaDebugPhase(game.placeMafia, viewer.id);
         else if (payload.action !== "place-mafia-tick") throw new Error("지원하지 않는 장소 마피아 행동이에요.");

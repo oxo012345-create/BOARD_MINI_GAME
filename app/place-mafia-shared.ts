@@ -5,6 +5,13 @@ export type PlaceMafiaRole = "citizen" | "mafia";
 export type PlaceMafiaWinner = "citizen" | "mafia";
 export type PlaceMafiaBalance = "citizen" | "normal" | "mafia";
 export type PlaceMafiaDebugRole = "auto" | "citizen" | "mafia";
+export type PlaceMafiaSetup = {
+  discussionSeconds: 60 | 90 | 120;
+  balance: PlaceMafiaBalance;
+  mafiaCount: 1 | 2;
+  debugMode?: boolean;
+  debugRole?: PlaceMafiaDebugRole;
+};
 export type PlaceMafiaPhase = "role_reveal" | "night" | "day_reveal" | "discussion" | "vote" | "execution" | "game_over";
 
 export const PLACE_MAFIA_GRAPH: Record<PlaceMafiaLocationId, PlaceMafiaLocationId[]> = {
@@ -78,6 +85,8 @@ export type PlaceMafiaClientState = {
   roleReadyCount: number;
   voteSubmittedCount: number;
   lastDiscussionCut?: { playerId: string; at: number };
+  lastVoteCut?: { playerId: string; at: number };
+  pause?: { playerIds: string[] };
   night?: PlaceMafiaPublicNight;
   execution?: PlaceMafiaExecution;
   winner?: PlaceMafiaWinner;
@@ -104,6 +113,7 @@ export type PlaceMafiaClientState = {
     selectedAttackLocations: PlaceMafiaLocationId[];
     attackConfirmed: boolean;
     discussionCutUsed: boolean;
+    voteCutUsed: boolean;
     voteSubmitted: boolean;
   };
 };

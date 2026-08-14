@@ -784,7 +784,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-player-check strong { font-size: 11px; }
 .pm-player-check small { margin-top: 3px; color: var(--pm-muted); font-size: 8px; }
 .pm-briefing-shell { height: 100dvh; min-height: 0; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; display: flex; flex-direction: column; gap: 8px; }
-.pm-briefing-shell > .pm-topbar { flex: 0 0 54px; min-height: 54px; }
+.pm-briefing-shell > .pm-topbar,
+.pm-briefing-shell > .topbar { flex: 0 0 54px; width: 100%; min-height: 54px; margin: 0; box-sizing: border-box; }
 .pm-briefing-hero { flex: 1 1 215px; min-height: 170px; max-height: 250px; height: auto; margin: 0; border: 1px solid rgba(199,166,106,.18); border-radius: 18px; }
 .pm-briefing-hero > img { object-fit: cover; object-position: center 48%; image-rendering: auto; }
 .pm-briefing-shade { background: linear-gradient(180deg, rgba(5,8,13,.02), rgba(5,8,13,.12) 45%, rgba(5,8,13,.94) 100%); }
@@ -800,8 +801,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-briefing-guide li { display: grid; grid-template-columns: 18px 48px 1fr; align-items: center; min-height: 20px; }
 .pm-briefing-guide li b { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: rgba(199,166,106,.14); color: var(--pm-gold); font: 900 7px/1 ui-monospace, monospace; }
 .pm-briefing-guide li span { display: contents; }
-.pm-briefing-guide li strong { font-size: 8px; }
-.pm-briefing-guide li small { color: var(--pm-muted); font-size: 7px; line-height: 1.25; }
+.pm-briefing-guide li strong { font-size: 9.5px; }
+.pm-briefing-guide li small { color: var(--pm-muted); font-size: 8.5px; line-height: 1.25; }
 .pm-briefing-mini-shots { display: grid; grid-template-rows: repeat(2, 1fr); gap: 5px; min-height: 0; }
 .pm-briefing-mini-shots figure { position: relative; min-height: 0; margin: 0; overflow: hidden; border: 1px solid rgba(199,166,106,.2); border-radius: 9px; background: #090c11; }
 .pm-briefing-mini-shots img { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
@@ -811,11 +812,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-briefing-setting-row > span { color: #9ca4af; font-size: 7px; font-weight: 900; }
 .pm-briefing-settings .pm-segmented, .pm-briefing-settings .pm-balance-grid, .pm-briefing-settings .pm-mafia-count-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .pm-briefing-settings .pm-mafia-count-grid { grid-template-columns: repeat(2, 1fr); }
-.pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button, .pm-briefing-settings .pm-mafia-count-grid button { display: block; min-height: 25px; padding: 0 3px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: #0e1218; color: #7f8792; text-align: center; }
+.pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button, .pm-briefing-settings .pm-mafia-count-grid button { display: grid; place-content: center; min-height: 32px; padding: 2px 3px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: #0e1218; color: #7f8792; text-align: center; }
 .pm-briefing-settings .pm-segmented button.selected, .pm-briefing-settings .pm-balance-grid button.selected, .pm-briefing-settings .pm-mafia-count-grid button.selected { border-color: rgba(199,166,106,.62); background: rgba(199,166,106,.1); color: #f2dfba; box-shadow: none; }
-.pm-briefing-settings .pm-segmented strong, .pm-briefing-settings .pm-balance-grid strong, .pm-briefing-settings .pm-mafia-count-grid strong { font-size: 8px; }
+.pm-briefing-settings .pm-segmented strong, .pm-briefing-settings .pm-balance-grid strong, .pm-briefing-settings .pm-mafia-count-grid strong { font-size: 9px; }
 .pm-briefing-settings .pm-segmented small { font-size: 6px; }
-.pm-briefing-settings .pm-balance-grid button i, .pm-briefing-settings .pm-balance-grid button small { display: none; }
+.pm-briefing-settings .pm-balance-grid button i { display: none; }
+.pm-briefing-settings .pm-balance-grid button small { display: block; margin: 1px 0 0; font-size: 6px; line-height: 1; }
 .pm-briefing-settings .pm-player-check { min-height: 25px; margin: 1px 0 0; padding: 3px 6px; border-radius: 7px; }
 .pm-briefing-settings .pm-player-check > span { width: 19px; height: 19px; border-radius: 5px; font-size: 8px; }
 .pm-briefing-settings .pm-player-check strong { font-size: 7px; }
@@ -1054,12 +1056,21 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-result-notice.collapsed > span { font-size: 8px; }
 .pm-discussion-cut { position: fixed; z-index: 52; right: max(16px, calc((100vw - 520px) / 2 + 16px)); bottom: calc(16px + env(safe-area-inset-bottom)); min-height: 42px; padding: 0 14px; border: 1px solid rgba(199,166,106,.3); border-radius: 999px; background: rgba(16,20,27,.9); color: #d7bd84; box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: 8px; font-weight: 900; backdrop-filter: blur(14px); }
 .pm-discussion-cut:disabled { opacity: .4; }
+.pm-vote-cut { min-height: 30px; margin: 7px auto 2px; padding: 0 12px; border: 1px solid rgba(199,166,106,.3); border-radius: 999px; background: rgba(199,166,106,.08); color: #d7bd84; font-size: 8px; font-weight: 900; }
+.pm-vote-cut:disabled { opacity: .4; }
+.pm-pause-overlay { position: fixed; z-index: 120; inset: 0; display: grid; place-content: center; gap: 11px; padding: 30px; background: rgba(4,7,11,.9); backdrop-filter: blur(16px); text-align: center; }
+.pm-pause-overlay > span { color: var(--pm-gold); font: 900 9px/1 ui-monospace, monospace; letter-spacing: .22em; }
+.pm-pause-overlay h2 { max-width: 340px; margin: 0; color: #f3ead7; font-size: 23px; line-height: 1.25; }
+.pm-pause-overlay p { max-width: 340px; margin: 0; color: var(--pm-muted); font-size: 10px; line-height: 1.5; }
+.pm-pause-overlay > div { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; color: #b9c0ca; font-size: 9px; }
+.pm-pause-overlay > div i { width: 8px; height: 8px; border-radius: 50%; background: var(--pm-gold); box-shadow: 0 0 12px var(--pm-gold); animation: pulse 1.2s ease-in-out infinite; }
+.pm-pause-overlay .pm-primary-button { width: min(100%, 340px); margin: 6px auto 0; }
 @keyframes pm-result-notice-in { from { opacity: 0; transform: translate(-50%, -12px); } }
 
 /* Place Mafia — 70-degree near-orthographic pixel-city interface */
 .pm-game-shell { --pm-pixel-edge: #74634a; --pm-pixel-dark: #090d13; --pm-pixel-panel: #151b22; --pm-window: #ffd263; }
 .pm-game-shell { display: flex; flex-direction: column; width: 100%; height: 100dvh; min-height: 0; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
-.pm-game-shell > .pm-topbar { flex: 0 0 50px; min-height: 50px; }
+.pm-game-shell > .pm-topbar { flex: 0 0 50px; width: 100%; min-height: 50px; margin: 0; box-sizing: border-box; }
 .pm-game-shell > .pm-phase-header { flex: 0 0 44px; min-height: 44px; padding: 4px 2px; }
 .pm-game-shell > .pm-phase-header time { height: 34px; min-width: 68px; font-size: 16px; }
 .pm-game-shell > .pm-map,
@@ -1252,13 +1263,17 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 }
 @media (max-height: 720px) and (max-width: 759px) {
   .pm-briefing-shell { gap: 5px; }
-  .pm-briefing-shell > .pm-topbar { flex-basis: 44px; min-height: 44px; }
-  .pm-briefing-hero { flex-basis: 150px; min-height: 120px; max-height: 180px; }
+  .pm-briefing-shell > .pm-topbar, .pm-briefing-shell > .topbar { flex-basis: 44px; min-height: 44px; }
+  .pm-briefing-hero { flex-basis: 125px; min-height: 105px; max-height: 150px; }
   .pm-briefing-title { bottom: 35px; }
   .pm-briefing-title p { display: none; }
   .pm-briefing-guide { flex-basis: auto; padding: 8px 10px; }
   .pm-briefing-guide-copy h2 { margin: 3px 0 5px; font-size: 11px; }
-  .pm-briefing-guide li { min-height: 17px; }
+  .pm-briefing-guide li { min-height: 18px; }
+  .pm-briefing-guide li strong { font-size: 9px; }
+  .pm-briefing-guide li small { font-size: 8px; }
+  .pm-settings-panel.pm-briefing-settings { gap: 4px; padding: 6px 8px; }
+  .pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button, .pm-briefing-settings .pm-mafia-count-grid button { min-height: 30px; }
   .pm-briefing-settings .pm-player-check { display: none; }
   .pm-briefing-shell > .pm-experience-menu.compact { flex-basis: 30px; }
   .pm-briefing-shell > .pm-experience-menu.compact summary { min-height: 30px; }

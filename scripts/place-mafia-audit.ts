@@ -3,7 +3,10 @@ import {
   acknowledgePlaceMafiaRole,
   advancePlaceMafiaIfDue,
   createPlaceMafiaState,
+  pausePlaceMafia,
   placeMafiaClientState,
+  resumePlaceMafia,
+  shortenPlaceMafiaVote,
   submitPlaceMafiaAttack,
   submitPlaceMafiaMove,
   submitPlaceMafiaVote,
@@ -168,7 +171,11 @@ for (let count = 4; count <= 8; count += 1) {
   const { roster, state, now } = start();
   setRoles(state, ["p1"]);
   state.phase = "vote";
-  state.phaseEndsAt = now + 20_000;
+  state.phaseEndsAt = now + 50_000;
+  shortenPlaceMafiaVote(state, "p1", now + 1_000);
+  assert.equal(state.phaseEndsAt, now + 40_000, "투표는 50초에서 참가자별 10초씩 줄일 수 있어야 한다");
+  assert.equal(placeMafiaClientState(state, "p1").my?.voteCutUsed, true);
+  assert.throws(() => shortenPlaceMafiaVote(state, "p1", now + 2_000), /이미/, "한 사람은 투표 시간을 한 번만 줄여야 한다");
   submitPlaceMafiaVote(state, "p1", "p2", now + 1_000);
   const voterView = placeMafiaClientState(state, roster[0]!.id);
   const otherView = placeMafiaClientState(state, roster[1]!.id);
@@ -185,6 +192,18 @@ for (let count = 4; count <= 8; count += 1) {
   advancePlaceMafiaIfDue(state, (state.phaseEndsAt ?? now) + 1);
   assert.equal(state.phase, "night", "재투표 없이 바로 다음 밤이어야 한다");
   assert.equal(state.day, 2);
+}
+
+{
+  const { state, now } = start();
+  const deadline = state.phaseEndsAt!;
+  pausePlaceMafia(state, "p2", now + 5_000);
+  assert.equal(state.phaseEndsAt, undefined, "참가자 이탈 시 진행 시계가 멈춰야 한다");
+  assert.deepEqual(placeMafiaClientState(state, "p1").pause?.playerIds, ["p2"]);
+  assert.equal(advancePlaceMafiaIfDue(state, deadline + 60_000), false, "일시정지 중에는 단계가 진행되면 안 된다");
+  resumePlaceMafia(state, "p2", now + 65_000);
+  assert.equal(state.pause, undefined);
+  assert.equal(state.phaseEndsAt, now + 80_000, "재입장하면 남아 있던 15초부터 재개해야 한다");
 }
 
 {
@@ -206,4 +225,4 @@ for (let count = 4; count <= 8; count += 1) {
   assert.equal(deaths.length, 1, "첫날 2곳 공격도 최대 사망자는 1명이어야 한다");
 }
 
-console.log("장소 마피아 규칙 감사 통과: 4~8인, 20초 밤, 공개 문구, 병원, 동률, 비밀정보");
+console.log("장소 마피아 규칙 감사 통과: 4~8인, 일시정지/복귀, 50초 익명투표, 시간 단축, 비밀정보");

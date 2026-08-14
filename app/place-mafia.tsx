@@ -117,7 +117,7 @@ export function PlaceMafiaBriefing({
         <ol>
           <li><b>1</b><span><strong>이동</strong><small>현재 또는 연결된 주변 장소만</small></span></li>
           <li><b>2</b><span><strong>특수 장소</strong><small>경찰서·광장·병원 연속 체류 불가</small></span></li>
-          <li><b>3</b><span><strong>마피아 습격</strong><small>이동한 장소 주변만 공격</small></span></li>
+          <li><b>3</b><span><strong>마피아 습격</strong><small>이동한 곳 또는 연결된 주변만 공격</small></span></li>
           <li><b>4</b><span><strong>목격</strong><small>같은 장소에서 만난 사람만 확인</small></span></li>
           <li><b>5</b><span><strong>조용한 밤</strong><small>공격 실패 원인은 모두 비공개</small></span></li>
           <li><b>6</b><span><strong>투표 동률</strong><small>처형 없이 다음 밤 진행</small></span></li>
@@ -137,7 +137,7 @@ export function PlaceMafiaBriefing({
           ["citizen", "평온", "살인 없음"],
           ["normal", "기본", "1곳 공격"],
           ["mafia", "긴장", "2곳 공격"],
-        ] as const).map(([value, title, detail]) => <button type="button" key={value} aria-label={`첫날 ${title}: ${detail}`} disabled={!isHost} className={balance === value ? "selected" : ""} onClick={() => onBalanceChange(value)}><strong>{title}</strong></button>)}
+        ] as const).map(([value, title, detail]) => <button type="button" key={value} aria-label={`첫날 ${title}: ${detail}`} disabled={!isHost} className={balance === value ? "selected" : ""} onClick={() => onBalanceChange(value)}><strong>{title}</strong><small>{detail}</small></button>)}
         </div>
       </div>
       <div className="pm-briefing-setting-row">
@@ -296,6 +296,7 @@ export function PlaceMafiaGame({
   const [resultNoticeOpen, setResultNoticeOpen] = useState(false);
   const lastTickRef = useRef("");
   const lastCutRef = useRef(0);
+  const lastVoteCutRef = useRef(0);
   const lastCountdownRef = useRef(0);
   const previousPhaseRef = useRef(state.phase);
   const experience = usePlaceMafiaExperience(state.phase);
@@ -363,6 +364,15 @@ export function PlaceMafiaGame({
     const timer = window.setTimeout(() => setLocalNotice(""), 2600);
     return () => window.clearTimeout(timer);
   }, [lastCutPlayerName, state.lastDiscussionCut?.at]);
+  const lastVoteCutPlayerName = playerName(gamePlayers, state.lastVoteCut?.playerId);
+  useEffect(() => {
+    const cut = state.lastVoteCut;
+    if (!cut || cut.at <= lastVoteCutRef.current) return;
+    lastVoteCutRef.current = cut.at;
+    setLocalNotice(`${lastVoteCutPlayerName}님이 투표를 10초 줄였습니다.`);
+    const timer = window.setTimeout(() => setLocalNotice(""), 2600);
+    return () => window.clearTimeout(timer);
+  }, [lastVoteCutPlayerName, state.lastVoteCut?.at]);
 
   const run = async (payload: Record<string, unknown>, successCue?: PlaceMafiaCue) => {
     if (working) return;
@@ -463,7 +473,7 @@ export function PlaceMafiaGame({
       {state.phase === "discussion" && <button type="button" className="pm-discussion-cut" disabled={!me?.alive || me.discussionCutUsed || remaining <= 20_000 || working} onClick={() => void run({ action: "place-mafia-shorten" })}>{me?.discussionCutUsed ? "−10초 사용 완료" : remaining <= 20_000 ? "마지막 20초" : "토론 −10초"}</button>}
 
       {state.phase === "vote" && <section className="pm-vote-panel">
-        <header><h2>익명 투표</h2><p>마피아라고 생각하는 한 명을 고르세요</p></header>
+        <header><h2>익명 투표</h2><p>마피아라고 생각하는 한 명을 고르세요</p><button type="button" className="pm-vote-cut" disabled={!me?.alive || me.voteCutUsed || remaining <= 20_000 || working} onClick={() => void run({ action: "place-mafia-vote-shorten" })}>{me?.voteCutUsed ? "−10초 사용 완료" : remaining <= 20_000 ? "마지막 20초" : "투표 −10초"}</button></header>
         {!me?.alive ? <div className="pm-spectator"><span>OBSERVER</span><strong>투표를 지켜보는 중</strong></div>
           : me.voteSubmitted ? <div className="pm-sealed-vote"><span>SEALED</span><strong>투표를 봉인했습니다</strong><small>{state.voteSubmittedCount}/{livingPlayers.length}명 제출</small></div>
             : <>
@@ -480,6 +490,14 @@ export function PlaceMafiaGame({
       <div className="pm-final-roles">{state.participantIds.map((id) => <div key={id} className={state.finalRoles?.[id] ?? "citizen"}><span>{gamePlayers.find((player) => player.id === id)?.avatar ?? "·"}</span><div><strong>{playerName(gamePlayers, id)}</strong><small>{roleName(state.finalRoles?.[id])}</small></div><b>{state.deadPlayerIds.includes(id) ? "사망" : "생존"}</b></div>)}</div>
       {isHost ? <div className="pm-result-actions"><button type="button" className="pm-primary-button" disabled={busy} onClick={onReplay}>같은 멤버로 다시하기</button><button type="button" onClick={onLobby}>대기실로</button></div> : <div className="pm-waiting"><i />방장의 선택을 기다리는 중</div>}
     </section>}
+
+    {state.pause?.playerIds.length ? <section className="pm-pause-overlay" role="dialog" aria-modal="true" aria-label="게임 일시정지">
+      <span>GAME PAUSED</span>
+      <h2>{state.pause.playerIds.map((id) => playerName(gamePlayers, id)).join(", ")}님을 기다리는 중</h2>
+      <p>다시 들어오면 남은 시간부터 자동으로 재개됩니다.</p>
+      <div><i /><strong>게임 일시정지</strong></div>
+      {isHost && <button type="button" className="pm-primary-button" disabled={busy} onClick={onLobby}>모두 대기실로 이동</button>}
+    </section> : null}
 
     {localNotice && <div className="pm-toast" role="status">{localNotice}</div>}
     {overlays}
