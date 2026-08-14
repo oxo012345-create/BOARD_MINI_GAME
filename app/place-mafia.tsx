@@ -5,6 +5,7 @@ import {
   PLACE_MAFIA_LOCATION_IDS,
   PLACE_MAFIA_LOCATION_META,
   placeMafiaLocationName,
+  placeMafiaReachableLocations,
   type PlaceMafiaBalance,
   type PlaceMafiaClientState,
   type PlaceMafiaDebugRole,
@@ -167,7 +168,9 @@ function PlaceMafiaMap({
   selectable: PlaceMafiaLocationId[];
   onSelect?: (location: PlaceMafiaLocationId) => void;
 }) {
-  const selectableSet = new Set(selectable);
+  const origin = mode === "move" ? state.my?.location : mode === "attack" ? state.my?.selectedMove : undefined;
+  const reachableSet = new Set(origin ? placeMafiaReachableLocations(origin) : []);
+  const selectableSet = new Set(selectable.filter((location) => reachableSet.has(location)));
   const selectedSet = new Set(selected);
   const isNight = state.phase === "night";
   const buildingSpriteNames: Record<PlaceMafiaLocationId, string> = {

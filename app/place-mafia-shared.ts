@@ -16,7 +16,9 @@ export const PLACE_MAFIA_GRAPH: Record<PlaceMafiaLocationId, PlaceMafiaLocationI
   hospital: ["park", "alley"],
 };
 
-export const PLACE_MAFIA_SPECIAL_LOCATIONS = new Set<PlaceMafiaLocationId>(["police", "square", "hospital"]);
+export function placeMafiaReachableLocations(location: PlaceMafiaLocationId) {
+  return [location, ...PLACE_MAFIA_GRAPH[location]];
+}
 
 export const PLACE_MAFIA_LOCATION_META: Record<PlaceMafiaLocationId, {
   name: string;

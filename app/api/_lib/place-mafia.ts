@@ -2,7 +2,7 @@ import type { Player } from "./rooms";
 import {
   PLACE_MAFIA_GRAPH,
   PLACE_MAFIA_LOCATION_IDS,
-  PLACE_MAFIA_SPECIAL_LOCATIONS,
+  placeMafiaReachableLocations,
   placeMafiaLocationName,
   type PlaceMafiaBalance,
   type PlaceMafiaClientState,
@@ -82,13 +82,11 @@ function aliveIds(state: PlaceMafiaState) {
 }
 
 function legalMovesFrom(location: PlaceMafiaLocationId) {
-  return PLACE_MAFIA_SPECIAL_LOCATIONS.has(location)
-    ? [...PLACE_MAFIA_GRAPH[location]]
-    : [location, ...PLACE_MAFIA_GRAPH[location]];
+  return placeMafiaReachableLocations(location);
 }
 
 function legalAttacksFrom(location: PlaceMafiaLocationId) {
-  return [location, ...PLACE_MAFIA_GRAPH[location]];
+  return placeMafiaReachableLocations(location);
 }
 
 function findWinner(state: PlaceMafiaState): PlaceMafiaWinner | undefined {
@@ -302,11 +300,7 @@ function resolveNight(state: PlaceMafiaState, at: number) {
     const player = state.players[playerId]!;
     const submitted = state.moveConfirmedIds.includes(playerId) ? state.moveChoices[playerId] : undefined;
     const legal = legalMovesFrom(player.location);
-    player.location = submitted && legal.includes(submitted)
-      ? submitted
-      : PLACE_MAFIA_SPECIAL_LOCATIONS.has(player.location)
-        ? pick(PLACE_MAFIA_GRAPH[player.location])
-        : player.location;
+    player.location = submitted && legal.includes(submitted) ? submitted : player.location;
   }
 
   for (const playerId of livingBeforeAttack) {
