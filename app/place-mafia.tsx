@@ -376,12 +376,14 @@ export function PlaceMafiaGame({
   };
 
   const selectAttack = (location: PlaceMafiaLocationId) => {
+    if (!me?.selectedMove || !placeMafiaReachableLocations(me.selectedMove).includes(location)) return;
     experience.cue("select");
     const required = me?.requiredAttackCount ?? 1;
     setAttackChoices((items) => items.includes(location) ? items.filter((item) => item !== location) : [...items, location].slice(-required));
   };
 
   const selectMove = (location: PlaceMafiaLocationId) => {
+    if (!me?.location || !placeMafiaReachableLocations(me.location).includes(location)) return;
     setMoveChoice(location);
     experience.cue("select");
   };
