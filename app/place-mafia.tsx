@@ -215,13 +215,13 @@ function PlaceMafiaMap({
 }
 
 function PhaseHeader({ state, remaining }: { state: PlaceMafiaClientState; remaining: number }) {
-  const phase = state.phase === "role_reveal" ? "IDENTITY"
-    : state.phase === "night" ? `NIGHT ${state.day}`
-      : state.phase === "day_reveal" ? `DAY ${state.day} · REPORT`
-        : state.phase === "discussion" ? `DAY ${state.day} · DISCUSSION`
-          : state.phase === "vote" ? `DAY ${state.day} · VOTE`
-            : state.phase === "execution" ? `DAY ${state.day} · VERDICT`
-              : "CASE CLOSED";
+  const phase = state.phase === "role_reveal" ? "역할 확인"
+    : state.phase === "night" ? `${state.day}일차 · 밤`
+      : state.phase === "day_reveal" ? `${state.day}일차 · 아침`
+        : state.phase === "discussion" ? `${state.day}일차 · 토론`
+          : state.phase === "vote" ? `${state.day}일차 · 익명 투표`
+            : state.phase === "execution" ? `${state.day}일차 · 판결`
+              : "게임 종료";
   return <header className={`pm-phase-header phase-${state.phase} ${state.phaseEndsAt && remaining <= 3_000 ? "urgent" : ""}`}>
     <span>{phase}</span>
     {state.phaseEndsAt && <time>{formatTimer(remaining)}</time>}
@@ -329,7 +329,7 @@ export function PlaceMafiaGame({
             : state.phase === "game_over" ? state.winner === "mafia" ? "mafia-win" : "citizen-win"
               : "evidence";
     experience.cue(cue);
-    const timer = window.setTimeout(() => setTransition(null), showTransition ? experience.preferences.reduceMotion ? 500 : 2300 : 0);
+    const timer = window.setTimeout(() => setTransition(null), showTransition ? experience.preferences.reduceMotion ? 280 : 1050 : 0);
     return () => window.clearTimeout(timer);
   }, [experience.cue, experience.preferences.reduceMotion, state.day, state.execution?.role, state.execution?.tied, state.night?.quiet, state.phase, state.winner]);
   useEffect(() => {
