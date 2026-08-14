@@ -170,13 +170,13 @@ function PlaceMafiaMap({
   const selectableSet = new Set(selectable);
   const selectedSet = new Set(selected);
   const isNight = state.phase === "night";
-  const buildingSprites: Record<PlaceMafiaLocationId, string> = {
-    residential: "/place-mafia/pixel/residential-70-v1.png",
-    police: "/place-mafia/pixel/police-70-v1.png",
-    square: "/place-mafia/pixel/plaza-70-v1.png",
-    park: "/place-mafia/pixel/park-70-v1.png",
-    alley: "/place-mafia/pixel/alley-70-v1.png",
-    hospital: "/place-mafia/pixel/hospital-70-v1.png",
+  const buildingSpriteNames: Record<PlaceMafiaLocationId, string> = {
+    residential: "residential",
+    police: "police",
+    square: "plaza",
+    park: "park",
+    alley: "alley",
+    hospital: "hospital",
   };
   return <section className={`pm-map pm-map-${mode} ${isNight ? "is-night" : "is-day"}`} aria-label="장소 마피아 도시 지도">
     <div className="pm-pixel-sky" aria-hidden="true">
@@ -201,8 +201,9 @@ function PlaceMafiaMap({
         aria-label={`${meta.name}${isCurrent ? ", 현재 위치" : ""}${isSelectable ? ", 선택 가능" : ""}`}
       >
         <span className="pm-building-sprite" aria-hidden="true">
-          <img src={buildingSprites[location]} alt="" />
-          <span className="pm-window-bank">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</span>
+          <img className="pm-building-state pm-building-off" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-off-v1.png`} alt="" />
+          <img className="pm-building-state pm-building-half" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-half-v1.png`} alt="" />
+          <img className="pm-building-state pm-building-full" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-full-v1.png`} alt="" />
           {isCurrent && <span className="pm-rooftop-player"><i /><b>◆</b></span>}
         </span>
         <span className="pm-location-label"><b>{meta.symbol}</b><strong>{meta.name}</strong></span>
