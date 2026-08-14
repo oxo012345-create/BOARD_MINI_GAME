@@ -62,18 +62,6 @@ function PlaceMafiaExperienceControls({
   </details>;
 }
 
-function transitionCopy(phase: PlaceMafiaClientState["phase"], state: PlaceMafiaClientState) {
-  if (phase === "night") return { code: `NIGHT ${state.day}`, title: "도시가 잠듭니다", detail: "20초 동안 자신의 동선을 숨기세요" };
-  if (phase === "day_reveal") return state.night?.quiet
-    ? { code: `DAY ${state.day}`, title: "아침이 밝았습니다", detail: "밤사이 새로운 사건은 없었습니다" }
-    : { code: `INCIDENT ${state.day}`, title: "사건이 발생했습니다", detail: "밤의 기록을 확인하세요" };
-  if (phase === "discussion") return { code: "INVESTIGATION", title: "진술을 대조하세요", detail: "목격과 동선에서 모순을 찾으세요" };
-  if (phase === "vote") return { code: "SECRET BALLOT", title: "익명 투표", detail: "선택은 누구에게도 공개되지 않습니다" };
-  if (phase === "execution") return { code: "FINAL VERDICT", title: state.execution?.tied ? "의견이 갈렸습니다" : "판결을 공개합니다", detail: state.execution?.tied ? "오늘은 아무도 처형되지 않습니다" : "지목된 사람의 역할을 확인하세요" };
-  if (phase === "game_over") return { code: "CASE CLOSED", title: state.winner === "mafia" ? "도시가 어둠에 잠겼습니다" : "도시가 평화를 되찾았습니다", detail: "모든 역할과 결과를 공개합니다" };
-  return { code: "CLASSIFIED", title: "비밀 역할이 배정되었습니다", detail: "다른 사람이 보지 못하게 확인하세요" };
-}
-
 export function PlaceMafiaBriefing({
   players,
   isHost,
@@ -193,7 +181,19 @@ function PlaceMafiaMap({
       <div className="pm-cloud pm-cloud-a" /><div className="pm-cloud pm-cloud-b" />
       <div className="pm-skyline pm-skyline-far" /><div className="pm-skyline pm-skyline-near" />
     </div>
-    <div className="pm-city-deck" aria-hidden="true" />
+    <div className="pm-city-deck" aria-hidden="true">
+      <span className="pm-road pm-road-vertical" />
+      <span className="pm-road pm-road-horizontal pm-road-horizontal-a" />
+      <span className="pm-road pm-road-horizontal pm-road-horizontal-b" />
+      <span className="pm-crosswalk pm-crosswalk-a" />
+      <span className="pm-crosswalk pm-crosswalk-b" />
+      <span className="pm-street-fixture pm-streetlight-a" />
+      <span className="pm-street-fixture pm-streetlight-b" />
+      <span className="pm-street-fixture pm-bus-stop">BUS</span>
+      <span className="pm-street-fixture pm-taxi-stand">TAXI</span>
+      <span className="pm-planter pm-planter-a" />
+      <span className="pm-planter pm-planter-b" />
+    </div>
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {
       const meta = PLACE_MAFIA_LOCATION_META[location];
       const isCurrent = displayedCurrentLocation === location;
@@ -293,7 +293,6 @@ export function PlaceMafiaGame({
   const [working, setWorking] = useState(false);
   const [localNotice, setLocalNotice] = useState("");
   const [resultNoticeOpen, setResultNoticeOpen] = useState(false);
-  const [transition, setTransition] = useState<ReturnType<typeof transitionCopy> | null>(null);
   const lastTickRef = useRef("");
   const lastCutRef = useRef(0);
   const lastCountdownRef = useRef(0);
@@ -329,9 +328,6 @@ export function PlaceMafiaGame({
     const previous = previousPhaseRef.current;
     if (previous === state.phase) return;
     previousPhaseRef.current = state.phase;
-    const copy = transitionCopy(state.phase, state);
-    const showTransition = state.phase === "night" || state.phase === "day_reveal" || state.phase === "game_over";
-    setTransition(showTransition ? copy : null);
     const cue: PlaceMafiaCue = state.phase === "night" ? "night"
       : state.phase === "day_reveal" ? state.night?.quiet ? "quiet" : "incident"
         : state.phase === "vote" ? "vote"
@@ -339,9 +335,7 @@ export function PlaceMafiaGame({
             : state.phase === "game_over" ? state.winner === "mafia" ? "mafia-win" : "citizen-win"
               : "evidence";
     experience.cue(cue);
-    const timer = window.setTimeout(() => setTransition(null), showTransition ? experience.preferences.reduceMotion ? 280 : 1050 : 0);
-    return () => window.clearTimeout(timer);
-  }, [experience.cue, experience.preferences.reduceMotion, state.day, state.execution?.role, state.execution?.tied, state.night?.quiet, state.phase, state.winner]);
+  }, [experience.cue, state.day, state.execution?.role, state.execution?.tied, state.night?.quiet, state.phase, state.winner]);
   useEffect(() => {
     if (!state.phaseEndsAt || remaining <= 0 || remaining > 3_000) {
       lastCountdownRef.current = 0;
@@ -424,8 +418,6 @@ export function PlaceMafiaGame({
       <div><span>SOLO DEBUG</span><strong>가상 참가자 {state.debug.botCount}명 작동 중</strong><small>{state.phase === "role_reveal" ? "역할 확인 화면" : state.phase === "night" ? "이동·공격 화면" : state.phase === "day_reveal" ? "아침 결과 화면" : state.phase === "discussion" ? "낮 토론 화면" : state.phase === "vote" ? "익명 투표 화면" : state.phase === "execution" ? "판결 화면" : "최종 결과 화면"}</small></div>
       {state.phase !== "game_over" && <button type="button" disabled={working} onClick={() => void run({ action: "place-mafia-debug-skip" }, "confirm")}>다음 단계 ›</button>}
     </aside>}
-
-    {transition && <div className={`pm-cinematic pm-cinematic-${state.phase}`} role="status" aria-live="polite"><div className="pm-cinematic-orbit" /><span>{transition.code}</span><strong>{transition.title}</strong><small>{transition.detail}</small></div>}
 
     {state.phase === "role_reveal" && me && <section className="pm-role-stage">
       <div
