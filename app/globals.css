@@ -783,6 +783,55 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-player-check strong, .pm-player-check small { display: block; }
 .pm-player-check strong { font-size: 11px; }
 .pm-player-check small { margin-top: 3px; color: var(--pm-muted); font-size: 8px; }
+.pm-briefing-shell { height: 100dvh; min-height: 0; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; display: flex; flex-direction: column; gap: 8px; }
+.pm-briefing-shell > .pm-topbar { flex: 0 0 54px; min-height: 54px; }
+.pm-briefing-hero { flex: 1 1 215px; min-height: 170px; max-height: 250px; height: auto; margin: 0; border: 1px solid rgba(199,166,106,.18); border-radius: 18px; }
+.pm-briefing-hero > img { object-fit: cover; object-position: center 48%; image-rendering: auto; }
+.pm-briefing-shade { background: linear-gradient(180deg, rgba(5,8,13,.02), rgba(5,8,13,.12) 45%, rgba(5,8,13,.94) 100%); }
+.pm-briefing-title { right: 14px; bottom: 42px; left: 14px; }
+.pm-briefing-title h1 { margin: 5px 0 3px; font-size: clamp(25px, 7.5vw, 34px); }
+.pm-briefing-title p { font-size: 9px; }
+.pm-briefing-badges { right: 14px; bottom: 11px; left: 14px; gap: 5px; }
+.pm-briefing-badges span { padding: 4px 7px; font-size: 7px; }
+.pm-briefing-guide { flex: 0 0 126px; display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 9px; padding: 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: linear-gradient(145deg, rgba(24,30,40,.94), rgba(15,19,26,.96)); overflow: hidden; }
+.pm-briefing-guide-copy > span { color: var(--pm-gold); font: 850 6px/1 ui-monospace, monospace; letter-spacing: .16em; }
+.pm-briefing-guide-copy h2 { margin: 5px 0 8px; font-size: 12px; letter-spacing: -.035em; }
+.pm-briefing-guide ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pm-briefing-guide li { display: grid; grid-template-columns: 18px 34px 1fr; align-items: center; min-height: 22px; }
+.pm-briefing-guide li b { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: rgba(199,166,106,.14); color: var(--pm-gold); font: 900 7px/1 ui-monospace, monospace; }
+.pm-briefing-guide li span { display: contents; }
+.pm-briefing-guide li strong { font-size: 8px; }
+.pm-briefing-guide li small { overflow: hidden; color: var(--pm-muted); font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.pm-briefing-mini-shots { display: grid; grid-template-rows: repeat(2, 1fr); gap: 5px; min-height: 0; }
+.pm-briefing-mini-shots figure { position: relative; min-height: 0; margin: 0; overflow: hidden; border: 1px solid rgba(199,166,106,.2); border-radius: 9px; background: #090c11; }
+.pm-briefing-mini-shots img { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
+.pm-briefing-mini-shots figcaption { position: absolute; right: 0; bottom: 0; left: 0; padding: 8px 5px 4px; background: linear-gradient(transparent, rgba(5,8,13,.92)); color: #f1eadc; font-size: 6px; font-weight: 850; text-align: right; }
+.pm-settings-panel.pm-briefing-settings { flex: 0 0 auto; display: grid; gap: 5px; margin: 0; padding: 8px 9px; border-radius: 14px; }
+.pm-briefing-setting-row { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 6px; }
+.pm-briefing-setting-row > span { color: #9ca4af; font-size: 7px; font-weight: 900; }
+.pm-briefing-settings .pm-segmented, .pm-briefing-settings .pm-balance-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button { display: block; min-height: 25px; padding: 0 3px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: #0e1218; color: #7f8792; text-align: center; }
+.pm-briefing-settings .pm-segmented button.selected, .pm-briefing-settings .pm-balance-grid button.selected { border-color: rgba(199,166,106,.62); background: rgba(199,166,106,.1); color: #f2dfba; box-shadow: none; }
+.pm-briefing-settings .pm-segmented strong, .pm-briefing-settings .pm-balance-grid strong { font-size: 8px; }
+.pm-briefing-settings .pm-segmented small { font-size: 6px; }
+.pm-briefing-settings .pm-balance-grid button i, .pm-briefing-settings .pm-balance-grid button small { display: none; }
+.pm-briefing-settings .pm-player-check { min-height: 25px; margin: 1px 0 0; padding: 3px 6px; border-radius: 7px; }
+.pm-briefing-settings .pm-player-check > span { width: 19px; height: 19px; border-radius: 5px; font-size: 8px; }
+.pm-briefing-settings .pm-player-check strong { font-size: 7px; }
+.pm-briefing-shell > .pm-experience-menu.compact { flex: 0 0 34px; margin: 0; border-radius: 12px; }
+.pm-briefing-shell > .pm-experience-menu.compact summary { min-height: 34px; }
+.pm-briefing-shell > .pm-sticky-action { position: static; flex: 0 0 auto; width: 100%; max-width: none; margin: 0; padding: 0 0 max(6px, env(safe-area-inset-bottom)); background: none; }
+.pm-briefing-shell > .pm-sticky-action .pm-primary-button,
+.pm-briefing-shell > .pm-sticky-action .pm-waiting { min-height: 46px; border-radius: 12px; }
+.pm-briefing-settings .pm-debug-setup { margin-top: 1px; border-radius: 8px; }
+.pm-briefing-settings .pm-debug-toggle { min-height: 34px; padding: 4px 7px; }
+.pm-briefing-settings .pm-debug-toggle span b,
+.pm-briefing-settings .pm-debug-toggle span small { display: none; }
+.pm-briefing-settings .pm-debug-toggle span strong { margin: 0; font-size: 8px; }
+.pm-briefing-settings .pm-debug-role { padding: 0 6px 6px; }
+.pm-briefing-settings .pm-debug-role > span { margin: 5px 0; }
+.pm-briefing-settings .pm-debug-role button { min-height: 25px; }
+.pm-briefing-settings .pm-debug-role p { display: none; }
 .pm-sticky-action { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; max-width: 520px; margin: auto; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, #090c11 22%); }
 .pm-primary-button, .pm-danger-button { width: 100%; min-height: 55px; border: 1px solid rgba(225,204,164,.36); border-radius: 14px; background: linear-gradient(180deg, #d3b779, #a98b54); color: #0d0d0c; box-shadow: inset 0 1px rgba(255,255,255,.26), 0 10px 28px rgba(0,0,0,.22); font-size: 13px; font-weight: 950; }
 .pm-danger-button { border-color: rgba(209,106,106,.48); background: linear-gradient(180deg, #b75454, #823434); color: #fff6f3; }
@@ -1186,10 +1235,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 @media (min-width: 760px) {
   .pm-shell { max-width: 1000px; padding-right: 24px; padding-left: 24px; }
   .pm-sticky-action { max-width: 1000px; padding-right: 24px; padding-left: 24px; }
-  .pm-briefing-shell { display: grid; grid-template-columns: 1.15fr .85fr; grid-template-rows: auto auto auto; gap: 14px; }
-  .pm-briefing-shell > .topbar { grid-column: 1 / -1; }
-  .pm-briefing-hero { grid-row: 2 / 4; height: 720px; margin: 0; border: 1px solid rgba(199,166,106,.16); border-radius: 26px; }
-  .pm-rules-panel, .pm-settings-panel, .pm-briefing-shell > .pm-experience-menu { margin-top: 0; }
+  .pm-briefing-shell { max-width: 560px; padding-right: 20px; padding-left: 20px; }
+  .pm-briefing-hero { margin: 0; border: 1px solid rgba(199,166,106,.16); border-radius: 22px; }
   .pm-game-shell { display: grid; grid-template-columns: minmax(440px, 1.25fr) minmax(320px, .75fr); column-gap: 16px; align-content: start; }
   .pm-game-shell > .pm-topbar, .pm-game-shell > .pm-phase-header, .pm-game-shell > .pm-experience-menu, .pm-game-shell > .pm-debug-toolbar, .pm-game-shell > .pm-role-stage, .pm-game-shell > .pm-game-over, .pm-game-shell > .pm-verdict-card { grid-column: 1 / -1; }
   .pm-game-shell > .pm-map { grid-column: 1; width: min(100%, calc(66.667dvh - 107px)); height: auto; max-height: calc(100dvh - 160px); aspect-ratio: 2 / 3; position: sticky; top: 88px; }
@@ -1203,6 +1250,19 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .pm-info-card { padding: 11px; }
 }
 @media (max-height: 720px) and (max-width: 759px) {
+  .pm-briefing-shell { gap: 5px; }
+  .pm-briefing-shell > .pm-topbar { flex-basis: 44px; min-height: 44px; }
+  .pm-briefing-hero { flex-basis: 150px; min-height: 120px; max-height: 180px; }
+  .pm-briefing-title { bottom: 35px; }
+  .pm-briefing-title p { display: none; }
+  .pm-briefing-guide { flex-basis: 108px; padding: 8px 10px; }
+  .pm-briefing-guide-copy h2 { margin: 3px 0 5px; font-size: 11px; }
+  .pm-briefing-guide li { min-height: 19px; }
+  .pm-briefing-settings .pm-player-check { display: none; }
+  .pm-briefing-shell > .pm-experience-menu.compact { flex-basis: 30px; }
+  .pm-briefing-shell > .pm-experience-menu.compact summary { min-height: 30px; }
+  .pm-briefing-shell > .pm-sticky-action .pm-primary-button,
+  .pm-briefing-shell > .pm-sticky-action .pm-waiting { min-height: 42px; }
   .pm-game-shell { padding-right: 8px; padding-left: 8px; }
   .pm-game-shell > .pm-topbar { flex-basis: 44px; min-height: 44px; }
   .pm-game-shell > .pm-phase-header { flex-basis: 38px; min-height: 38px; }
