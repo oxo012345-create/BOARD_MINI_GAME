@@ -10,7 +10,7 @@ import {
   skipPlaceMafiaDebugPhase,
   type PlaceMafiaState,
 } from "../app/api/_lib/place-mafia";
-import { PLACE_MAFIA_GRAPH, type PlaceMafiaLocationId } from "../app/place-mafia-shared";
+import { PLACE_MAFIA_GRAPH, placeMafiaLegalMoveLocations, type PlaceMafiaLocationId } from "../app/place-mafia-shared";
 import type { Player } from "../app/api/_lib/rooms";
 
 function players(count: number): Player[] {
@@ -59,6 +59,22 @@ const expectedGraph = {
   hospital: ["park", "alley"],
 };
 assert.deepEqual(PLACE_MAFIA_GRAPH, expectedGraph, "요청한 2×3 사다리형 연결이어야 한다");
+assert.deepEqual(placeMafiaLegalMoveLocations("police"), ["residential", "park"], "경찰서는 연속 체류할 수 없어야 한다");
+assert.deepEqual(placeMafiaLegalMoveLocations("square"), ["residential", "park", "alley"], "광장은 연속 체류할 수 없어야 한다");
+assert.deepEqual(placeMafiaLegalMoveLocations("hospital"), ["park", "alley"], "병원은 연속 체류할 수 없어야 한다");
+assert.ok(placeMafiaLegalMoveLocations("residential").includes("residential"), "주택가는 연속 체류할 수 있어야 한다");
+assert.ok(placeMafiaLegalMoveLocations("park").includes("park"), "공원은 연속 체류할 수 있어야 한다");
+assert.ok(placeMafiaLegalMoveLocations("alley").includes("alley"), "골목은 연속 체류할 수 있어야 한다");
+
+{
+  const { state, now } = start(4);
+  setLocations(state, { p1: "police", p2: "square", p3: "hospital", p4: "residential" });
+  advancePlaceMafiaIfDue(state, now + 20_001);
+  assert.notEqual(state.players.p1?.location, "police", "미선택이어도 경찰서 연속 체류는 금지되어야 한다");
+  assert.notEqual(state.players.p2?.location, "square", "미선택이어도 광장 연속 체류는 금지되어야 한다");
+  assert.notEqual(state.players.p3?.location, "hospital", "미선택이어도 병원 연속 체류는 금지되어야 한다");
+  assert.equal(state.players.p4?.location, "residential", "일반 장소 미선택은 현재 위치에 머물러야 한다");
+}
 
 for (let count = 4; count <= 8; count += 1) {
   const state = createPlaceMafiaState(players(count));

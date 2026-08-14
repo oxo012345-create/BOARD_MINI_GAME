@@ -16,8 +16,16 @@ export const PLACE_MAFIA_GRAPH: Record<PlaceMafiaLocationId, PlaceMafiaLocationI
   hospital: ["park", "alley"],
 };
 
+export const PLACE_MAFIA_NO_CONSECUTIVE_STAY: readonly PlaceMafiaLocationId[] = ["police", "square", "hospital"];
+
 export function placeMafiaReachableLocations(location: PlaceMafiaLocationId) {
   return [location, ...PLACE_MAFIA_GRAPH[location]];
+}
+
+export function placeMafiaLegalMoveLocations(location: PlaceMafiaLocationId) {
+  return PLACE_MAFIA_NO_CONSECUTIVE_STAY.includes(location)
+    ? [...PLACE_MAFIA_GRAPH[location]]
+    : placeMafiaReachableLocations(location);
 }
 
 export const PLACE_MAFIA_LOCATION_META: Record<PlaceMafiaLocationId, {

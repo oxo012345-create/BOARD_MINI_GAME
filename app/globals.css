@@ -834,11 +834,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-spectator small { color: var(--pm-muted); font-size: 9px; }
 .pm-role-stage { display: grid; gap: 12px; padding-top: 9dvh; }
 .pm-role-card { position: relative; min-height: 330px; padding: 38px 24px 22px; overflow: hidden; border: 1px solid rgba(199,166,106,.22); border-radius: 26px; background: radial-gradient(circle at 50% 0, rgba(199,166,106,.12), transparent 44%), linear-gradient(155deg, #1b2029, #10141b); box-shadow: 0 30px 80px rgba(0,0,0,.4); text-align: center; }
+.pm-role-card { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; cursor: pointer; }
+.pm-role-card * { pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
 .pm-role-card::before { content: ""; position: absolute; inset: 12px; border: 1px solid rgba(199,166,106,.12); border-radius: 19px; pointer-events: none; }
 .pm-role-card.mafia.open { border-color: rgba(169,72,72,.52); background: radial-gradient(circle at 50% 0, rgba(169,72,72,.19), transparent 48%), linear-gradient(155deg, #241718, #100e12); }
 .pm-role-card > strong { display: block; margin-top: 74px; font-size: 31px; letter-spacing: -.06em; }
 .pm-role-card > p { max-width: 260px; margin: 11px auto 22px; color: #a5abb4; font-size: 10px; line-height: 1.65; }
-.pm-role-card > button { position: absolute; right: 20px; bottom: 20px; left: 20px; min-height: 48px; border: 1px solid rgba(199,166,106,.34); border-radius: 13px; background: rgba(199,166,106,.08); color: #dcc797; font-size: 11px; font-weight: 900; }
+.pm-role-hold-hint { position: absolute; right: 20px; bottom: 24px; left: 20px; display: grid; place-items: center; min-height: 42px; border: 1px solid rgba(199,166,106,.34); background: rgba(199,166,106,.08); color: #dcc797; font-size: 10px; font-weight: 900; }
 .pm-teammate { margin: 0 auto; padding: 10px; border-radius: 10px; background: rgba(169,72,72,.1); color: #e09b9b; font-size: 9px; font-weight: 800; }
 .pm-role-progress { display: flex; align-items: center; gap: 12px; padding: 13px; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; background: #12171f; }
 .pm-role-progress > span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: rgba(199,166,106,.1); color: var(--pm-gold); font-size: 13px; font-weight: 900; }
@@ -878,6 +880,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-vote-grid button strong { margin-left: 9px; font-size: 11px; }
 .pm-vote-grid button small { margin-left: 9px; color: var(--pm-muted); font-size: 7px; }
 .pm-vote-grid button.selected { border-color: rgba(169,72,72,.64); background: rgba(169,72,72,.1); box-shadow: inset 0 0 0 1px rgba(169,72,72,.16); }
+.pm-vote-grid button { touch-action: manipulation; transition: none; }
+.pm-vote-grid button.selected { background-color: rgba(169,72,72,.3); box-shadow: inset 0 0 0 2px rgba(218,91,91,.52), 0 0 12px rgba(169,72,72,.2); }
 .pm-vote-grid button:disabled { opacity: .35; }
 .pm-vote-confirm { margin-top: 10px; padding: 14px; border: 1px solid rgba(169,72,72,.32); border-radius: 14px; background: rgba(169,72,72,.07); text-align: center; }
 .pm-vote-confirm > strong { font-size: 12px; }
@@ -1099,7 +1103,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-city-deck::after { content: ""; position: absolute; inset: 0; opacity: .18; background: radial-gradient(circle at 12% 20%,#8ea08b 0 1px,transparent 1.5px) 0 0/13px 17px; }
 .pm-map.is-day .pm-city-deck { background-color: #526064; filter: brightness(1.06) saturate(.78); }
 .pm-map.is-night .pm-city-deck { filter: brightness(.52) saturate(.62); }
-.pm-map-grid { z-index: 4; inset: 26% 2.2% 4.5%; gap: .6% 1.8%; }
+.pm-map-grid { z-index: 4; top: 25%; right: 2.2%; bottom: clamp(112px, 18%, 138px); left: 2.2%; gap: .6% 1.8%; }
 .pm-location,
 .pm-phase-night .pm-location {
   overflow: visible;
