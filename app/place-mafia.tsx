@@ -181,19 +181,7 @@ function PlaceMafiaMap({
       <div className="pm-cloud pm-cloud-a" /><div className="pm-cloud pm-cloud-b" />
       <div className="pm-skyline pm-skyline-far" /><div className="pm-skyline pm-skyline-near" />
     </div>
-    <div className="pm-city-deck" aria-hidden="true">
-      <span className="pm-road pm-road-vertical" />
-      <span className="pm-road pm-road-horizontal pm-road-horizontal-a" />
-      <span className="pm-road pm-road-horizontal pm-road-horizontal-b" />
-      <span className="pm-crosswalk pm-crosswalk-a" />
-      <span className="pm-crosswalk pm-crosswalk-b" />
-      <span className="pm-street-fixture pm-streetlight-a" />
-      <span className="pm-street-fixture pm-streetlight-b" />
-      <span className="pm-street-fixture pm-bus-stop">BUS</span>
-      <span className="pm-street-fixture pm-taxi-stand">TAXI</span>
-      <span className="pm-planter pm-planter-a" />
-      <span className="pm-planter pm-planter-b" />
-    </div>
+    <div className="pm-city-deck" aria-hidden="true" />
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {
       const meta = PLACE_MAFIA_LOCATION_META[location];
       const isCurrent = displayedCurrentLocation === location;
