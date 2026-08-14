@@ -181,9 +181,10 @@ function PlaceMafiaMap({
   return <section className={`pm-map pm-map-${mode} ${isNight ? "is-night" : "is-day"}`} aria-label="장소 마피아 도시 지도">
     <div className="pm-pixel-sky" aria-hidden="true">
       <div className="pm-stars" />
+      <div className="pm-sky-dither" />
       <div className="pm-celestial"><i className="pm-sun" /><i className="pm-moon" /></div>
       <div className="pm-cloud pm-cloud-a" /><div className="pm-cloud pm-cloud-b" />
-      <div className="pm-horizon" />
+      <div className="pm-skyline pm-skyline-far" /><div className="pm-skyline pm-skyline-near" />
     </div>
     <div className="pm-city-deck" aria-hidden="true" />
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {

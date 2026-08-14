@@ -1004,6 +1004,22 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 
 /* Place Mafia — 70-degree near-orthographic pixel-city interface */
 .pm-game-shell { --pm-pixel-edge: #74634a; --pm-pixel-dark: #090d13; --pm-pixel-panel: #151b22; --pm-window: #ffd263; }
+.pm-game-shell { display: flex; flex-direction: column; width: 100%; height: 100dvh; min-height: 0; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
+.pm-game-shell > .pm-topbar { flex: 0 0 50px; min-height: 50px; }
+.pm-game-shell > .pm-phase-header { flex: 0 0 44px; min-height: 44px; padding: 4px 2px; }
+.pm-game-shell > .pm-phase-header time { height: 34px; min-width: 68px; font-size: 16px; }
+.pm-game-shell > .pm-map,
+.pm-phase-day_reveal .pm-map,
+.pm-phase-discussion .pm-map,
+.pm-phase-vote .pm-map,
+.pm-phase-execution .pm-map { flex: 1 1 auto; width: 100%; height: auto; min-height: 0; max-height: none; }
+.pm-game-shell > .pm-debug-toolbar { position: absolute; z-index: 60; top: calc(98px + env(safe-area-inset-top)); right: 13px; left: 13px; margin: 0; opacity: .9; }
+.pm-game-shell > .pm-role-stage,
+.pm-game-shell > .pm-game-over { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.pm-game-shell > .pm-game-over { display: flex; flex-direction: column; padding-top: 4px; }
+.pm-game-shell > .pm-game-over .pm-result-mark { min-height: 160px; flex: 0 0 auto; }
+.pm-game-shell > .pm-game-over .pm-final-roles { min-height: 0; flex: 1 1 auto; display: grid; grid-template-columns: repeat(2,1fr); align-content: center; }
+.pm-game-shell > .pm-game-over .pm-result-actions { flex: 0 0 auto; }
 .pm-game-shell .pm-topbar,
 .pm-game-shell .pm-debug-toolbar,
 .pm-game-shell .pm-action-panel,
@@ -1052,25 +1068,35 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   image-rendering: pixelated;
 }
 .pm-map::after { content: ""; position: absolute; z-index: 20; inset: 5px; pointer-events: none; border: 1px solid rgba(203,168,101,.22); box-shadow: inset 0 0 24px rgba(0,0,0,.66); }
-.pm-pixel-sky { position: absolute; inset: 0 0 auto; height: 36%; overflow: hidden; background: linear-gradient(#72bce0 0%, #9ad6e9 55%, #d2e2d5 100%); transition: background 1.25s ease; }
-.pm-map.is-night .pm-pixel-sky { background: linear-gradient(#080b1d 0%, #162646 58%, #3a4050 100%); }
-.pm-stars { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; background-image: radial-gradient(circle, #fff7c4 0 1px, transparent 1.5px), radial-gradient(circle, #9cd3ff 0 1px, transparent 1.5px); background-position: 14px 18px, 43px 37px; background-size: 61px 53px, 79px 67px; }
-.pm-map.is-night .pm-stars { opacity: .78; animation: pm-pixel-stars 2.2s steps(2, end) infinite; }
-.pm-celestial { position: absolute; top: 18px; right: 14%; width: 46px; height: 94px; transition: transform 1.2s cubic-bezier(.25,.8,.25,1); }
-.pm-sun, .pm-moon { position: absolute; left: 7px; width: 32px; height: 32px; border-radius: 50%; transition: opacity .8s ease, transform 1.2s cubic-bezier(.25,.8,.25,1); }
-.pm-sun { top: 0; background: #ffd665; box-shadow: 0 0 0 3px #f1a83d, 0 0 24px #ffe799; }
-.pm-moon { bottom: 0; opacity: 0; background: #dce8e7; box-shadow: inset -8px -3px #91a8b4, 0 0 0 3px #71889b, 0 0 22px #b8d5e5; transform: translateY(24px); }
-.pm-map.is-night .pm-celestial { transform: translateY(-47px); }
-.pm-map.is-night .pm-sun { opacity: 0; transform: translateY(-24px); }
-.pm-map.is-night .pm-moon { opacity: 1; transform: none; }
-.pm-cloud { position: absolute; width: 44px; height: 8px; background: rgba(242,247,239,.78); box-shadow: 8px -6px rgba(242,247,239,.78), 17px 0 rgba(242,247,239,.78), 25px -4px rgba(242,247,239,.78); opacity: .7; transition: opacity 1s ease; }
-.pm-cloud-a { top: 38%; left: -48px; animation: pm-cloud-drift 18s linear infinite; }
-.pm-cloud-b { top: 62%; left: -70px; animation: pm-cloud-drift 25s 7s linear infinite; transform: scale(.7); }
-.pm-map.is-night .pm-cloud { opacity: .16; }
-.pm-horizon { position: absolute; right: 0; bottom: 0; left: 0; height: 36%; opacity: .28; background: linear-gradient(135deg, transparent 42%, #273440 42% 58%, transparent 58%) 0 100%/70px 52px repeat-x; }
-.pm-city-deck { position: absolute; inset: 30% 0 0; background: linear-gradient(rgba(21,25,31,.12), rgba(8,10,14,.8)), repeating-linear-gradient(90deg, transparent 0 47%, rgba(144,116,72,.22) 47% 53%, transparent 53% 100%), repeating-linear-gradient(0deg, #171b20 0 31%, #2e3030 31% 34%, #11151a 34% 64%); transition: filter 1.1s ease; }
-.pm-map.is-day .pm-city-deck { filter: brightness(1.35) saturate(.8); }
-.pm-map-grid { z-index: 4; inset: 25% 2.5% 5%; gap: 1.2% 2.5%; }
+.pm-pixel-sky { position: absolute; inset: 0 0 auto; height: 35%; overflow: hidden; background: linear-gradient(#287fbd 0 22%, #4fa6d0 22% 48%, #79c4dc 48% 72%, #e6bd83 72% 100%); image-rendering: pixelated; transition: background .9s steps(8,end); }
+.pm-map.is-night .pm-pixel-sky { background: linear-gradient(#070a22 0 22%, #101b3b 22% 50%, #24375b 50% 74%, #61475d 74% 100%); }
+.pm-pixel-sky::before { content: ""; position: absolute; inset: 0; opacity: .24; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,.045) 5px 6px), repeating-linear-gradient(90deg, transparent 0 7px, rgba(15,36,55,.055) 7px 8px); }
+.pm-sky-dither { position: absolute; right: 0; bottom: 14%; left: 0; height: 25%; opacity: .38; background: radial-gradient(circle, rgba(255,230,174,.7) 0 1px, transparent 1.4px) 0 0/7px 7px; mask-image: linear-gradient(transparent,#000); }
+.pm-stars { position: absolute; inset: 0; opacity: 0; transition: opacity .8s steps(6,end); background-image: radial-gradient(circle, #fff5bd 0 1px, transparent 1.5px), radial-gradient(circle, #a9dcff 0 1px, transparent 1.5px), radial-gradient(circle, #fff 0 1px, transparent 1.3px); background-position: 9px 12px, 31px 27px, 54px 8px; background-size: 47px 39px, 71px 59px, 89px 67px; }
+.pm-map.is-night .pm-stars { opacity: .88; animation: pm-pixel-stars 2.2s steps(2,end) infinite; }
+.pm-celestial { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pm-sun, .pm-moon { position: absolute; width: 30px; height: 30px; border-radius: 0; image-rendering: pixelated; will-change: transform,opacity; }
+.pm-sun { left: 18%; top: 23%; background: #ffdf65; box-shadow: 0 -4px #ffbd45, 0 4px #ffbd45, -4px 0 #ffbd45, 4px 0 #ffbd45, 0 0 0 2px #ff9d36, 0 0 18px 7px rgba(255,194,72,.42); clip-path: polygon(25% 0,75% 0,75% 12%,88% 12%,88% 25%,100% 25%,100% 75%,88% 75%,88% 88%,75% 88%,75% 100%,25% 100%,25% 88%,12% 88%,12% 75%,0 75%,0 25%,12% 25%,12% 12%,25% 12%); }
+.pm-moon { right: 18%; top: 19%; opacity: 0; background: #eaf4e7; box-shadow: inset -8px -4px #8aa1af, 0 0 0 2px #61788d, 0 0 16px 5px rgba(185,218,238,.32); clip-path: polygon(25% 0,75% 0,75% 8%,88% 8%,88% 21%,100% 21%,100% 79%,88% 79%,88% 92%,75% 92%,75% 100%,25% 100%,25% 92%,12% 92%,12% 79%,0 79%,0 21%,12% 21%,12% 8%,25% 8%); }
+.pm-map.is-day .pm-sun { animation: pm-sun-rise 1.55s steps(14,end) both; }
+.pm-map.is-day .pm-moon { animation: pm-moon-set 1.55s steps(14,end) both; }
+.pm-map.is-night .pm-sun { animation: pm-sun-set 1.55s steps(14,end) both; }
+.pm-map.is-night .pm-moon { animation: pm-moon-rise 1.55s steps(14,end) both; }
+.pm-cloud { position: absolute; z-index: 3; width: 48px; height: 7px; background: #eaf4ed; box-shadow: 7px -7px #eaf4ed, 14px -7px #eaf4ed, 20px 0 #eaf4ed, 29px -4px #eaf4ed, 36px 0 #eaf4ed, 0 4px rgba(136,174,190,.55), 20px 4px rgba(136,174,190,.55); opacity: .72; transition: opacity .8s steps(5,end), filter .8s steps(5,end); }
+.pm-cloud-a { top: 40%; left: -62px; animation: pm-cloud-drift 19s linear infinite; }
+.pm-cloud-b { top: 66%; left: -86px; animation: pm-cloud-drift 27s 6s linear infinite; transform: scale(.72); }
+.pm-map.is-night .pm-cloud { opacity: .18; filter: brightness(.58) saturate(.6); }
+.pm-skyline { position: absolute; right: -8px; bottom: 0; left: -8px; background-repeat: repeat-x; }
+.pm-skyline-far { height: 35%; opacity: .55; background: linear-gradient(90deg,#506978 0 8%,transparent 8% 10%,#506978 10% 18%,transparent 18% 21%,#506978 21% 35%,transparent 35% 38%,#506978 38% 46%,transparent 46% 49%,#506978 49% 63%,transparent 63% 66%,#506978 66% 78%,transparent 78% 81%,#506978 81% 100%); clip-path: polygon(0 58%,8% 58%,8% 29%,18% 29%,18% 48%,27% 48%,27% 14%,38% 14%,38% 53%,48% 53%,48% 32%,59% 32%,59% 5%,68% 5%,68% 43%,78% 43%,78% 24%,88% 24%,88% 51%,100% 51%,100% 100%,0 100%); }
+.pm-skyline-near { height: 22%; background: #182531; clip-path: polygon(0 42%,9% 42%,9% 10%,17% 10%,17% 56%,29% 56%,29% 22%,42% 22%,42% 48%,53% 48%,53% 5%,65% 5%,65% 54%,74% 54%,74% 28%,86% 28%,86% 48%,100% 48%,100% 100%,0 100%); box-shadow: inset 0 -6px #0e171f; }
+.pm-map.is-night .pm-skyline-far { filter: brightness(.38) saturate(.65); }
+.pm-map.is-night .pm-skyline-near { background: #080d17; }
+.pm-city-deck { position: absolute; inset: 31% 0 0; overflow: hidden; background-color: #20272b; background-image: linear-gradient(90deg, transparent 0 47%, #11171c 47% 53%, transparent 53%), linear-gradient(0deg, transparent 0 31%, #11171c 31% 35%, transparent 35% 64%, #11171c 64% 68%, transparent 68%), repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 1px, transparent 1px 8px), repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 8px); box-shadow: inset 0 10px #111820; transition: filter .85s steps(7,end), background-color .85s steps(7,end); }
+.pm-city-deck::before { content: ""; position: absolute; inset: 0; opacity: .32; background: linear-gradient(90deg, transparent 49.3%, #d5ad58 49.3% 50.1%, transparent 50.1%), linear-gradient(0deg, transparent 32.4%, #d5ad58 32.4% 33.1%, transparent 33.1% 65.8%, #d5ad58 65.8% 66.5%, transparent 66.5%); }
+.pm-city-deck::after { content: ""; position: absolute; inset: 0; opacity: .18; background: radial-gradient(circle at 12% 20%,#8ea08b 0 1px,transparent 1.5px) 0 0/13px 17px; }
+.pm-map.is-day .pm-city-deck { background-color: #526064; filter: brightness(1.06) saturate(.78); }
+.pm-map.is-night .pm-city-deck { filter: brightness(.52) saturate(.62); }
+.pm-map-grid { z-index: 4; inset: 26% 2.2% 4.5%; gap: .6% 1.8%; }
 .pm-location,
 .pm-phase-night .pm-location {
   overflow: visible;
@@ -1111,12 +1137,16 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-location:active:not(:disabled) { transform: translateY(2px) scale(.985); }
 .pm-location.selected::before { display: none; }
 
-@keyframes pm-cloud-drift { to { transform: translateX(520px); } }
+@keyframes pm-cloud-drift { to { transform: translateX(620px); } }
 @keyframes pm-pixel-stars { 50% { opacity: .45; } }
 @keyframes pm-pixel-marker { 50% { opacity: .35; } }
 @keyframes pm-selected-building { from { filter: brightness(.62) saturate(.72) contrast(1.08); } 70% { filter: brightness(1.18) saturate(1.12) contrast(1.1) drop-shadow(0 0 12px rgba(255,194,73,.82)); } }
 @keyframes pm-rooftop-ring { 50% { transform: scale(1.25); opacity: .45; } }
 @keyframes pm-rooftop-hop { 50% { transform: translateY(-3px); } }
+@keyframes pm-sun-rise { from { opacity: 0; transform: translate(-52px,90px); } 24% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes pm-sun-set { from { opacity: 1; transform: none; } 72% { opacity: 1; } to { opacity: 0; transform: translate(80px,94px); } }
+@keyframes pm-moon-rise { from { opacity: 0; transform: translate(58px,86px); } 28% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes pm-moon-set { from { opacity: 1; transform: none; } 68% { opacity: 1; } to { opacity: 0; transform: translate(-72px,90px); } }
 
 .pm-cinematic { position: fixed; z-index: 120; inset: 0; display: grid; place-content: center; justify-items: center; padding: 30px; overflow: hidden; background: radial-gradient(circle at 50% 45%, rgba(64,80,103,.28), transparent 38%), #05070a; text-align: center; animation: pm-cinematic 2.3s ease both; }
 .pm-cinematic::before, .pm-cinematic::after { content: ""; position: absolute; inset: -20%; pointer-events: none; }
@@ -1203,6 +1233,18 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .pm-map { min-height: 405px; }
   .pm-location > strong { font-size: 10px; }
   .pm-info-card { padding: 11px; }
+}
+@media (max-height: 720px) and (max-width: 759px) {
+  .pm-game-shell { padding-right: 8px; padding-left: 8px; }
+  .pm-game-shell > .pm-topbar { flex-basis: 44px; min-height: 44px; }
+  .pm-game-shell > .pm-phase-header { flex-basis: 38px; min-height: 38px; }
+  .pm-game-shell > .pm-phase-header time { height: 30px; min-width: 62px; font-size: 14px; }
+  .pm-game-shell > .pm-debug-toolbar { top: calc(84px + env(safe-area-inset-top)); padding: 7px 9px; }
+  .pm-location-label { min-height: 19px; padding: 2px 5px; }
+  .pm-location-label strong { font-size: 8px; }
+  .pm-game-shell > .pm-action-panel { bottom: calc(7px + env(safe-area-inset-bottom)); padding: 8px; }
+  .pm-game-shell > .pm-action-panel .pm-primary-button,
+  .pm-game-shell > .pm-action-panel .pm-danger-button { min-height: 43px; }
 }
 @media (max-width: 360px) {
   .apartment-floor-number { right: -39px; width: 61px; height: 47px; font-size: 21px; }
