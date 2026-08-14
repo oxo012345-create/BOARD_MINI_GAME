@@ -1124,6 +1124,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-map.is-night .pm-location.selectable .pm-building-off,
 .pm-map.is-night .pm-location.selected .pm-building-off { opacity: 0; }
 .pm-map.is-night .pm-location.selectable:not(.selected) .pm-building-half { opacity: 1; filter: brightness(.88) saturate(.92) contrast(1.06) drop-shadow(0 0 2px rgba(216,185,119,.72)); }
+.pm-map.is-night .pm-location.confirmed-destination .pm-building-off { opacity: 0; }
+.pm-map.is-night .pm-location.confirmed-destination:not(.selected) .pm-building-half { opacity: 0; }
+.pm-map.is-night .pm-location.confirmed-destination:not(.selected) .pm-building-sprite { z-index: 4; transform: scale(1.035) translateY(-1px); }
+.pm-map.is-night .pm-location.confirmed-destination:not(.selected) .pm-building-full { opacity: 1; filter: brightness(1.02) saturate(1.05) contrast(1.08) drop-shadow(0 0 3px #d7a843) drop-shadow(0 0 9px rgba(255,194,73,.66)); }
 .pm-map.is-night .pm-location.selected .pm-building-sprite { z-index: 4; transform: scale(1.055) translateY(-2px); }
 .pm-map.is-night .pm-location.selected .pm-building-full { opacity: 1; filter: brightness(1.02) saturate(1.05) contrast(1.08) drop-shadow(0 0 3px #d7a843) drop-shadow(0 0 9px rgba(255,194,73,.66)); animation: pm-selected-building .34s steps(4, end) both; }
 .pm-map-attack .pm-location.selected .pm-building-full { filter: grayscale(.22) sepia(.22) hue-rotate(310deg) saturate(2.4) brightness(.86) contrast(1.12) drop-shadow(0 0 3px #dc5744) drop-shadow(0 0 10px rgba(227,75,57,.82)); }
@@ -1135,8 +1139,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-location-label strong { font-size: clamp(9px, 2.7vw, 12px); text-align: right; text-shadow: 0 1px #000; }
 .pm-location.current::after { display: none; }
 .pm-current-marker,
-.pm-location > small.pm-current-marker { position: absolute; z-index: 7; top: 1px; right: 5px; bottom: auto; left: auto; display: flex; align-items: center; gap: 3px; padding: 3px 5px; border: 1px solid #b39457; background: #17130d; color: #ffe098; font: 900 6px/1 ui-monospace, monospace; box-shadow: 0 0 0 2px rgba(0,0,0,.72); }
-.pm-current-marker i { width: 5px; height: 5px; background: #ffe06d; box-shadow: 0 0 7px #ffc43b; animation: pm-pixel-marker 1s steps(2, end) infinite; }
+.pm-location > small.pm-current-marker { position: absolute; z-index: 9; top: 50%; right: auto; bottom: auto; left: 50%; display: flex; align-items: center; gap: 5px; min-height: 28px; padding: 6px 9px; border: 1px solid #e1b64f; background: rgba(17,13,7,.94); color: #ffe79a; font: 900 8px/1 ui-monospace, monospace; white-space: nowrap; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px rgba(0,0,0,.78), 0 0 18px rgba(255,194,73,.58); }
+.pm-current-marker i { width: 7px; height: 7px; background: #ffe06d; box-shadow: 0 0 9px #ffc43b; animation: pm-pixel-marker 1s steps(2, end) infinite; }
 .pm-location:active:not(:disabled) { transform: translateY(2px) scale(.985); }
 .pm-location.selected::before { display: none; }
 

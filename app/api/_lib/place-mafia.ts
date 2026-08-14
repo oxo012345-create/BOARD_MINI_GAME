@@ -320,9 +320,12 @@ function resolveNight(state: PlaceMafiaState, at: number) {
       .filter((location) => legalAttacksFrom(killer.location).includes(location))
       .slice(0, required)
       .filter((location) => location !== "hospital" || killer.location === "hospital");
+    const debugBotKiller = Boolean(state.debug && killerId && state.debug.botIds.includes(killerId));
     const candidates = livingBeforeAttack.filter((id) => {
       const player = state.players[id];
-      return player?.role === "citizen" && validTargets.includes(player.location);
+      return player?.role === "citizen"
+        && validTargets.includes(player.location)
+        && (!debugBotKiller || id !== state.debug?.controllerId);
     });
     victimId = candidates.length ? pick(candidates) : undefined;
   }

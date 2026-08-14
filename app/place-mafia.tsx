@@ -173,6 +173,9 @@ function PlaceMafiaMap({
   const selectableSet = new Set(selectable.filter((location) => reachableSet.has(location)));
   const selectedSet = new Set(selected);
   const isNight = state.phase === "night";
+  const displayedCurrentLocation = isNight && state.my?.moveConfirmed && state.my.selectedMove
+    ? state.my.selectedMove
+    : state.my?.location;
   const buildingSpriteNames: Record<PlaceMafiaLocationId, string> = {
     residential: "residential",
     police: "police",
@@ -192,13 +195,14 @@ function PlaceMafiaMap({
     <div className="pm-city-deck" aria-hidden="true" />
     <div className="pm-map-grid">{PLACE_MAFIA_LOCATION_IDS.map((location) => {
       const meta = PLACE_MAFIA_LOCATION_META[location];
-      const isCurrent = state.my?.location === location;
+      const isCurrent = displayedCurrentLocation === location;
+      const isConfirmedDestination = isNight && state.my?.moveConfirmed && state.my.selectedMove === location;
       const isSelectable = selectableSet.has(location);
       const isSelected = selectedSet.has(location);
       return <button
         type="button"
         key={location}
-        className={`pm-location pm-location-${location} pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
+        className={`pm-location pm-location-${location} pm-location-${meta.kind} ${isCurrent ? "current" : ""} ${isConfirmedDestination ? "confirmed-destination" : ""} ${isSelectable ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
         disabled={!isSelectable || !onSelect}
         onClick={() => onSelect?.(location)}
         aria-pressed={isSelected}
@@ -208,7 +212,6 @@ function PlaceMafiaMap({
           <img className="pm-building-state pm-building-off" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-off-v1.png`} alt="" />
           <img className="pm-building-state pm-building-half" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-half-v1.png`} alt="" />
           <img className="pm-building-state pm-building-full" src={`/place-mafia/pixel/states/${buildingSpriteNames[location]}-full-v1.png`} alt="" />
-          {isCurrent && <span className="pm-rooftop-player"><i /><b>◆</b></span>}
         </span>
         <span className="pm-location-label"><b>{meta.symbol}</b><strong>{meta.name}</strong></span>
         {isCurrent && <small className="pm-current-marker"><i />현재</small>}

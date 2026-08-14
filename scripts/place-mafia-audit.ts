@@ -76,6 +76,7 @@ for (let count = 4; count <= 8; count += 1) {
   assert.equal(state.phase, "night", "가상 참가자는 역할 확인을 자동 완료해야 한다");
   assert.equal(state.moveConfirmedIds.length, 3, "가상 참가자는 밤 이동을 자동 제출해야 한다");
   skipPlaceMafiaDebugPhase(state, "p1", 21_000);
+  assert.equal(state.players.p1?.alive, true, "혼자 디버깅 제어자는 가상 마피아 공격에서 제외되어야 한다");
   assert.equal(state.phase, "day_reveal", "디버그 단계 건너뛰기로 밤 판정을 확인할 수 있어야 한다");
   const view = placeMafiaClientState(state, "p1");
   assert.equal(view.participants.length, 4);
