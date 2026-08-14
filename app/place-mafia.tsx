@@ -68,10 +68,12 @@ export function PlaceMafiaBriefing({
   busy,
   discussionSeconds,
   balance,
+  mafiaCount,
   debugMode,
   debugRole,
   onDiscussionChange,
   onBalanceChange,
+  onMafiaCountChange,
   onDebugModeChange,
   onDebugRoleChange,
   onStart,
@@ -83,10 +85,12 @@ export function PlaceMafiaBriefing({
   busy: boolean;
   discussionSeconds: 60 | 90 | 120;
   balance: PlaceMafiaBalance;
+  mafiaCount: 1 | 2;
   debugMode: boolean;
   debugRole: PlaceMafiaDebugRole;
   onDiscussionChange: (seconds: 60 | 90 | 120) => void;
   onBalanceChange: (balance: PlaceMafiaBalance) => void;
+  onMafiaCountChange: (count: 1 | 2) => void;
   onDebugModeChange: (enabled: boolean) => void;
   onDebugRoleChange: (role: PlaceMafiaDebugRole) => void;
   onStart: () => void;
@@ -96,7 +100,6 @@ export function PlaceMafiaBriefing({
   const soloDebug = debugMode && players.length === 1 && isHost;
   const effectiveCount = soloDebug ? 4 : players.length;
   const valid = soloDebug || (players.length >= 4 && players.length <= 8);
-  const mafiaCount = effectiveCount >= 7 ? 2 : 1;
   const experience = usePlaceMafiaExperience("briefing");
   return <main className={`pm-shell pm-briefing-shell ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     {topBar}
@@ -120,10 +123,6 @@ export function PlaceMafiaBriefing({
           <li><b>6</b><span><strong>투표 동률</strong><small>처형 없이 다음 밤 진행</small></span></li>
         </ol>
       </div>
-      <div className="pm-briefing-mini-shots" aria-label="실제 게임 화면 미리보기">
-        <figure><img src="/place-mafia/city-pixel-night-v3.png" alt="밤 이동 화면" /><figcaption>밤 · 이동</figcaption></figure>
-        <figure><img src="/place-mafia/city-pixel-day-v3.png" alt="낮 토론 화면" /><figcaption>낮 · 추리</figcaption></figure>
-      </div>
     </section>
 
     <section className="pm-settings-panel pm-briefing-settings">
@@ -141,14 +140,18 @@ export function PlaceMafiaBriefing({
         ] as const).map(([value, title, detail]) => <button type="button" key={value} aria-label={`첫날 ${title}: ${detail}`} disabled={!isHost} className={balance === value ? "selected" : ""} onClick={() => onBalanceChange(value)}><strong>{title}</strong></button>)}
         </div>
       </div>
+      <div className="pm-briefing-setting-row">
+        <span>마피아</span>
+        <div className="pm-mafia-count-grid">
+          {([1, 2] as const).map((count) => <button type="button" key={count} disabled={!isHost} className={mafiaCount === count ? "selected" : ""} onClick={() => onMafiaCountChange(count)}><strong>{count}명</strong></button>)}
+        </div>
+      </div>
       {isHost && players.length === 1 && <section className={`pm-debug-setup ${debugMode ? "enabled" : ""}`}>
         <button type="button" className="pm-debug-toggle" aria-pressed={debugMode} onClick={() => onDebugModeChange(!debugMode)}><span><b>SOLO DEBUG</b><strong>혼자 디버깅</strong><small>가상 참가자 3명이 자동으로 행동합니다</small></span><i /></button>
         {debugMode && <div className="pm-debug-role"><span>확인할 내 역할</span><div>{(["auto", "citizen", "mafia"] as const).map((role) => <button type="button" key={role} className={debugRole === role ? "selected" : ""} onClick={() => onDebugRoleChange(role)}>{role === "auto" ? "자동" : role === "citizen" ? "시민" : "마피아"}</button>)}</div><p>단계 건너뛰기 버튼으로 모든 화면을 빠르게 확인할 수 있어요.</p></div>}
       </section>}
       <div className={`pm-player-check ${valid ? "valid" : "invalid"}`}><span>{effectiveCount}</span><div><strong>{soloDebug ? "1명 + 가상 참가자 3명" : valid ? `${players.length}명 · 마피아 ${mafiaCount}명` : "4~8명이 필요해요"}</strong></div></div>
     </section>
-
-    <PlaceMafiaExperienceControls preferences={experience.preferences} onToggle={experience.toggle} compact />
 
     <div className="pm-sticky-action">{isHost
       ? <button type="button" className="pm-primary-button" disabled={!valid || busy} onClick={onStart}>{busy ? "도시를 준비하는 중…" : "게임 시작"}</button>

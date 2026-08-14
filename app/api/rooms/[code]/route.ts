@@ -5,7 +5,7 @@ import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, removeDealerPlayer, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, removePlaceMafiaPlayer, shortenPlaceMafiaDiscussion, skipPlaceMafiaDebugPhase, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
-import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId } from "../../../place-mafia-shared";
+import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaDebugRole, type PlaceMafiaLocationId } from "../../../place-mafia-shared";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -174,6 +174,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       locations?: string[];
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
+      mafiaCount?: number;
+      debugMode?: boolean;
+      debugRole?: PlaceMafiaDebugRole;
     };
 
     if (payload.action === "join") {
@@ -305,6 +308,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         game.placeMafia = createPlaceMafiaState(room.players, {
           discussionSeconds: payload.discussionSeconds,
           balance: payload.balance,
+          mafiaCount: payload.mafiaCount,
           debugMode: placeMafiaDebug,
           debugRole: payload.debugRole,
         });

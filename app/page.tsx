@@ -612,6 +612,7 @@ export default function Home() {
   const [gemSuspect, setGemSuspect] = useState("");
   const [placeMafiaDiscussion, setPlaceMafiaDiscussion] = useState<60 | 90 | 120>(90);
   const [placeMafiaBalance, setPlaceMafiaBalance] = useState<PlaceMafiaBalance>("normal");
+  const [placeMafiaCount, setPlaceMafiaCount] = useState<1 | 2>(1);
   const [placeMafiaDebug, setPlaceMafiaDebug] = useState(false);
   const [placeMafiaDebugRole, setPlaceMafiaDebugRole] = useState<PlaceMafiaDebugRole>("auto");
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
@@ -975,8 +976,8 @@ export default function Home() {
     setBusy(false);
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
-  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); setPlaceMafiaDebug(false); setPlaceMafiaDebugRole("auto"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; const placeMafiaDebugActive = currentGame.id === "place-mafia" && placeMafiaDebug && room?.players.length === 1; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && !placeMafiaDebugActive && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요. 혼자라면 디버깅 모드를 켜세요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? placeMafiaBalance : undefined, debugMode: currentGame.id === "place-mafia" ? placeMafiaDebugActive : undefined, debugRole: currentGame.id === "place-mafia" ? placeMafiaDebugRole : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); setPlaceMafiaCount(1); setPlaceMafiaDebug(false); setPlaceMafiaDebugRole("auto"); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; const placeMafiaDebugActive = currentGame.id === "place-mafia" && placeMafiaDebug && room?.players.length === 1; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && !placeMafiaDebugActive && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요. 혼자라면 디버깅 모드를 켜세요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? placeMafiaCount : undefined, debugMode: currentGame.id === "place-mafia" ? placeMafiaDebugActive : undefined, debugRole: currentGame.id === "place-mafia" ? placeMafiaDebugRole : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
   const finishGame = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "result" }); } catch (error) { showNotice(error instanceof Error ? error.message : "결과를 열지 못했어요."); } }); };
   const goHub = async () => { await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "hub" }); } catch (error) { showNotice(error instanceof Error ? error.message : "이동하지 못했어요."); } }); };
   const goLobby = async () => { setConfirmType(null); await withHostLock(async () => { try { await applyAction({ action: "set-view", view: "lobby" }); } catch (error) { showNotice(error instanceof Error ? error.message : "대기실로 이동하지 못했어요."); } }); };
@@ -1090,10 +1091,12 @@ export default function Home() {
       busy={hostActionLocked}
       discussionSeconds={placeMafiaDiscussion}
       balance={placeMafiaBalance}
+      mafiaCount={placeMafiaCount}
       debugMode={placeMafiaDebug}
       debugRole={placeMafiaDebugRole}
       onDiscussionChange={setPlaceMafiaDiscussion}
       onBalanceChange={setPlaceMafiaBalance}
+      onMafiaCountChange={setPlaceMafiaCount}
       onDebugModeChange={setPlaceMafiaDebug}
       onDebugRoleChange={setPlaceMafiaDebugRole}
       onStart={() => void startGame()}

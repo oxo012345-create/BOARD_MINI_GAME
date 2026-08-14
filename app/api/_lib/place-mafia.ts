@@ -33,6 +33,7 @@ export type PlaceMafiaState = {
   phaseEndsAt?: number;
   discussionSeconds: 60 | 90 | 120;
   balance: PlaceMafiaBalance;
+  mafiaCount: 1 | 2;
   participantIds: string[];
   participantProfiles: Array<{ id: string; name: string; avatar: string; bot?: boolean }>;
   players: Record<string, PlaceMafiaPlayer>;
@@ -140,7 +141,7 @@ function beginNight(state: PlaceMafiaState, at: number, advanceKiller: boolean) 
 
 export function createPlaceMafiaState(
   players: Player[],
-  options: { discussionSeconds?: number; balance?: PlaceMafiaBalance; debugMode?: boolean; debugRole?: PlaceMafiaDebugRole } = {},
+  options: { discussionSeconds?: number; balance?: PlaceMafiaBalance; mafiaCount?: number; debugMode?: boolean; debugRole?: PlaceMafiaDebugRole } = {},
 ): PlaceMafiaState {
   const debugEnabled = options.debugMode === true && players.length === 1;
   if (!debugEnabled && (players.length < 4 || players.length > 8)) throw new Error("장소 마피아는 4~8명이 함께할 수 있어요.");
@@ -155,12 +156,12 @@ export function createPlaceMafiaState(
     ...debugProfiles,
   ];
   const participantIds = participantProfiles.map((player) => player.id);
-  const mafiaCount = participantIds.length >= 7 ? 2 : 1;
+  const mafiaCount: 1 | 2 = options.mafiaCount === 2 ? 2 : 1;
   const forcedRole = options.debugRole === "citizen" || options.debugRole === "mafia" ? options.debugRole : "auto";
   const mafiaIds = debugEnabled && controller && forcedRole === "mafia"
-    ? [controller.id]
+    ? [controller.id, ...shuffle(debugProfiles.map((player) => player.id)).slice(0, mafiaCount - 1)]
     : debugEnabled && forcedRole === "citizen"
-      ? [pick(debugProfiles).id]
+      ? shuffle(debugProfiles.map((player) => player.id)).slice(0, mafiaCount)
       : shuffle(participantIds).slice(0, mafiaCount);
   const killerOrder = shuffle(mafiaIds);
   const debug = debugEnabled && controller ? { enabled: true as const, controllerId: controller.id, botIds: debugProfiles.map((player) => player.id) } : undefined;
@@ -169,6 +170,7 @@ export function createPlaceMafiaState(
     day: 1,
     discussionSeconds: options.discussionSeconds === 60 || options.discussionSeconds === 120 ? options.discussionSeconds : 90,
     balance: options.balance === "citizen" || options.balance === "mafia" ? options.balance : "normal",
+    mafiaCount,
     participantIds,
     participantProfiles,
     players: Object.fromEntries(participantIds.map((id) => [id, {
@@ -483,7 +485,7 @@ export function placeMafiaClientState(state: PlaceMafiaState, viewerId?: string)
     phase: state.phase,
     day: state.day,
     phaseEndsAt: state.phaseEndsAt,
-    settings: { discussionSeconds: state.discussionSeconds, balance: state.balance },
+    settings: { discussionSeconds: state.discussionSeconds, balance: state.balance, mafiaCount: state.mafiaCount ?? (state.mafiaIds.length === 2 ? 2 : 1) },
     participantIds: [...state.participantIds],
     participants: (state.participantProfiles ?? state.participantIds.map((id) => ({ id, name: id, avatar: "·" }))).map((player) => ({ ...player })),
     alivePlayerIds: living,

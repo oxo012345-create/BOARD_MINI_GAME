@@ -77,9 +77,12 @@ assert.ok(placeMafiaLegalMoveLocations("alley").includes("alley"), "골목은 �
 }
 
 for (let count = 4; count <= 8; count += 1) {
-  const state = createPlaceMafiaState(players(count));
-  assert.equal(state.mafiaIds.length, count >= 7 ? 2 : 1, `${count}인 역할 수`);
-  assert.equal(Object.keys(state.players).length, count);
+  for (const mafiaCount of [1, 2] as const) {
+    const state = createPlaceMafiaState(players(count), { mafiaCount });
+    assert.equal(state.mafiaIds.length, mafiaCount, `${count}인 마피아 ${mafiaCount}명 설정`);
+    assert.equal(placeMafiaClientState(state, players(count)[0]!.id).settings.mafiaCount, mafiaCount);
+    assert.equal(Object.keys(state.players).length, count);
+  }
 }
 
 {

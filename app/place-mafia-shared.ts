@@ -68,6 +68,7 @@ export type PlaceMafiaClientState = {
   settings: {
     discussionSeconds: 60 | 90 | 120;
     balance: PlaceMafiaBalance;
+    mafiaCount: 1 | 2;
   };
   participantIds: string[];
   participants: Array<{ id: string; name: string; avatar: string; bot?: boolean }>;

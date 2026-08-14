@@ -793,7 +793,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-briefing-title p { font-size: 9px; }
 .pm-briefing-badges { right: 14px; bottom: 11px; left: 14px; gap: 5px; }
 .pm-briefing-badges span { padding: 4px 7px; font-size: 7px; }
-.pm-briefing-guide { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 84px; gap: 9px; padding: 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: linear-gradient(145deg, rgba(24,30,40,.94), rgba(15,19,26,.96)); }
+.pm-briefing-guide { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; padding: 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: linear-gradient(145deg, rgba(24,30,40,.94), rgba(15,19,26,.96)); }
 .pm-briefing-guide-copy > span { color: var(--pm-gold); font: 850 6px/1 ui-monospace, monospace; letter-spacing: .16em; }
 .pm-briefing-guide-copy h2 { margin: 5px 0 8px; font-size: 12px; letter-spacing: -.035em; }
 .pm-briefing-guide ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -809,10 +809,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .pm-settings-panel.pm-briefing-settings { flex: 0 0 auto; display: grid; gap: 5px; margin: 0; padding: 8px 9px; border-radius: 14px; }
 .pm-briefing-setting-row { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 6px; }
 .pm-briefing-setting-row > span { color: #9ca4af; font-size: 7px; font-weight: 900; }
-.pm-briefing-settings .pm-segmented, .pm-briefing-settings .pm-balance-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
-.pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button { display: block; min-height: 25px; padding: 0 3px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: #0e1218; color: #7f8792; text-align: center; }
-.pm-briefing-settings .pm-segmented button.selected, .pm-briefing-settings .pm-balance-grid button.selected { border-color: rgba(199,166,106,.62); background: rgba(199,166,106,.1); color: #f2dfba; box-shadow: none; }
-.pm-briefing-settings .pm-segmented strong, .pm-briefing-settings .pm-balance-grid strong { font-size: 8px; }
+.pm-briefing-settings .pm-segmented, .pm-briefing-settings .pm-balance-grid, .pm-briefing-settings .pm-mafia-count-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.pm-briefing-settings .pm-mafia-count-grid { grid-template-columns: repeat(2, 1fr); }
+.pm-briefing-settings .pm-segmented button, .pm-briefing-settings .pm-balance-grid button, .pm-briefing-settings .pm-mafia-count-grid button { display: block; min-height: 25px; padding: 0 3px; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: #0e1218; color: #7f8792; text-align: center; }
+.pm-briefing-settings .pm-segmented button.selected, .pm-briefing-settings .pm-balance-grid button.selected, .pm-briefing-settings .pm-mafia-count-grid button.selected { border-color: rgba(199,166,106,.62); background: rgba(199,166,106,.1); color: #f2dfba; box-shadow: none; }
+.pm-briefing-settings .pm-segmented strong, .pm-briefing-settings .pm-balance-grid strong, .pm-briefing-settings .pm-mafia-count-grid strong { font-size: 8px; }
 .pm-briefing-settings .pm-segmented small { font-size: 6px; }
 .pm-briefing-settings .pm-balance-grid button i, .pm-briefing-settings .pm-balance-grid button small { display: none; }
 .pm-briefing-settings .pm-player-check { min-height: 25px; margin: 1px 0 0; padding: 3px 6px; border-radius: 7px; }
