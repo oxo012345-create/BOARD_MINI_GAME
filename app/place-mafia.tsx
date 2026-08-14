@@ -109,12 +109,15 @@ export function PlaceMafiaBriefing({
 
     <section className="pm-briefing-guide" aria-labelledby="pm-briefing-guide-title">
       <div className="pm-briefing-guide-copy">
-        <span>HOW TO PLAY</span>
-        <h2 id="pm-briefing-guide-title">밤에 움직이고, 낮에 찾아내세요</h2>
+        <span>SPECIAL RULES</span>
+        <h2 id="pm-briefing-guide-title">장소 마피아 핵심 규칙</h2>
         <ol>
-          <li><b>1</b><span><strong>이동</strong><small>인접한 장소 한 곳 선택</small></span></li>
-          <li><b>2</b><span><strong>확인</strong><small>같은 장소에서 만난 사람 기억</small></span></li>
-          <li><b>3</b><span><strong>투표</strong><small>낮에 토론하고 익명 지목</small></span></li>
+          <li><b>1</b><span><strong>이동</strong><small>현재 또는 연결된 주변 장소만</small></span></li>
+          <li><b>2</b><span><strong>특수 장소</strong><small>경찰서·광장·병원 연속 체류 불가</small></span></li>
+          <li><b>3</b><span><strong>마피아 습격</strong><small>이동한 장소 주변만 공격</small></span></li>
+          <li><b>4</b><span><strong>목격</strong><small>같은 장소에서 만난 사람만 확인</small></span></li>
+          <li><b>5</b><span><strong>조용한 밤</strong><small>공격 실패 원인은 모두 비공개</small></span></li>
+          <li><b>6</b><span><strong>투표 동률</strong><small>처형 없이 다음 밤 진행</small></span></li>
         </ol>
       </div>
       <div className="pm-briefing-mini-shots" aria-label="실제 게임 화면 미리보기">
