@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDealerState, DEALER_CARDS, dealerAction, dealerClientState, tickDealer } from "../app/api/_lib/dealer.ts";
+import { createDealerState, DEALER_CARDS, dealerAction, dealerClientState, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer } from "../app/api/_lib/dealer.ts";
 
 const players = Array.from({ length: 4 }, (_, index) => ({
   id: `p${index + 1}`,
@@ -117,6 +117,48 @@ test("Cut Deal transfers 30 percent of the target's next checkout", () => {
   assert.equal(state.balances[owner.id], ownerBefore + 300);
   assert.equal(state.balances[target.id], targetBefore + 700);
   assert.equal(state.cutDeals[target.id], undefined);
+});
+
+test("final auto-checkout applies Cut Deal owner share exactly once", () => {
+  const state = createDealerState(players);
+  const owner = players[0];
+  const target = players[1];
+  state.round = state.totalRounds;
+  state.phase = "shop";
+  state.deadline = Date.now() + 60_000;
+  state.cutDeals[target.id] = owner.id;
+  state.inventories[target.id] = [{ uid: "final-deal", id: 0, name: "Final Deal", era: "A", value: 1000, clauses: [] }];
+  const ownerBefore = state.balances[owner.id];
+  const targetBefore = state.balances[target.id];
+  for (const player of players) dealerAction(state, players, player.id, "dealer-shop-ready", { ready: true, requestId: `final-ready-${player.id}` });
+  assert.equal(state.phase, "finished");
+  assert.equal(state.balances[owner.id], ownerBefore + 300);
+  assert.equal(state.balances[target.id], targetBefore + 700);
+  assert.equal(state.cutDeals[target.id], undefined);
+});
+
+test("dealer pause freezes the deadline until every missing player reconnects", () => {
+  const state = auctionState();
+  state.deadline = Date.now() + 5_000;
+  const before = state.deadline;
+  assert.equal(pauseDealer(state, [players[2].id], "disconnect"), true);
+  state.deadline = Date.now() - 1;
+  assert.equal(tickDealer(state, players), false);
+  assert.equal(state.phase, "auction");
+  const waitingPlayers = players.map((player) => ({ ...player, status: player.id === players[2].id ? "waiting" : "active" }));
+  assert.equal(resumeDealerIfReady(state, waitingPlayers), false);
+  waitingPlayers[2].status = "active";
+  assert.equal(resumeDealerIfReady(state, waitingPlayers), true);
+  assert.ok(state.deadline >= Date.now() + 4_000, `${state.deadline} should restore the saved deadline ${before}`);
+});
+
+test("seller departure keeps the auction item in an orphan pool", () => {
+  const state = auctionState();
+  const seller = state.sellerId;
+  const item = state.currentItem;
+  removeDealerPlayer(state, seller, players.filter((player) => player.id !== seller));
+  assert.equal(state.phase, "resolution");
+  assert.equal(state.orphanedItems.some((candidate) => candidate.uid === item.uid), true);
 });
 
 test("four players stay in one authoritative auction state through shop ready", () => {

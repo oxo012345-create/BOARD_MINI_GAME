@@ -3,7 +3,7 @@ import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceT
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
-import { createDealerState, dealerAction, removeDealerPlayer, tickDealer, type DealerState } from "../../_lib/dealer";
+import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
 
@@ -79,6 +79,29 @@ function dealerPlayers(room: RoomState, dealer: DealerState) {
   return room.players.filter((player) => participantIds.has(player.id));
 }
 
+const DEALER_HEARTBEAT_TOUCH_MS = 3_000;
+const DEALER_DISCONNECT_GRACE_MS = 12_000;
+
+function reconcileDealerPresence(room: RoomState, dealer: DealerState) {
+  if (dealer.phase === "finished") return false;
+  const now = Date.now();
+  const participants = dealerPlayers(room, dealer);
+  const missing = participants.filter((player) => player.status !== "active" || now - (player.lastSeen || player.joinedAt) > DEALER_DISCONNECT_GRACE_MS);
+  let changed = false;
+  if (missing.length) {
+    for (const player of missing) {
+      if (player.status !== "waiting") {
+        player.status = "waiting";
+        changed = true;
+      }
+    }
+    changed = pauseDealer(dealer, missing.map((player) => player.id), "disconnect") || changed;
+  } else if (dealer.pause) {
+    changed = resumeDealerIfReady(dealer, participants) || changed;
+  }
+  return changed;
+}
+
 function handleDealerTimeout(room: RoomState) {
   const game = room.game as GameRound | undefined;
   if (game?.id !== "double-dealers" || !game.dealer) return false;
@@ -128,8 +151,11 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     }
     const expectedRevision = room.revision ?? 0;
     const playerIdsBeforePrune = new Set(room.players.map((player) => player.id));
-    const playersChanged = touchAndPrunePlayers(room, viewer?.id);
     const activeDealerGame = room.game as GameRound | undefined;
+    const dealerParticipantIds = activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && activeDealerGame.dealer.phase !== "finished"
+      ? new Set(Object.keys(activeDealerGame.dealer.balances))
+      : undefined;
+    const playersChanged = touchAndPrunePlayers(room, viewer?.id, dealerParticipantIds ? DEALER_HEARTBEAT_TOUCH_MS : 15_000, dealerParticipantIds);
     if (activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && playersChanged) {
       for (const playerId of playerIdsBeforePrune) {
         if (!room.players.some((player) => player.id === playerId)) {
@@ -137,13 +163,16 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
         }
       }
     }
+    const dealerPresenceChanged = activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer
+      ? reconcileDealerPresence(room, activeDealerGame.dealer)
+      : false;
     const surpriseChanged = tickSurprise(room);
     const telestrationChanged = handleTelestrationTimeout(room);
     const gemChanged = handleGemInvestigationTimeout(room);
     const dealerChanged = handleDealerTimeout(room);
     const activePlaceMafia = (room.game as GameRound | undefined)?.placeMafia;
     const placeMafiaChanged = activePlaceMafia ? advancePlaceMafiaIfDue(activePlaceMafia) : false;
-    const changed = playersChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged;
+    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
@@ -170,6 +199,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
       floor?: number;
       enabled?: boolean;
+      permanent?: boolean;
       location?: string;
       locations?: string[];
       discussionSeconds?: number;
@@ -184,6 +214,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         existing.lastSeen = Date.now();
         const activeGame = room.game as GameRound | undefined;
         if (activeGame?.id === "place-mafia" && activeGame.placeMafia) resumePlaceMafia(activeGame.placeMafia, existing.id);
+        if (activeGame?.id === "double-dealers" && activeGame.dealer) resumeDealerIfReady(activeGame.dealer, dealerPlayers(room, activeGame.dealer));
         return persistAndRespond(room, existing.id);
       }
       const rate = await checkRateLimit(request, "join", 12, 60);
@@ -379,6 +410,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         if (!await writeRoomIfRevision(room, room.revision ?? 0)) return Response.json({ error: "다른 참가자의 변경을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
         return Response.json({ room: null });
       }
+      if (activeGame?.id === "double-dealers" && activeGame.dealer && room.view === "game" && activeGame.dealer.phase !== "finished" && payload.permanent !== true) {
+        viewer.status = "waiting";
+        pauseDealer(activeGame.dealer, [viewer.id], "left");
+        if (room.hostId === viewer.id) {
+          const nextHost = room.players.find((player) => player.id !== viewer.id && player.status === "active");
+          if (nextHost) room.hostId = nextHost.id;
+        }
+        if (!await writeRoomIfRevision(room, room.revision ?? 0)) return Response.json({ error: "다른 참가자의 변경을 반영하지 못했습니다. 다시 시도해주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+        return Response.json({ room: toClientRoom(room, viewer.id) });
+      }
       removePlayerFromRound(activeGame, viewer.id);
       room.players = room.players.filter((item) => item.id !== viewer.id);
       if (activeGame?.id === "double-dealers" && activeGame.dealer) {
@@ -447,9 +488,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!participants.some((player) => player.id === viewer.id)) {
         return Response.json({ error: "이 방의 딜러 라운드 참가자가 아닙니다.", code: "NOT_DEALER_PLAYER" }, { status: 409 });
       }
+      const expectedDealerRevision = room.revision ?? 0;
+      const beforeDealerAction = JSON.stringify(game.dealer);
       try {
         dealerAction(game.dealer, participants, viewer.id, String(payload.action), payload as Record<string, unknown>);
       } catch (error) {
+        if (beforeDealerAction !== JSON.stringify(game.dealer)) {
+          if (!await writeRoomIfRevision(room, expectedDealerRevision)) return Response.json({ error: "다른 참가자의 변경을 반영하지 못했습니다. 최신 상태를 다시 불러와주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+          return Response.json({ room: toClientRoom(room, viewer.id), error: error instanceof Error ? error.message : "요청을 처리하지 못했습니다.", code: "DEALER_RULE" }, { status: 422 });
+        }
         return Response.json({ error: error instanceof Error ? error.message : "요청을 처리하지 못했어요.", code: "DEALER_RULE" }, { status: 422 });
       }
       return persistAndRespond(room, viewer.id);

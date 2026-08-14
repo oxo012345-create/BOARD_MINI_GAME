@@ -218,18 +218,18 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
   };
 }
 
-export function touchAndPrunePlayers(room: RoomState, viewerId?: string) {
+export function touchAndPrunePlayers(room: RoomState, viewerId?: string, touchAfterMs = 15_000, preserveIds?: Set<string>) {
   const now = Date.now();
   let changed = false;
   if (viewerId) {
     const viewer = room.players.find((player) => player.id === viewerId);
-    if (viewer && now - (viewer.lastSeen || viewer.joinedAt) > 15_000) {
+    if (viewer && now - (viewer.lastSeen || viewer.joinedAt) > touchAfterMs) {
       viewer.lastSeen = now;
       changed = true;
     }
   }
   const before = room.players.length;
-  room.players = room.players.filter((player) => player.id === viewerId || now - (player.lastSeen || player.joinedAt) < 30 * 60 * 1000);
+  room.players = room.players.filter((player) => player.id === viewerId || preserveIds?.has(player.id) || now - (player.lastSeen || player.joinedAt) < 30 * 60 * 1000);
   if (room.players.length !== before) changed = true;
   if (room.players.length && !room.players.some((player) => player.id === room.hostId)) {
     room.hostId = room.players[0].id;

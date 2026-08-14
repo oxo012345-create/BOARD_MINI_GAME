@@ -931,13 +931,23 @@ export default function Home() {
       leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
     } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } finally { setBusy(false); }
   };
-  const leaveRoom = async () => {
+  const leaveRoom = async (permanent = false) => {
     if (!room) return;
     const canResumePlaceMafia = room.view === "game" && currentGame?.id === "place-mafia" && currentGame.placeMafia?.phase !== "game_over";
+    const canPauseDealer = !permanent && room.view === "game" && currentGame?.id === "double-dealers";
     const sequence = nextRoomRequestSequence();
     setBusy(true); leavingRef.current = true;
     try {
-      const { response, body } = await patchRoomWithConflictRetry(room.code, { action: "leave" }, { keepalive: true });
+      const { response, body } = await patchRoomWithConflictRetry(room.code, { action: "leave", ...(permanent ? { permanent: true } : {}) }, { keepalive: true });
+      if (canPauseDealer && body.room) {
+        localStorage.setItem("hanpan-room", room.code);
+        history.replaceState(null, "", `?room=${room.code}`);
+        leavingRef.current = false;
+        applyRoomSnapshot(body.room, sequence);
+        setBusy(false);
+        setConfirmType(null);
+        return;
+      }
       if (!response.ok && ![401, 404].includes(response.status)) throw new Error(body.error || "방에서 나가지 못했어요.");
     }
     catch (error) {
@@ -957,6 +967,20 @@ export default function Home() {
     setIntent(null);
     setBusy(false);
     setConfirmType(null);
+  };
+  const rejoinCurrentRoom = async () => {
+    if (!room || me?.status !== "waiting") return;
+    const sequence = nextRoomRequestSequence();
+    setBusy(true);
+    try {
+      const { response, body } = await patchRoomWithConflictRetry(room.code, { action: "join" });
+      if (!response.ok || !body.room) throw new Error(body.error || "게임에 다시 들어가지 못했어요.");
+      localStorage.setItem("hanpan-room", room.code);
+      history.replaceState(null, "", `?room=${room.code}`);
+      applyRoomSnapshot(body.room, sequence);
+      showNotice("연결이 복구되었습니다. 게임은 곧 재개됩니다.");
+    } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); }
+    finally { setBusy(false); }
   };
   const continuePreviousRoom = async () => {
     if (!resumeRoom) return;
@@ -1054,6 +1078,7 @@ export default function Home() {
   };
   const commonOverlays = <>
     {activeSurprise && <SurpriseDrawer surprise={activeSurprise} now={synchronizedNow} collapsed={surpriseCollapsed} onCollapsedChange={setSurpriseCollapsed} position={surprisePosition} onPositionChange={setSurprisePosition} />}
+    {room?.view === "game" && currentGame?.id === "double-dealers" && me?.status === "waiting" && <div className="dealer-waiting-actions" role="status"><strong>게임이 일시정지되었습니다</strong><span>연결이 끊긴 플레이어의 재접속을 기다리는 중입니다.</span><button className="button primary" disabled={busy} onClick={() => void rejoinCurrentRoom()}>게임으로 돌아가기</button><button className="button secondary" disabled={busy} onClick={() => void leaveRoom(true)}>대기실로 이동</button></div>}
     {connectionState !== "connected" && <div className={`connection-banner ${connectionState}`} role="status">{connectionState === "reconnecting" ? "연결이 불안정해요 · 재연결 중…" : "다시 연결됐어요"}</div>}
     {notice && <div className="toast" role="status">{notice}</div>}
     {lightbox && <button className="photo-lightbox" aria-label="사진 닫기" onClick={() => setLightbox(null)}><img src={lightbox} alt="확대 사진" /></button>}

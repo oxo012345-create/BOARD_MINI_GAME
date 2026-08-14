@@ -9,3 +9,4 @@
 @import url("./styles/model-viewer.css?v=2") layer(components);
 @import url("./styles/unified-auction.css?v=12") layer(states);
 @import url("./styles/runtime-mobile.css?v=5") layer(states);
+@import url("./styles/pause.css?v=1") layer(states);

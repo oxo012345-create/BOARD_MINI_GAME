@@ -63,11 +63,15 @@ test("server-renders the Hanpan mobile app shell", async () => {
     const dealerScript = await readFile(new URL("../public/dealer-cards-2d/game.js", import.meta.url), "utf8");
     const dealerStyles = await readFile(new URL("../public/dealer-cards-2d/styles/states.css", import.meta.url), "utf8");
     const dealerHudStyles = await readFile(new URL("../public/dealer-cards-2d/styles/hud-reference.css", import.meta.url), "utf8");
+    const dealerPauseStyles = await readFile(new URL("../public/dealer-cards-2d/styles/pause.css", import.meta.url), "utf8");
     assert.match(dealerHtml, /data-menu="closed"/);
     assert.match(dealerHtml, /id="loading-state"/);
     assert.match(dealerHtml, /id="lot-actions"/);
     assert.match(dealerHtml, /id="timer-label"/);
     assert.match(dealerHtml, /id="action-toast"/);
+    assert.match(dealerHtml, /id="pause-overlay"/);
+    assert.match(dealerHtml, /id="pause-reconnect"/);
+    assert.match(dealerHtml, /id="pause-leave"/);
     assert.match(dealerHtml, /viewport-fit=cover/);
     assert.match(dealerHtml, /id="hud-menu"/);
     assert.match(dealerHtml, /camera-orbit="0deg 67deg 102%"/);
@@ -89,6 +93,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerScript, /menuOpen = true/);
     assert.match(dealerScript, /phaseTransitionMessage/);
     assert.match(dealerScript, /preloadItem/);
+    assert.match(dealerScript, /renderPauseState/);
+    assert.match(dealerScript, /게임이 일시정지되어 연결이 끊긴 플레이어를 기다리는 중입니다/);
     assert.match(dealerScript, /seat-role/);
     assert.match(dealerScript, /seat-shell/);
     assert.match(dealerScript, /seat-role-me/);
@@ -114,6 +120,8 @@ test("server-renders the Hanpan mobile app shell", async () => {
     assert.match(dealerHudStyles, /\.dock-action-slot \.primary-action,[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center/);
     assert.match(dealerHudStyles, /font-family:\s*"Noto Serif KR",\s*serif/);
     assert.match(dealerHudStyles, /z-index:\s*calc\(var\(--z-hud\) \+ 1\)/);
+    assert.match(dealerPauseStyles, /body\[data-paused="true"\]/);
+    assert.match(dealerPauseStyles, /\.dealer-waiting-actions/);
     assert.match(dealerHudStyles, /grid-template-rows:\s*repeat\(2,\s*8\.3cqw\)/);
     assert.match(dealerHudStyles, /flex-direction:\s*row;/);
     assert.match(dealerHudStyles, /\.seat-role-seller/);

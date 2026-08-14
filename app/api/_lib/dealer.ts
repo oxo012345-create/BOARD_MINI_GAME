@@ -65,6 +65,10 @@ export type DealerState = {
   intel: Record<string, { price?: boolean; clauses?: boolean }>;
   /** Last request nonce per player. Prevents a retried tap from applying twice. */
   lastActionIds: Record<string, string>;
+  /** Players who dropped out while this round was live. The dealer round is frozen until they reconnect. */
+  pause?: { playerIds: string[]; since: number; remainingMs: number; reason: "disconnect" | "left" };
+  /** Items whose seller left during an auction. They are restored at the next safe checkpoint. */
+  orphanedItems: DealerItem[];
   lastResult?: { sold: boolean; sellerId: string; buyerId?: string; bid?: number; item: DealerItem; message: string };
   log: string[];
 };
@@ -160,6 +164,7 @@ function offersFor(state: DealerState, playerId: string) {
 }
 
 function beginSelection(state: DealerState, players: Player[]) {
+  restoreOrphanedItems(state, players);
   state.phase = "select";
   state.deadline = Date.now() + 20_000;
   state.sellerOrder = shuffle(players.map((p) => p.id));
@@ -322,18 +327,48 @@ function beginShop(state: DealerState, players: Player[]) {
   state.log.unshift(`${state.round}라운드 카드 상점 오픈`);
 }
 
+function applyCheckoutPayout(state: DealerState, playerId: string, total: number) {
+  const owner = state.cutDeals[playerId];
+  if (owner && owner !== playerId && state.balances[owner] !== undefined) {
+    const ownerShare = money(total * .3);
+    state.balances[owner] += ownerShare;
+    state.balances[playerId] += total - ownerShare;
+    delete state.cutDeals[playerId];
+    return ownerShare;
+  }
+  state.balances[playerId] += total;
+  return 0;
+}
+
+function restoreOrphanedItems(state: DealerState, players: Player[]) {
+  if (!state.orphanedItems.length || !players.length) return;
+  const orphaned = state.orphanedItems.splice(0);
+  for (const item of orphaned) {
+    const recipient = players.find((player) => (state.inventories[player.id]?.length ?? 0) < 4);
+    if (recipient) {
+      state.inventories[recipient.id].push({ ...item, acquiredRound: state.round, acquiredAuction: state.auctionCount });
+      state.log.unshift(`${item.name} 판매자가 떠나 보관함으로 복원했습니다.`);
+    } else {
+      const recipientId = players[0].id;
+      state.balances[recipientId] = (state.balances[recipientId] ?? 0) + item.value;
+      state.log.unshift(`${item.name} 판매자가 떠나 가격으로 자동 정산했습니다.`);
+    }
+  }
+}
+
 function finishShop(state: DealerState, players: Player[]) {
   for (const player of players) {
     for (const item of state.inventories[player.id] ?? []) if (item.clauses.includes(18)) state.balances[player.id] += Math.random() < .5 ? 150 : -150;
   }
   if (state.round >= state.totalRounds) {
+    restoreOrphanedItems(state, players);
     for (const loan of state.pendingLoans) state.balances[loan.playerId] = (state.balances[loan.playerId] ?? 0) - loan.amount;
     state.pendingLoans = [];
     settleDueInvestments(state, players, true);
     for (const player of players) {
       const itemIds = (state.inventories[player.id] ?? []).map((item) => item.uid);
       const total = checkoutValue(state, player.id, itemIds, true);
-      state.balances[player.id] += total;
+      applyCheckoutPayout(state, player.id, total);
       state.inventories[player.id] = [];
       if (total) state.log.unshift(`${playerName(players, player.id)} final auto-checkout +$${total}`);
     }
@@ -351,7 +386,7 @@ export function createDealerState(players: Player[]): DealerState {
     phase: "select", round: 1, totalRounds: 5, deadline: 0, sellerOrder: [], sellerIndex: 0,
     balances: {}, inventories: {}, cards: {}, permanentCards: {}, candidates: {}, selected: {}, shopOffers: {}, previousOffers: {}, rerolls: {}, shopReady: [],
     startingBid: 100, currentBid: null, bidHistory: [], bidCounts: {}, blockedBidders: [], protectedPlayers: [], overbidTraps: {}, auctionCount: 0,
-    pendingLoans: [], pendingInvestments: [], delayedItems: [], hotPotatoes: [], jackpotChases: [], cutDeals: {}, cardLockedThroughRound: {}, speechLocked: [], nextSpeechLocked: [], intel: {}, log: [],
+    pendingLoans: [], pendingInvestments: [], delayedItems: [], hotPotatoes: [], jackpotChases: [], cutDeals: {}, cardLockedThroughRound: {}, speechLocked: [], nextSpeechLocked: [], intel: {}, log: [], orphanedItems: [],
     lastActionIds: {},
   };
   for (const p of players) { state.balances[p.id] = 2000; state.inventories[p.id] = []; state.cards[p.id] = []; state.permanentCards[p.id] = []; state.previousOffers[p.id] = []; }
@@ -366,11 +401,13 @@ function normalizeAuctionState(state: DealerState) {
   if (!state.lastActionIds || typeof state.lastActionIds !== "object") state.lastActionIds = {};
   if (!state.cardLockedThroughRound || typeof state.cardLockedThroughRound !== "object") state.cardLockedThroughRound = {};
   state.pendingInvestments = state.pendingInvestments ?? [];
+  state.orphanedItems = Array.isArray(state.orphanedItems) ? state.orphanedItems : [];
   state.permanentCards = state.permanentCards ?? {};
   state.shopReady = state.shopReady ?? [];
   state.hotPotatoes = state.hotPotatoes ?? [];
   state.jackpotChases = state.jackpotChases ?? [];
   state.cutDeals = state.cutDeals ?? {};
+  if (state.pause && (!Array.isArray(state.pause.playerIds) || !state.pause.playerIds.length)) state.pause = undefined;
   if (!state.highestBidderId) {
     state.currentBid = null;
     state.bidHistory = [];
@@ -379,8 +416,36 @@ function normalizeAuctionState(state: DealerState) {
   }
 }
 
+export function pauseDealer(state: DealerState, playerIds: string[], reason: "disconnect" | "left" = "disconnect") {
+  normalizeAuctionState(state);
+  if (state.phase === "finished") return false;
+  const ids = [...new Set(playerIds)].filter(Boolean);
+  if (!ids.length) return false;
+  const current = state.pause?.playerIds ?? [];
+  const next = [...new Set([...current, ...ids])];
+  const remainingMs = state.pause?.remainingMs ?? Math.max(0, state.deadline - Date.now());
+  const changed = !state.pause || next.length !== current.length || next.some((id) => !current.includes(id)) || state.pause.reason !== reason;
+  state.pause = { playerIds: next, since: state.pause?.since ?? Date.now(), remainingMs, reason };
+  return changed;
+}
+
+export function resumeDealerIfReady(state: DealerState, players: Player[]) {
+  normalizeAuctionState(state);
+  if (!state.pause) return false;
+  const missing = state.pause.playerIds.filter((id) => !players.some((player) => player.id === id && player.status === "active"));
+  if (missing.length) {
+    const changed = missing.length !== state.pause.playerIds.length;
+    state.pause.playerIds = missing;
+    return changed;
+  }
+  state.deadline = Date.now() + Math.max(0, state.pause.remainingMs);
+  state.pause = undefined;
+  return true;
+}
+
 export function tickDealer(state: DealerState, players: Player[]) {
   normalizeAuctionState(state);
+  if (state.pause?.playerIds.length) return false;
   let changed = false;
   for (let guard = 0; guard < 8 && state.phase !== "finished" && Date.now() >= state.deadline; guard += 1) {
     changed = true;
@@ -430,6 +495,7 @@ function checkoutValue(state: DealerState, playerId: string, itemIds?: string[],
 export function dealerAction(state: DealerState, players: Player[], actorId: string, action: string, payload: Record<string, unknown>) {
   normalizeAuctionState(state);
   tickDealer(state, players);
+  if (state.pause?.playerIds.length) throw new Error("연결이 끊긴 플레이어를 기다리는 중이라 게임이 일시정지되었습니다.");
   const requestId = String(payload.requestId ?? "").trim().slice(0, 80);
   if (requestId && state.lastActionIds[actorId] === requestId) return;
   const rememberRequest = () => { if (requestId) state.lastActionIds[actorId] = requestId; };
@@ -493,13 +559,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
       .map((item) => item.uid));
     if (!sellableIds.size) throw new Error("이번 라운드에 판매할 수 있는 아이템을 선택해 주세요.");
     const total = checkoutValue(state, actorId, [...sellableIds]);
-    const cutDealOwner = state.cutDeals[actorId];
-    if (cutDealOwner && cutDealOwner !== actorId && state.balances[cutDealOwner] !== undefined) {
-      const ownerShare = money(total * .3);
-      state.balances[cutDealOwner] += ownerShare;
-      state.balances[actorId] += total - ownerShare;
-      delete state.cutDeals[actorId];
-    } else state.balances[actorId] += total;
+    applyCheckoutPayout(state, actorId, total);
     state.inventories[actorId] = state.inventories[actorId].filter((item) => !sellableIds.has(item.uid));
     state.log.unshift(`${playerName(players, actorId)} 시장 정산 +$${total}`);
     rememberRequest();
@@ -584,6 +644,7 @@ export function dealerAction(state: DealerState, players: Player[], actorId: str
 /** Remove a departed participant from every dealer-owned collection. */
 export function removeDealerPlayer(state: DealerState, playerId: string, remainingPlayers: Player[]) {
   normalizeAuctionState(state);
+  const pausedRemainingMs = state.pause?.remainingMs;
   const removedIndex = state.sellerOrder.indexOf(playerId);
   // Removing a player before the active seller shifts the index. Removing
   // the active seller itself must keep the index so the next tick advances
@@ -611,6 +672,7 @@ export function removeDealerPlayer(state: DealerState, playerId: string, remaini
   const latestBid = state.bidHistory[state.bidHistory.length - 1];
   if (state.phase === "auction" && state.sellerId === playerId) {
     const item = state.currentItem;
+    if (item) state.orphanedItems.push({ ...item });
     state.sellerId = undefined;
     state.highestBidderId = latestBid?.playerId ?? null;
     state.currentBid = latestBid?.amount ?? null;
@@ -620,6 +682,13 @@ export function removeDealerPlayer(state: DealerState, playerId: string, remaini
   } else if (state.highestBidderId === playerId) {
     state.highestBidderId = latestBid?.playerId ?? null;
     state.currentBid = latestBid?.amount ?? null;
+  }
+  if (state.pause) {
+    state.pause.playerIds = state.pause.playerIds.filter((id) => id !== playerId);
+    if (!state.pause.playerIds.length) {
+      state.pause = undefined;
+      if (pausedRemainingMs !== undefined && state.phase !== "finished") state.deadline = Date.now() + Math.max(0, pausedRemainingMs);
+    }
   }
   if (state.phase === "select" && remainingPlayers.length && remainingPlayers.every((player) => state.selected[player.id] !== undefined)) {
     beginAuction(state, remainingPlayers);

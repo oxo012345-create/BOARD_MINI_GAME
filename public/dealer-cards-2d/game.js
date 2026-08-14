@@ -11,7 +11,7 @@ const ui = {
   lotStage: $("lot-stage"), lotCard: $("lot-card"), seller: $("seller"), itemImage: $("item-image"), itemModel: $("item-model"), itemName: $("item-name"),
   itemOriginal: $("item-original"), itemEra: $("item-era"), lotNumber: $("lot-number"), bid: $("bid"), highest: $("highest"), dossier: $("private-dossier"), lotActions: $("lot-actions"),
   value: $("true-value"), clauses: $("clauses"), notice: $("notice"), content: $("content"), sheetScroll: $("sheet-scroll"), sheetBackdrop: $("sheet-backdrop"), sheetClose: $("sheet-close"),
-  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), actionBanner: $("action-banner"), stageAction: $("stage-action"), actionToast: $("action-toast"),
+  itemCount: $("item-count"), cardCount: $("card-count"), loading: $("loading-state"), loadingTitle: $("loading-title"), loadingDetail: $("loading-detail"), loadingRetry: $("loading-retry"), actionBanner: $("action-banner"), stageAction: $("stage-action"), actionToast: $("action-toast"), pauseOverlay: $("pause-overlay"), pauseTitle: $("pause-title"), pauseDetail: $("pause-detail"), pauseReconnect: $("pause-reconnect"), pauseLeave: $("pause-leave"),
 };
 const gameBoard = createGameBoard($("game-board-canvas"));
 window.addEventListener("pagehide", () => {
@@ -105,6 +105,7 @@ function clearStaleView() {
   ui.content.innerHTML = "";
   ui.stageAction.hidden = true;
   document.body.dataset.timeCritical = "false";
+  document.body.dataset.paused = "false";
   document.body.dataset.phase = "waiting";
   gameBoard.setPhase("waiting");
 }
@@ -167,6 +168,60 @@ function showToast(message, tone = "info") {
     ui.actionToast?.classList.remove("visible");
     window.setTimeout(() => { if (ui.actionToast) ui.actionToast.hidden = true; }, 180);
   }, tone === "error" ? 4200 : 2600);
+}
+
+function isDealerPaused() {
+  return Boolean(dealer?.pause?.playerIds?.length);
+}
+
+function renderPauseState() {
+  const paused = isDealerPaused();
+  document.body.dataset.paused = paused ? "true" : "false";
+  if (!ui.pauseOverlay) return;
+  ui.pauseOverlay.hidden = !paused;
+  if (!paused) return;
+  const names = (dealer.pause?.playerIds || []).map((id) => playerName(id)).filter(Boolean);
+  ui.pauseTitle.textContent = "게임 일시정지";
+  ui.pauseDetail.textContent = names.length
+    ? `${names.join(", ")}의 재접속을 기다리는 중입니다.`
+    : "연결이 끊긴 플레이어의 재접속을 기다리는 중입니다.";
+  ui.pauseReconnect.disabled = busy;
+}
+
+async function moveToWaitingRoom() {
+  if (!roomCode || debugMode) return;
+  try {
+    await fetchWithTimeout(`/api/rooms/${roomCode}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "leave", permanent: true }),
+    });
+  } catch { /* the parent page will reconcile the session on navigation */ }
+  const target = `/?room=${roomCode}`;
+  try { window.top.location.href = target; } catch { location.href = target; }
+}
+
+async function reconnectDealer() {
+  if (busy || debugMode || !roomCode) return;
+  busy = true;
+  renderPauseState();
+  try {
+    const response = await fetchWithTimeout(`/api/rooms/${roomCode}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "join" }),
+    });
+    const body = await response.json();
+    if (!response.ok || !body.room) throw new Error(body.error || "게임에 다시 연결하지 못했습니다.");
+    applyRoomSnapshot(body.room, { force: true });
+    render();
+    showToast(isDealerPaused() ? "아직 다른 플레이어의 재접속을 기다리는 중입니다." : "연결되었습니다. 게임을 재개합니다.");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "재접속하지 못했습니다.", "error");
+  } finally {
+    busy = false;
+    renderPauseState();
+  }
 }
 
 function actionSuccessMessage(action) {
@@ -463,6 +518,13 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character
 
 async function act(action, extra = {}) {
   if (busy) return false;
+  if (isDealerPaused()) {
+    const message = "게임이 일시정지되어 연결이 끊긴 플레이어를 기다리는 중입니다.";
+    ui.notice.textContent = message;
+    showToast(message, "error");
+    renderPauseState();
+    return false;
+  }
   if (actionBlockedByDeadline(action)) {
     ui.notice.textContent = "시간이 끝났습니다. 다음 단계로 이동합니다.";
     showToast("시간이 끝났습니다. 다음 단계로 이동합니다.", "error");
@@ -498,6 +560,10 @@ async function act(action, extra = {}) {
       body: JSON.stringify({ action, ...extra, requestId }),
     });
     const body = await response.json();
+    if (body?.room) {
+      applyRoomSnapshot(body.room, { force: true });
+      render();
+    }
     const conflict = response.status === 409 && body?.code === "ROOM_CONFLICT";
     if (conflict) {
       const error = new Error("다른 플레이어의 행동을 먼저 반영했습니다.");
@@ -513,7 +579,7 @@ async function act(action, extra = {}) {
   } catch (error) {
     if (error?.name === "ROOM_CONFLICT") {
       const message = action === "dealer-bid"
-        ? "다른 플레이어가 먼저 입찰했습니다. 최신 호가를 불러왔습니다."
+        ? `다른 플레이어가 먼저 입찰했습니다. ${dealer?.currentBid == null ? "아직 입찰 없음" : `현재 최고 입찰가 ${money(dealer.currentBid)}`} · 최신 금액을 확인하고 다시 눌러 주세요.`
         : "다른 플레이어의 행동을 먼저 반영했습니다. 최신 상태를 불러왔습니다.";
       ui.notice.textContent = message;
       showToast(message, "error");
@@ -672,13 +738,14 @@ function render() {
   } else {
     ui.dossier.dataset.mystery = "false";
   }
+  renderPauseState();
   renderLotActions();
   renderTab();
   renderStageAction();
 }
 
 function renderLotActions() {
-  const show = Boolean(dealer.currentItem && dealer.phase === "auction");
+  const show = Boolean(dealer.currentItem && dealer.phase === "auction" && !isDealerPaused());
   ui.lotActions.hidden = !show;
   if (!show) {
     ui.lotActions.innerHTML = "";
@@ -862,6 +929,8 @@ document.querySelectorAll(".dock button").forEach((button) => { button.onclick =
 ui.hudMenu?.addEventListener("click", () => setTab("rules"));
 ui.sheetBackdrop?.addEventListener("click", closeSheet);
 ui.sheetClose?.addEventListener("click", closeSheet);
+ui.pauseReconnect?.addEventListener("click", () => void reconnectDealer());
+ui.pauseLeave?.addEventListener("click", () => void moveToWaitingRoom());
 ui.loadingRetry?.addEventListener("click", () => {
   if (debugMode) return;
   void sync();
@@ -884,6 +953,12 @@ setInterval(() => {
   if (!dealer) {
     ui.timer.textContent = "--:--";
     if (ui.timerLabel) ui.timerLabel.textContent = "연결 중";
+    return;
+  }
+  if (isDealerPaused()) {
+    ui.timer.textContent = "PAUSE";
+    if (ui.timerLabel) ui.timerLabel.textContent = "게임 일시정지";
+    document.body.dataset.timeCritical = "false";
     return;
   }
   const left = Math.max(0, dealer.deadline - (Date.now() + serverOffset));
