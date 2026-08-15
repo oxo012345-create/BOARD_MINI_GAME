@@ -104,7 +104,7 @@ const mathQuestions = Array.from({ length: 40 }, (_, index) => {
   return { question: `${value}의 세제곱은?`, answer: String(value * value * value) };
 }));
 
-export function buildTriviaBank(seed) {
+export function buildTriviaBank(seed, target = 1000) {
   const generated = [
     ...reciprocal(capitals, (country) => `${country}의 수도는 어디인가?`, (_, capital) => `${capital}를 수도로 하는 나라는?`),
     ...reciprocal(elements, (name) => `원소 ${name}의 원소기호는?`, (_, symbol) => `원소기호 ${symbol}가 뜻하는 원소는?`),
@@ -123,6 +123,6 @@ export function buildTriviaBank(seed) {
     seen.add(item.question);
     unique.push(item);
   }
-  if (unique.length < 1000) throw new Error(`상식퀴즈가 ${unique.length}개뿐입니다.`);
-  return unique.slice(0, 1000);
+  if (unique.length < target) throw new Error(`상식퀴즈가 ${unique.length}개뿐입니다.`);
+  return unique.slice(0, target);
 }

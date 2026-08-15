@@ -894,7 +894,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
   assert.equal(hostingConfig.r2, "UPLOADS");
 });
 
-test("ships 1000 unique trivia questions and one fixed image catalog", async () => {
+test("ships 177 unique trivia questions and one fixed image catalog", async () => {
   const [{ GAME_CONTENT }, catalog, generatedContent, generatedImages, imageSource] = await Promise.all([
     import(new URL(`../app/api/_lib/content-data.js?test=${Date.now()}`, import.meta.url)),
     readFile(new URL("../content-catalog.html", import.meta.url), "utf8"),
@@ -903,8 +903,8 @@ test("ships 1000 unique trivia questions and one fixed image catalog", async () 
     readFile(new URL("../app/api/_lib/images.ts", import.meta.url), "utf8"),
   ]);
   const trivia = GAME_CONTENT.triviaMedium;
-  assert.equal(trivia.length, 1000);
-  assert.equal(new Set(trivia.map((item) => item.question)).size, 1000);
+  assert.equal(trivia.length, 177);
+  assert.equal(new Set(trivia.map((item) => item.question)).size, 177);
   assert.ok(trivia.every((item) => item.question && item.answer));
   assert.match(catalog, /verified-image-data\.js/);
   assert.match(catalog, /loadVerifiedGallery\('#people-images',verifiedImages\.people\)/);

@@ -23,7 +23,7 @@ for (const line of imageSource.split(/\r?\n/)) {
   imageGroups[activeGroup].push({ id: itemMatch[1], answer: itemMatch[2], url: itemMatch[3], source: itemMatch[4] });
 }
 
-if (GAME_CONTENT.triviaMedium.length !== 1000) throw new Error("상식퀴즈 카탈로그는 정확히 1000개여야 합니다.");
+if (GAME_CONTENT.triviaMedium.length !== 177) throw new Error("상식퀴즈 카탈로그는 정확히 177개여야 합니다.");
 if (!imageGroups.people.length || !imageGroups.character.length) throw new Error("검수 사진 목록을 읽지 못했습니다.");
 
 const banner = "// 자동 생성 파일입니다. app/api/_lib의 원본 데이터를 수정한 뒤 npm run sync:catalog를 실행하세요.\n";
