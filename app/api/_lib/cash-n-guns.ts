@@ -74,6 +74,11 @@ export type CashNGunsState = {
   roundOutcome?: CashNGunsRoundOutcome;
   finalScores?: CashNGunsScore[];
   winnerIds?: string[];
+  debug?: {
+    enabled: boolean;
+    botAuto: boolean;
+    botIds: string[];
+  };
 };
 
 export type CashNGunsPublicPlayer = {
@@ -83,6 +88,7 @@ export type CashNGunsPublicPlayer = {
   alive: boolean;
   wounds: number;
   aimTargetId?: string;
+  courage?: CashNGunsCourage;
 };
 
 export type CashNGunsClientState = {
@@ -109,8 +115,14 @@ export type CashNGunsClientState = {
     aimTargetId?: string;
     courage?: CashNGunsCourage;
     lootIds: string[];
+    loot: CashNGunsLootCard[];
     canAct: boolean;
     isLootEligible: boolean;
+  };
+  debug?: {
+    enabled: boolean;
+    botAuto: boolean;
+    botIds: string[];
   };
 };
 
@@ -157,8 +169,20 @@ function phaseDeadline(state: CashNGunsState, phase: CashNGunsPhase, now = Date.
   state.phaseEndsAt = PHASE_MS[phase] ? now + PHASE_MS[phase] : undefined;
 }
 
-export function createCashNGunsState(players: Player[]): CashNGunsState {
+export function createCashNGunsState(players: Player[], options: { debugPlayerCount?: number } = {}): CashNGunsState {
   const ordered = [...players].sort((a, b) => a.joinedAt - b.joinedAt);
+  const requestedDebugCount = Math.max(0, Math.min(8, Math.floor(options.debugPlayerCount ?? 0)));
+  const botCount = Math.max(0, requestedDebugCount - ordered.length);
+  const botPlayers: Player[] = Array.from({ length: botCount }, (_, index) => ({
+    id: `cash-bot-${index + 1}-${uuid().slice(0, 6)}`,
+    name: `BOT ${index + 1}`,
+    avatar: "🤖",
+    joinedAt: Date.now() + index + 1,
+    lastSeen: Date.now(),
+    sessionHash: "debug-bot",
+    status: "active",
+  }));
+  ordered.push(...botPlayers);
   const participantIds = ordered.map((player) => player.id);
   const playerProfiles = Object.fromEntries(ordered.map((player) => [player.id, { id: player.id, name: player.name, avatar: player.avatar }]));
   const playerState = Object.fromEntries(ordered.map((player) => [player.id, {
@@ -188,6 +212,7 @@ export function createCashNGunsState(players: Player[]): CashNGunsState {
     lootTurnIndex: 0,
     godfatherCommandUsed: false,
     discardedBullets: [],
+    ...(botPlayers.length ? { debug: { enabled: true, botAuto: true, botIds: botPlayers.map((player) => player.id) } } : {}),
   };
   drawRoundLoot(state);
   return state;
@@ -265,10 +290,8 @@ function finishCashNGuns(state: CashNGunsState) {
     return { playerId: id, money: cash + diamonds + diamondBonus + paintingValue, cash, diamonds, diamondBonus, paintings, paintingValue, wounds: state.players[id].wounds, alive: state.players[id].alive };
   });
   const aliveScores = state.finalScores.filter((score) => score.alive);
-  const pool = aliveScores.length ? aliveScores : state.finalScores;
-  const maxMoney = Math.max(...pool.map((score) => score.money), 0);
-  const maxWounds = Math.max(...pool.filter((score) => score.money === maxMoney).map((score) => score.wounds), 0);
-  state.winnerIds = pool.filter((score) => score.money === maxMoney && score.wounds === maxWounds).map((score) => score.playerId);
+  const maxMoney = Math.max(...aliveScores.map((score) => score.money), 0);
+  state.winnerIds = aliveScores.filter((score) => score.money === maxMoney).map((score) => score.playerId);
   phaseDeadline(state, "game_over");
 }
 
@@ -369,6 +392,64 @@ function advanceReady(state: CashNGunsState, now = Date.now()) {
   if (state.phase === "courage" && aliveIds(state).every((id) => state.players[id].courage)) resolveShots(state, now);
 }
 
+function randomFrom<T>(items: T[]): T | undefined {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function chooseBotTarget(state: CashNGunsState, playerId: string, excludedId?: string) {
+  return randomFrom(aliveIds(state).filter((id) => id !== playerId && id !== excludedId));
+}
+
+/** Fill only synthetic-player decisions. Real players remain in control, which
+ * lets a single tester play a complete room against 3~7 bots. */
+function runDebugBots(state: CashNGunsState, now = Date.now()) {
+  if (!state.debug?.enabled || !state.debug.botAuto) return;
+  const botSet = new Set(state.debug.botIds);
+  for (let guard = 0; guard < 48 && state.phase !== "game_over"; guard += 1) {
+    const before = `${state.phase}:${state.lootTurnIndex}:${state.round}`;
+    if (state.phase === "bullet_select") {
+      for (const id of aliveIds(state).filter((playerId) => botSet.has(playerId))) {
+        const bot = state.players[id];
+        if (!bot.chosenBullet) bot.chosenBullet = randomFrom(bot.bullets) ?? "click";
+      }
+    } else if (state.phase === "aim") {
+      for (const id of aliveIds(state).filter((playerId) => botSet.has(playerId))) {
+        const bot = state.players[id];
+        if (!bot.aimTargetId) bot.aimTargetId = chooseBotTarget(state, id);
+      }
+    } else if (state.phase === "godfather" && botSet.has(state.godfatherId)) {
+      const candidates = aliveIds(state).filter((id) => id !== state.godfatherId);
+      const commanded = state.round % 2 === 0 ? randomFrom(candidates) : undefined;
+      if (commanded) {
+        state.godfatherCommandUsed = true;
+        state.commandTargetId = commanded;
+        state.previousAimTargetId = state.players[commanded].aimTargetId;
+        phaseDeadline(state, "reaim", now);
+      } else enterCourage(state, now);
+    } else if (state.phase === "reaim" && state.commandTargetId && botSet.has(state.commandTargetId)) {
+      const bot = state.players[state.commandTargetId];
+      bot.aimTargetId = chooseBotTarget(state, bot.id, state.previousAimTargetId);
+      enterCourage(state, now);
+    } else if (state.phase === "courage") {
+      for (const id of aliveIds(state).filter((playerId) => botSet.has(playerId))) {
+        const bot = state.players[id];
+        if (!bot.courage) bot.courage = Math.random() < 0.24 ? "crouch" : "stand";
+      }
+    } else if (state.phase === "loot") {
+      const turnId = state.lootTurnOrder[state.lootTurnIndex];
+      if (turnId && botSet.has(turnId)) {
+        const options = remainingLoot(state).map((card) => card.id);
+        if (state.newGodfatherAvailable) options.push("godfather-token");
+        const lootId = randomFrom(options);
+        if (lootId) takeLoot(state, turnId, lootId, now);
+      }
+    }
+    advanceReady(state, now);
+    const after = `${state.phase}:${state.lootTurnIndex}:${state.round}`;
+    if (after === before) break;
+  }
+}
+
 export function advanceCashNGunsIfDue(state: CashNGunsState, now = Date.now()): boolean {
   let changed = false;
   advanceReady(state, now);
@@ -393,6 +474,7 @@ export function advanceCashNGunsIfDue(state: CashNGunsState, now = Date.now()): 
     if (state.phase === "loot") { state.currentLoot = []; beginNextRound(state, now); continue; }
     break;
   }
+  runDebugBots(state, now);
   return changed;
 }
 
@@ -405,9 +487,73 @@ export function debugStepCashNGuns(state: CashNGunsState, now = Date.now()) {
 }
 
 export function debugAutoCashNGuns(state: CashNGunsState, now = Date.now()) {
-  for (let step = 0; step < 96 && state.phase !== "game_over"; step += 1) {
-    debugStepCashNGuns(state, now);
+  for (let step = 0; step < 256 && state.phase !== "game_over"; step += 1) {
+    if (state.phase === "bullet_select") {
+      for (const id of aliveIds(state)) state.players[id].chosenBullet = randomFrom(state.players[id].bullets) ?? "click";
+    } else if (state.phase === "aim") {
+      for (const id of aliveIds(state)) state.players[id].aimTargetId = chooseBotTarget(state, id);
+    } else if (state.phase === "godfather") {
+      enterCourage(state, now);
+    } else if (state.phase === "reaim" && state.commandTargetId) {
+      state.players[state.commandTargetId].aimTargetId = chooseBotTarget(state, state.commandTargetId, state.previousAimTargetId);
+      enterCourage(state, now);
+    } else if (state.phase === "courage") {
+      for (const id of aliveIds(state)) state.players[id].courage = Math.random() < 0.2 ? "crouch" : "stand";
+    } else if (state.phase === "loot") {
+      const turnId = state.lootTurnOrder[state.lootTurnIndex];
+      const options = remainingLoot(state).map((card) => card.id);
+      if (state.newGodfatherAvailable) options.push("godfather-token");
+      const lootId = randomFrom(options);
+      if (turnId && lootId) takeLoot(state, turnId, lootId, now);
+      else debugStepCashNGuns(state, now);
+      continue;
+    }
+    advanceReady(state, now);
+    if (["loot_reveal", "resolve"].includes(state.phase)) debugStepCashNGuns(state, now);
   }
+}
+
+export function debugMutateCashNGuns(state: CashNGunsState, command: string, payload: Record<string, unknown>, actorId: string, now = Date.now()) {
+  const targetId = String(payload.targetId ?? actorId);
+  const target = state.players[targetId];
+  if (command === "phase") {
+    const phase = String(payload.phase) as CashNGunsPhase;
+    if (!Object.hasOwn(PHASE_MS, phase)) throw new Error("지원하지 않는 단계예요.");
+    phaseDeadline(state, phase, now);
+  } else if (command === "wound" && target) {
+    target.wounds = Math.max(0, Math.min(3, target.wounds + Math.sign(Number(payload.delta) || 0)));
+    target.alive = target.wounds < 3;
+  } else if (command === "kill" && target) {
+    target.wounds = 3;
+    target.alive = false;
+  } else if (command === "revive" && target) {
+    target.wounds = Math.min(2, target.wounds);
+    target.alive = true;
+  } else if (command === "godfather" && target?.alive) {
+    state.godfatherId = targetId;
+  } else if (command === "bullet" && target) {
+    const bullet = payload.bullet === "bang" ? "bang" : "click";
+    target.chosenBullet = bullet;
+    if (!target.bullets.includes(bullet)) target.bullets.push(bullet);
+  } else if (command === "target" && target) {
+    const aimTargetId = String(payload.aimTargetId ?? "");
+    if (!state.players[aimTargetId]?.alive || aimTargetId === targetId) throw new Error("다른 생존자를 목표로 골라주세요.");
+    target.aimTargetId = aimTargetId;
+  } else if (command === "courage" && target) {
+    target.courage = payload.courage === "crouch" ? "crouch" : "stand";
+  } else if (command === "loot-add") {
+    const card = state.lootDeck.shift();
+    if (card) state.currentLoot.push(card);
+  } else if (command === "loot-remove") {
+    const card = state.currentLoot.pop();
+    if (card) state.lootDeck.unshift(card);
+  } else if (command === "bot-auto" && state.debug) {
+    state.debug.botAuto = payload.enabled !== false;
+  } else {
+    throw new Error("지원하지 않는 디버그 명령이에요.");
+  }
+  ensureLivingGodfather(state);
+  runDebugBots(state, now);
 }
 
 function remainingLoot(state: CashNGunsState) {
@@ -490,6 +636,7 @@ export function handleCashNGunsAction(state: CashNGunsState, playerId: string, a
     throw new Error("지원하지 않는 캐시 앤 건즈 행동이에요.");
   }
   advanceReady(state, now);
+  runDebugBots(state, now);
 }
 
 export function removeCashNGunsPlayer(state: CashNGunsState, playerId: string) {
@@ -503,11 +650,20 @@ export function removeCashNGunsPlayer(state: CashNGunsState, playerId: string) {
 }
 
 export function cashNGunsClientState(state: CashNGunsState, viewerId?: string): CashNGunsClientState {
-  const revealTargets = state.phase === "resolve" || state.phase === "game_over";
+  const revealTargets = ["godfather", "reaim", "courage", "resolve", "loot", "game_over"].includes(state.phase);
+  const revealCourage = ["resolve", "loot", "game_over"].includes(state.phase);
   const players = state.participantIds.map((id) => {
     const profile = state.playerProfiles[id];
     const source = state.players[id];
-    return { id, name: profile?.name ?? "플레이어", avatar: profile?.avatar ?? "", alive: source.alive, wounds: source.wounds, ...(revealTargets && source.aimTargetId ? { aimTargetId: source.aimTargetId } : {}) };
+    return {
+      id,
+      name: profile?.name ?? "플레이어",
+      avatar: profile?.avatar ?? "",
+      alive: source.alive,
+      wounds: source.wounds,
+      ...(revealTargets && source.aimTargetId ? { aimTargetId: source.aimTargetId } : {}),
+      ...(revealCourage && source.courage ? { courage: source.courage } : {}),
+    };
   });
   const mine = state.players[viewerId ?? ""];
   const eligible = Boolean(viewerId && state.roundOutcome?.eligibleLootIds.includes(viewerId));
@@ -530,6 +686,16 @@ export function cashNGunsClientState(state: CashNGunsState, viewerId?: string): 
     roundOutcome: state.roundOutcome,
     finalScores: state.finalScores,
     winnerIds: state.winnerIds,
-    my: { bullets: mine?.bullets ?? [], chosenBullet: mine?.chosenBullet, aimTargetId: mine?.aimTargetId, courage: mine?.courage, lootIds: mine?.lootIds ?? [], canAct, isLootEligible: eligible },
+    my: {
+      bullets: mine?.bullets ?? [],
+      chosenBullet: mine?.chosenBullet,
+      aimTargetId: mine?.aimTargetId,
+      courage: mine?.courage,
+      lootIds: mine?.lootIds ?? [],
+      loot: (mine?.lootIds ?? []).map((id) => state.cardIndex[id]).filter(Boolean),
+      canAct,
+      isLootEligible: eligible,
+    },
+    debug: state.debug,
   };
 }

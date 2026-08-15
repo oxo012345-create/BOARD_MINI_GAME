@@ -1,216 +1,154 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { CashNGunsBullet, CashNGunsClientState, CashNGunsLootCard } from "./api/_lib/cash-n-guns";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { CashNGunsClientState, CashNGunsLootCard, CashNGunsPhase } from "./api/_lib/cash-n-guns";
 export type { CashNGunsClientState } from "./api/_lib/cash-n-guns";
 
 type Player = { id: string; name: string; avatar: string; status: "active" | "waiting" };
 type ActionHandler = (payload: Record<string, unknown>) => Promise<unknown>;
-type DebugAction = "cash-n-guns-debug-step" | "cash-n-guns-debug-auto" | "cash-n-guns-debug-reset";
+type CharacterPose = "idle" | "aim" | "crouch" | "hit" | "dead";
+type ModalName = "aim" | "godfather" | "loot" | "settings" | null;
+type DebugAction = "cash-n-guns-debug-step" | "cash-n-guns-debug-auto" | "cash-n-guns-debug-reset" | "cash-n-guns-debug-mutate";
+type LootVisual = { kind: CashNGunsLootCard["kind"] | "token"; value?: number };
 
-const PHASE_LABEL: Record<CashNGunsClientState["phase"], string> = {
-  loot_reveal: "전리품 공개",
-  bullet_select: "탄환 선택",
-  aim: "총구를 겨누세요",
-  godfather: "대부의 명령",
-  reaim: "다시 겨누기",
-  courage: "숨을까요, 설까요?",
-  resolve: "발포 결과",
-  loot: "전리품 분배",
-  game_over: "게임 종료",
+const PHASE_LABEL: Record<CashNGunsPhase, string> = {
+  loot_reveal: "전리품 공개", bullet_select: "탄환 선택", aim: "목표 선택", godfather: "대부의 권한", reaim: "목표 변경", courage: "결단", resolve: "발포", loot: "전리품 분배", game_over: "게임 종료",
 };
 
-const PHASE_HINT: Record<CashNGunsClientState["phase"], string> = {
-  loot_reveal: "이번 라운드에 걸린 전리품을 확인하세요.",
-  bullet_select: "CLICK 또는 BANG! 한 장을 비밀리에 고르세요.",
-  aim: "살아 있는 다른 플레이어 한 명을 겨누세요.",
-  godfather: "대부는 한 명에게 목표를 바꾸라고 명령할 수 있어요.",
-  reaim: "지목된 사람만 기존과 다른 목표를 선택합니다.",
-  courage: "몸을 숨기거나 그대로 서 있을지 결정하세요.",
-  resolve: "모든 총성이 동시에 판정됐어요.",
-  loot: "차례가 오면 전리품 하나를 가져가세요.",
-  game_over: "마지막까지 살아남고 가장 많은 돈을 모은 사람이 승리합니다.",
+const SEAT_COORDS: Record<string, { x: number; y: number }> = {
+  top: { x: 50, y: 17 }, ul: { x: 20, y: 25 }, ur: { x: 80, y: 25 }, ml: { x: 13, y: 47 }, mr: { x: 87, y: 47 }, ll: { x: 18, y: 69 }, lr: { x: 82, y: 69 }, bottom: { x: 50, y: 79 },
 };
 
-const PHASE_CLASS: Record<CashNGunsClientState["phase"], string> = {
-  loot_reveal: "reveal",
-  bullet_select: "bullet",
-  aim: "aim",
-  godfather: "command",
-  reaim: "command",
-  courage: "courage",
-  resolve: "resolve",
-  loot: "loot",
-  game_over: "result",
+const OTHER_SEATS: Record<number, string[]> = {
+  0: [], 1: ["top"], 2: ["ml", "mr"], 3: ["top", "ml", "mr"], 4: ["ul", "ur", "ll", "lr"], 5: ["top", "ul", "ur", "ml", "mr"], 6: ["top", "ul", "ur", "ml", "mr", "ll"], 7: ["top", "ul", "ur", "ml", "mr", "ll", "lr"],
 };
 
-function timerText(deadline?: number, now = Date.now()) {
-  if (!deadline) return "—";
-  return `${Math.max(0, Math.ceil((deadline - now) / 1000))}초`;
+function timerText(deadline?: number, now = Date.now()) { return deadline ? String(Math.max(0, Math.ceil((deadline - now) / 1000))).padStart(2, "0") : "--"; }
+function paintingScore(count: number) { return [0, 4_000, 12_000, 30_000, 60_000, 100_000, 150_000, 200_000, 300_000, 400_000, 500_000][Math.min(10, count)] ?? 0; }
+function playerName(state: CashNGunsClientState, id?: string) { return state.players.find((player) => player.id === id)?.name ?? "알 수 없음"; }
+
+function CharacterSprite({ index, pose, facing = "right" }: { index: number; pose: CharacterPose; facing?: "left" | "right" }) {
+  const column = { idle: 0, aim: 1, crouch: 2, hit: 3, dead: 4 }[pose];
+  return <span className={`cng2-character pose-${pose} face-${facing}`} style={{ backgroundPosition: `${column * 25}% ${(index % 8) * (100 / 7)}%` } as CSSProperties} aria-hidden="true" />;
 }
 
-function playerLabel(players: Player[] | CashNGunsClientState["players"], id?: string) {
-  return players.find((player) => player.id === id)?.name ?? "알 수 없음";
+function lootCell(card: LootVisual) {
+  if (card.kind === "cash") return card.value === 5_000 ? [0, 0] : card.value === 10_000 ? [1, 0] : [2, 0];
+  if (card.kind === "diamond") return (card.value ?? 0) <= 1_000 ? [3, 0] : [4, 0];
+  if (card.kind === "painting") return [0, 1];
+  if (card.kind === "medkit") return [1, 1];
+  if (card.kind === "clip") return [2, 1];
+  return [3, 1];
 }
 
-function lootArt(kind: CashNGunsLootCard["kind"] | "token" | "bullet-click" | "bullet-bang") {
-  const positions: Record<string, string> = {
-    cash: "0% 0%",
-    diamond: "50% 0%",
-    painting: "100% 0%",
-    medkit: "0% 33%",
-    clip: "50% 33%",
-    token: "100% 33%",
-    "bullet-click": "0% 67%",
-    "bullet-bang": "100% 67%",
-  };
-  return { backgroundImage: "url('/cash-n-guns/pixel/loot.png')", backgroundPosition: positions[kind] ?? "0% 0%" };
+function LootSprite({ card, className = "" }: { card: LootVisual; className?: string }) {
+  const [column, row] = lootCell(card);
+  return <span className={`cng2-loot-sprite ${className}`} style={{ backgroundPosition: `${column * 25}% ${row * 100}%` }} aria-hidden="true" />;
 }
 
-function CrewSprite({ index }: { index: number }) {
-  const col = index % 4;
-  const row = Math.floor(index / 4);
-  return <span className="cng-crew-sprite" style={{ backgroundImage: "url('/cash-n-guns/pixel/crew.png')", backgroundPosition: `${col * 33.333}% ${row * 100}%` }} aria-hidden="true" />;
+function ActionSprite({ index }: { index: number }) {
+  const column = index % 4; const row = Math.floor(index / 4);
+  return <span className="cng2-action-sprite" style={{ backgroundPosition: `${column * (100 / 3)}% ${row * 100}%` }} aria-hidden="true" />;
 }
 
-function LootArt({ kind }: { kind: CashNGunsLootCard["kind"] | "token" }) {
-  return <span className="cng-loot-art" style={lootArt(kind)} aria-hidden="true" />;
+function PixelModal({ title, subtitle, children, footer, onClose, className = "" }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode; onClose?: () => void; className?: string }) {
+  return <div className="cng2-modal-shade" role="presentation"><section className={`cng2-modal ${className}`} role="dialog" aria-modal="true" aria-label={title}><div className="cng2-modal-corners" aria-hidden="true" />{onClose && <button type="button" className="cng2-modal-close" onClick={onClose} aria-label="닫기">×</button>}<header><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</header><div className="cng2-modal-body">{children}</div>{footer && <footer>{footer}</footer>}</section></div>;
 }
 
-function BulletCard({ bullet, selected, disabled, onClick }: { bullet: CashNGunsBullet; selected: boolean; disabled: boolean; onClick: () => void }) {
-  return <button type="button" className={`cng-bullet-card ${bullet} ${selected ? "selected" : ""}`} disabled={disabled} onClick={onClick}>
-    <span className="cng-bullet-art" style={lootArt(bullet === "bang" ? "bullet-bang" : "bullet-click")} />
-    <span><b>{bullet === "bang" ? "BANG!" : "CLICK"}</b><small>{bullet === "bang" ? "실탄" : "빈 탄창"}</small></span>
-  </button>;
-}
-
-export function CashNGunsGame({
-  code,
-  players,
-  meId,
-  state,
-  isHost,
-  debugMode = false,
-  busy,
-  onAction,
-  onReplay,
-  onLobby,
-  onLeave,
-  overlays,
-}: {
-  code: string;
-  players: Player[];
-  meId?: string;
-  state: CashNGunsClientState;
-  isHost: boolean;
-  debugMode?: boolean;
-  busy: boolean;
-  onAction: ActionHandler;
-  onReplay: () => void;
-  onLobby: () => void;
-  onLeave: () => void;
-  overlays?: ReactNode;
+export function CashNGunsGame({ code, meId, state, isHost, debugMode = false, busy, onAction, onReplay, onLobby, onLeave, overlays }: {
+  code: string; players: Player[]; meId?: string; state: CashNGunsClientState; isHost: boolean; debugMode?: boolean; busy: boolean; onAction: ActionHandler; onReplay: () => void; onLobby: () => void; onLeave: () => void; overlays?: ReactNode;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const tickLock = useRef(false);
-  const alive = state.players.filter((player) => player.alive);
-  const isMyLootTurn = state.phase === "loot" && state.lootTurnOrder[state.lootTurnIndex] === meId;
-  const remainingLoot = state.currentLoot.filter((card) => !state.lootTakenIds.includes(card.id));
-  const selectedBullet = state.my.chosenBullet;
-  const selectedTarget = state.my.aimTargetId;
+  const [modal, setModal] = useState<ModalName>(null);
+  const [forcedModal, setForcedModal] = useState<ModalName>(null);
+  const [pendingTarget, setPendingTarget] = useState("");
+  const [pendingCommand, setPendingCommand] = useState("");
+  const [debugOpen, setDebugOpen] = useState(false);
   const [debugBusy, setDebugBusy] = useState(false);
-  const [debugMessage, setDebugMessage] = useState("");
-  const canDebug = debugMode && isHost;
-  const currentTurnId = state.lootTurnOrder[state.lootTurnIndex];
+  const [debugTarget, setDebugTarget] = useState(meId ?? state.players[0]?.id ?? "");
+  const [soundOn, setSoundOn] = useState(true);
+  const [vibrationOn, setVibrationOn] = useState(true);
+  const tickLock = useRef(false);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(id);
-  }, []);
-
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 250); return () => window.clearInterval(id); }, []);
+  useEffect(() => { setPendingTarget(""); setPendingCommand(""); setForcedModal(null); }, [state.phase, state.round]);
   useEffect(() => {
     if (!state.phaseEndsAt || now < state.phaseEndsAt || tickLock.current || state.phase === "game_over") return;
-    tickLock.current = true;
-    void onAction({ action: "cash-n-guns-tick" }).finally(() => { tickLock.current = false; });
+    tickLock.current = true; void onAction({ action: "cash-n-guns-tick" }).finally(() => { tickLock.current = false; });
   }, [now, onAction, state.phase, state.phaseEndsAt]);
 
+  const alivePlayers = state.players.filter((player) => player.alive);
+  const me = state.players.find((player) => player.id === meId);
+  const myIndex = Math.max(0, state.players.findIndex((player) => player.id === meId));
+  const currentLootTurnId = state.lootTurnOrder[state.lootTurnIndex];
+  const isMyLootTurn = state.phase === "loot" && currentLootTurnId === meId;
+  const naturalAim = Boolean(me?.alive && state.my.canAct && (state.phase === "aim" || (state.phase === "reaim" && state.commandTargetId === meId)));
+  const naturalGodfather = Boolean(me?.alive && state.phase === "godfather" && state.godfatherId === meId && !state.godfatherCommandUsed);
+  const visibleModal: ModalName = forcedModal ?? (naturalAim ? "aim" : naturalGodfather ? "godfather" : modal);
+  const canDebug = Boolean(debugMode && isHost && state.debug?.enabled);
+  const myLoot = state.my.loot ?? [];
+  const assetTotals = useMemo(() => {
+    const cash = myLoot.filter((card) => card.kind === "cash").reduce((sum, card) => sum + (card.value ?? 0), 0);
+    const diamondCards = myLoot.filter((card) => card.kind === "diamond"); const diamonds = diamondCards.reduce((sum, card) => sum + (card.value ?? 0), 0);
+    const paintings = myLoot.filter((card) => card.kind === "painting").length; const paintingValue = paintingScore(paintings);
+    return { cash, diamondCards: diamondCards.length, diamonds, paintings, paintingValue, total: cash + diamonds + paintingValue };
+  }, [myLoot]);
+  const orderedSeats = useMemo(() => {
+    const others = state.players.filter((player) => player.id !== meId); const positions = OTHER_SEATS[others.length] ?? OTHER_SEATS[7];
+    const entries = others.map((player, index) => ({ player, seat: positions[index] ?? "top", characterIndex: state.players.findIndex((item) => item.id === player.id) }));
+    if (me) entries.push({ player: me, seat: "bottom", characterIndex: myIndex }); return entries;
+  }, [me, meId, myIndex, state.players]);
+  const seatByPlayer = useMemo(() => Object.fromEntries(orderedSeats.map((entry) => [entry.player.id, entry.seat])), [orderedSeats]);
+  const showAimLines = ["godfather", "reaim", "courage", "resolve", "loot"].includes(state.phase);
+  const selectedTargetPlayer = state.players.find((player) => player.id === pendingTarget);
+  const aimCandidates = alivePlayers.filter((player) => player.id !== meId && (state.phase !== "reaim" || player.id !== state.previousAimTargetId));
+  const commandCandidates = alivePlayers.filter((player) => player.id !== meId);
+  const clickCount = state.my.bullets.filter((bullet) => bullet === "click").length; const bangCount = state.my.bullets.filter((bullet) => bullet === "bang").length;
   const act = (payload: Record<string, unknown>) => { if (!busy) void onAction(payload); };
-  const runDebug = async (action: DebugAction) => {
-    if (!canDebug || debugBusy) return;
-    setDebugBusy(true);
-    setDebugMessage("서버 상태를 갱신하는 중…");
-    try {
-      await onAction({ action, debug: true });
-      setDebugMessage("완료 · 최신 서버 상태 반영");
-    } catch (error) {
-      setDebugMessage(error instanceof Error ? error.message : "디버그 동작에 실패했어요.");
-    } finally {
-      setDebugBusy(false);
-    }
+  const runDebug = async (action: DebugAction, extra: Record<string, unknown> = {}) => { if (!canDebug || debugBusy) return; setDebugBusy(true); try { await onAction({ action, debug: true, ...extra }); } finally { setDebugBusy(false); } };
+  const playerPose = (player: CashNGunsClientState["players"][number]): CharacterPose => {
+    if (!player.alive) return "dead";
+    if (state.phase === "resolve" && state.roundOutcome?.woundedIds.includes(player.id)) return "hit";
+    if (player.courage === "crouch" || (player.id === meId && state.my.courage === "crouch" && state.phase === "courage")) return "crouch";
+    if (showAimLines && player.aimTargetId) return "aim";
+    return "idle";
   };
-  const debugSnapshot = JSON.stringify({
-    phase: state.phase,
-    round: state.round,
-    phaseEndsAt: state.phaseEndsAt,
-    godfatherId: state.godfatherId,
-    players: state.players.map((player) => ({ id: player.id, name: player.name, alive: player.alive, wounds: player.wounds, aimedAt: player.aimTargetId })),
-    lootRemaining: remainingLoot.length,
-    lootTurn: currentTurnId,
-  }, null, 2);
-  const godfather = state.godfatherId === meId;
-  const scoreName = (id?: string) => playerLabel(state.players, id);
+  const playerFacing = (player: CashNGunsClientState["players"][number], seat: string): "left" | "right" => {
+    const from = SEAT_COORDS[seat];
+    const targetSeat = player.aimTargetId ? seatByPlayer[player.aimTargetId] : undefined;
+    const target = targetSeat ? SEAT_COORDS[targetSeat] : undefined;
+    if (target && target.x !== from?.x) return target.x < from.x ? "left" : "right";
+    return (from?.x ?? 50) > 50 ? "left" : "right";
+  };
 
-  return <main className="cng-shell">
-    <header className="cng-topbar">
-      <div className="cng-room-code"><i />{code}</div>
-      <div className="cng-title">캐시 앤 건즈 <small>BASE MODE</small></div>
-      <div className="cng-nav"><button type="button" onClick={onLobby} disabled={!isHost}>대기실</button><button type="button" onClick={onLeave}>나가기</button></div>
-    </header>
+  const actionFooter = (() => {
+    if (!me?.alive) return <div className="cng2-status-action dead">탈락 · 다른 조직원의 결말을 지켜보세요</div>;
+    if (state.phase === "bullet_select") return <div className="cng2-split-actions ammo"><button type="button" className={state.my.chosenBullet === "click" ? "selected" : ""} disabled={busy || Boolean(state.my.chosenBullet) || clickCount === 0} onClick={() => act({ action: "cash-n-guns-bullet", bullet: "click" })}><ActionSprite index={0} /><span><b>CLICK</b><small>{clickCount}장</small></span></button><button type="button" className={state.my.chosenBullet === "bang" ? "selected" : ""} disabled={busy || Boolean(state.my.chosenBullet) || bangCount === 0} onClick={() => act({ action: "cash-n-guns-bullet", bullet: "bang" })}><ActionSprite index={1} /><span><b>BANG!</b><small>{bangCount}장</small></span></button></div>;
+    if (state.phase === "aim") return <button type="button" className="cng2-wide-action gold" disabled={!state.my.canAct} onClick={() => setModal("aim")}><ActionSprite index={6} />{state.my.aimTargetId ? `${playerName(state, state.my.aimTargetId)} 조준 완료` : "목표 선택"}</button>;
+    if (state.phase === "godfather") return <button type="button" className="cng2-wide-action gold" disabled={!naturalGodfather} onClick={() => setModal("godfather")}><ActionSprite index={5} />{naturalGodfather ? "대부의 권한 사용" : `${playerName(state, state.godfatherId)}의 선택 대기`}</button>;
+    if (state.phase === "reaim") return <button type="button" className="cng2-wide-action gold" disabled={!naturalAim} onClick={() => setModal("aim")}><ActionSprite index={6} />{naturalAim ? "새 목표 선택" : `${playerName(state, state.commandTargetId)}의 재조준 대기`}</button>;
+    if (state.phase === "courage") return <div className="cng2-split-actions courage"><button type="button" className={state.my.courage === "crouch" ? "selected" : ""} disabled={busy || !state.my.canAct} onClick={() => act({ action: "cash-n-guns-courage", courage: "crouch" })}><ActionSprite index={2} /><b>숙인다</b></button><button type="button" className={state.my.courage === "stand" ? "selected" : ""} disabled={busy || !state.my.canAct} onClick={() => act({ action: "cash-n-guns-courage", courage: "stand" })}><ActionSprite index={3} /><b>버틴다</b></button></div>;
+    if (state.phase === "loot") return <div className={`cng2-status-action ${isMyLootTurn ? "turn" : ""}`}>{isMyLootTurn ? "테이블에서 전리품 하나를 선택하세요" : `${playerName(state, currentLootTurnId)}의 선택 대기`}</div>;
+    if (state.phase === "game_over") return <div className="cng2-status-action gold">최종 정산 완료</div>;
+    return <div className="cng2-status-action">{state.phase === "resolve" ? "총격 결과를 처리하고 있습니다" : "전리품을 확인하세요"}</div>;
+  })();
 
-    <section className="cng-hero">
-      <div className="cng-hero-copy"><span className="cng-kicker">NOIR LOOT SHOWDOWN</span><h1>캐시 앤 건즈</h1><p>총을 겨누고, 숨고, 전리품을 나누세요.</p><div className="cng-pills"><span>ROUND {state.round}/{state.totalRounds}</span><span>{state.players.length} PLAYERS</span><span>POWER MODE 없음</span></div></div>
-      <div className="cng-hero-crew" aria-hidden="true"><CrewSprite index={0} /><CrewSprite index={2} /><CrewSprite index={7} /></div>
+  return <main className="cng2-shell"><div className="cng2-game-frame">
+    <header className="cng2-hud"><div className="cng2-hud-main"><button type="button" className="cng2-assets-button" onClick={() => setModal("loot")}><LootSprite card={{ kind: "cash", value: 10_000 }} /><span><b>${assetTotals.total.toLocaleString()}</b><small>#{code}</small></span></button><h1>캐시 앤 건즈</h1><nav><button type="button" aria-label="설정" onClick={() => setModal("settings")}>⚙</button>{isHost && <button type="button" aria-label="대기실로 이동" onClick={onLobby}>↩</button>}<button type="button" aria-label="나가기" onClick={onLeave}>↗</button></nav></div><div className="cng2-hud-status"><span className="round"><small>ROUND</small><b>{state.round}/{state.totalRounds}</b></span><span className="timer"><i /> <b>{timerText(state.phaseEndsAt, now)}</b><small>초</small></span><span className="mode"><small>BASE MODE</small><b>POWER OFF</b></span><span className="godfather"><ActionSprite index={5} /><small>GODFATHER</small><b>{playerName(state, state.godfatherId)}</b></span></div></header>
+    <section className={`cng2-scene phase-${state.phase}`} aria-label={`캐시 앤 건즈 ${PHASE_LABEL[state.phase]}`}><div className="cng2-environment" aria-hidden="true" /><div className="cng2-phase-chip"><span>{PHASE_LABEL[state.phase]}</span><i>{alivePlayers.length}명 생존</i></div>
+      {showAimLines && <svg className="cng2-aim-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="cng2-arrow" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" /></marker></defs>{state.players.flatMap((player) => { const from = SEAT_COORDS[seatByPlayer[player.id]]; const to = player.aimTargetId ? SEAT_COORDS[seatByPlayer[player.aimTargetId]] : undefined; if (!from || !to || !player.alive) return []; return <line key={`${player.id}-${player.aimTargetId}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} markerEnd="url(#cng2-arrow)" className={player.id === meId ? "mine" : ""} />; })}</svg>}
+      <div className="cng2-loot-rail" aria-label="이번 라운드 전리품">{state.currentLoot.map((card) => { const taken = state.lootTakenIds.includes(card.id); return <button type="button" key={card.id} className={taken ? "taken" : ""} disabled={taken || !isMyLootTurn || busy} onClick={() => act({ action: "cash-n-guns-loot", lootId: card.id })} aria-label={taken ? `${card.label} 선택 완료` : card.label} title={card.label}><LootSprite card={card} /></button>; })}{state.newGodfatherAvailable && <button type="button" className="token" disabled={!isMyLootTurn || busy} onClick={() => act({ action: "cash-n-guns-loot", lootId: "godfather-token" })} aria-label="새 대부 토큰" title="NEW GODFATHER"><LootSprite card={{ kind: "token" }} /></button>}</div>
+      {orderedSeats.map(({ player, seat, characterIndex }) => <div key={player.id} className={`cng2-seat seat-${seat} ${player.id === meId ? "me" : ""} ${player.id === state.godfatherId ? "is-godfather" : ""} ${!player.alive ? "is-dead" : ""}`}><CharacterSprite index={characterIndex} pose={playerPose(player)} facing={playerFacing(player, seat)} /><div className="cng2-nameplate">{player.id === state.godfatherId && <span className="crown">♛</span>}<b>{player.id === meId ? "나" : player.name}</b><span className="wounds" aria-label={`상처 ${player.wounds}개`}>{[0, 1, 2].map((wound) => <i key={wound} className={wound < player.wounds ? "filled" : ""} />)}</span>{!player.alive && <em>DEAD</em>}</div></div>)}
+      {state.phase === "resolve" && <div className="cng2-resolution"><b>{state.roundOutcome?.deadIds.length ? `${state.roundOutcome.deadIds.length}명 탈락` : state.roundOutcome?.woundedIds.length ? `${state.roundOutcome.woundedIds.length}명 피격` : "총성은 빗나갔습니다"}</b><span>{(state.roundOutcome?.shots ?? []).filter((shot) => shot.result === "bang" || shot.result === "click").slice(0, 3).map((shot) => `${playerName(state, shot.shooterId)} ${shot.result === "bang" ? "BANG" : "CLICK"}`).join(" · ")}</span></div>}
     </section>
+    <footer className="cng2-action-dock">{actionFooter}</footer>{canDebug && <button type="button" className="cng2-debug-fab" onClick={() => setDebugOpen(true)}>DEBUG</button>}
 
-    <section className="cng-board">
-      <div className="cng-board-head"><div><span className="cng-kicker">ROUND {String(state.round).padStart(2, "0")}</span><h2>{PHASE_LABEL[state.phase]}</h2><p>{PHASE_HINT[state.phase]}</p></div><div className={`cng-phase-timer ${PHASE_CLASS[state.phase]}`}>{timerText(state.phaseEndsAt, now)}</div></div>
-      <div className="cng-table">
-        <div className="cng-table-glow" />
-        <div className="cng-player-grid">
-          {state.players.map((player, index) => {
-            const selectable = (state.phase === "aim" || state.phase === "reaim") && player.alive && player.id !== meId && (state.phase !== "reaim" || state.commandTargetId === meId) && player.id !== state.previousAimTargetId;
-            const aimed = selectedTarget === player.id;
-            return <button type="button" key={player.id} className={`cng-player-slot ${!player.alive ? "dead" : ""} ${aimed ? "aimed" : ""} ${player.id === state.godfatherId ? "godfather" : ""}`} disabled={!selectable || busy} onClick={() => act({ action: state.phase === "reaim" ? "cash-n-guns-reaim" : "cash-n-guns-aim", targetId: player.id })}>
-              <span className="cng-slot-frame"><CrewSprite index={index % 8} />{player.id === state.godfatherId && <em>대부</em>}{!player.alive && <strong>OUT</strong>}</span><b>{player.name}</b><small>{player.alive ? `${"●".repeat(Math.min(3, player.wounds))}${"○".repeat(Math.max(0, 3 - player.wounds))}` : "탈락"}</small>
-            </button>;
-          })}
-        </div>
-        <div className="cng-table-mark">{state.phase === "aim" ? "AIM" : state.phase === "courage" ? "STAND OR CROUCH" : "CASH • GUNS • GLORY"}</div>
-      </div>
-    </section>
+    {visibleModal === "aim" && <PixelModal title="누구를 겨눌까요?" subtitle="조준할 상대 1명을 선택하세요" onClose={forcedModal ? () => setForcedModal(null) : naturalAim ? undefined : () => setModal(null)} className="aim-modal" footer={<><button type="button" className="secondary" onClick={() => { setPendingTarget(""); if (forcedModal) setForcedModal(null); else setModal(null); }}>취소</button><button type="button" className="danger" disabled={!pendingTarget || !naturalAim || busy} onClick={() => { act({ action: state.phase === "reaim" ? "cash-n-guns-reaim" : "cash-n-guns-aim", targetId: pendingTarget }); setPendingTarget(""); setModal(null); }}>겨눈다</button></>}><div className="cng2-target-grid">{aimCandidates.map((player) => <button type="button" key={player.id} className={pendingTarget === player.id ? "selected" : ""} onClick={() => setPendingTarget(player.id)}><CharacterSprite index={state.players.findIndex((item) => item.id === player.id)} pose="idle" /><b>{player.name}</b></button>)}</div><div className="cng2-target-route"><span>나</span><i>◎</i><span>{selectedTargetPlayer?.name ?? "TARGET"}</span></div></PixelModal>}
+    {visibleModal === "godfather" && <PixelModal title="대부의 권한" subtitle="한 명에게 목표를 다시 정하게 할 수 있습니다" onClose={forcedModal ? () => setForcedModal(null) : naturalGodfather ? undefined : () => setModal(null)} className="godfather-modal" footer={<><button type="button" className="secondary" disabled={!naturalGodfather || busy} onClick={() => { act({ action: "cash-n-guns-godfather-pass" }); setModal(null); }}>사용 안 함</button><button type="button" className="danger" disabled={!pendingCommand || !naturalGodfather || busy} onClick={() => { act({ action: "cash-n-guns-godfather-command", targetId: pendingCommand }); setPendingCommand(""); setModal(null); }}>목표 바꾸기</button></>}><p className="cng2-command-note">새 목표는 그 플레이어가 직접 선택합니다</p><div className="cng2-target-grid command">{commandCandidates.map((player) => <button type="button" key={player.id} className={pendingCommand === player.id ? "selected" : ""} onClick={() => setPendingCommand(player.id)}><CharacterSprite index={state.players.findIndex((item) => item.id === player.id)} pose="idle" /><b>{player.name}</b></button>)}</div></PixelModal>}
+    {visibleModal === "loot" && <PixelModal title="내 전리품" onClose={() => { setModal(null); setForcedModal(null); }} className="assets-modal"><div className="cng2-assets-list"><div><LootSprite card={{ id: "cash", kind: "cash", value: 20_000, label: "현금" }} /><span><small>현금</small><b>${assetTotals.cash.toLocaleString()}</b></span></div><div><LootSprite card={{ id: "diamond", kind: "diamond", value: 10_000, label: "다이아" }} /><span><small>다이아</small><b>{assetTotals.diamondCards}개</b><em>가치 ${assetTotals.diamonds.toLocaleString()}</em></span></div><div><LootSprite card={{ id: "painting", kind: "painting", label: "그림" }} /><span><small>그림 컬렉션</small><b>{assetTotals.paintings}점</b><em>세트 가치 ${assetTotals.paintingValue.toLocaleString()}</em></span></div></div><div className="cng2-total"><small>총 가치</small><b>${assetTotals.total.toLocaleString()}</b></div><div className="cng2-bonus"><ActionSprite index={5} />다이아 단독 1위 보너스 <b>+$60,000</b></div><p className="cng2-death-warning">☠ 죽으면 승리 불가</p></PixelModal>}
+    {visibleModal === "settings" && <PixelModal title="설정" onClose={() => setModal(null)} className="settings-modal"><div className="cng2-settings"><button type="button" onClick={() => setSoundOn((value) => !value)}><span>효과음</span><b>{soundOn ? "ON" : "OFF"}</b></button><button type="button" onClick={() => setVibrationOn((value) => !value)}><span>진동</span><b>{vibrationOn ? "ON" : "OFF"}</b></button></div></PixelModal>}
+    {state.phase === "game_over" && <PixelModal title={!state.winnerIds?.length ? "전원 탈락" : state.winnerIds.length === 1 ? `${playerName(state, state.winnerIds[0])} 승리` : "공동 승리"} subtitle={state.winnerIds?.length ? "살아남은 조직원 중 가장 많은 자산을 모았습니다" : "승리 조건을 만족한 조직원이 없습니다"} className="result-modal"><div className="cng2-final-list">{(state.finalScores ?? []).sort((a, b) => b.money - a.money).map((score, index) => <div key={score.playerId} className={state.winnerIds?.includes(score.playerId) ? "winner" : ""}><span>{index + 1}</span><b>{playerName(state, score.playerId)}</b><em>{score.alive ? `$${score.money.toLocaleString()}` : "DEAD"}</em></div>)}</div>{isHost && <div className="cng2-result-buttons"><button type="button" onClick={onReplay}>같은 게임 다시하기</button><button type="button" onClick={onLobby}>다른 게임 하러가기</button></div>}</PixelModal>}
 
-    <section className="cng-panel cng-loot-panel"><div className="cng-section-head"><div><span className="cng-kicker">THE POT</span><h3>이번 라운드 전리품</h3></div><span>{remainingLoot.length + (state.newGodfatherAvailable ? 1 : 0)}장 남음</span></div><div className="cng-loot-grid">
-      {state.currentLoot.map((card) => <button type="button" key={card.id} className={`cng-loot-card ${state.lootTakenIds.includes(card.id) ? "taken" : ""}`} disabled={state.phase !== "loot" || !isMyLootTurn || state.lootTakenIds.includes(card.id) || busy} onClick={() => act({ action: "cash-n-guns-loot", lootId: card.id })}><LootArt kind={card.kind} /><span><b>{card.label}</b><small>{card.kind === "painting" ? "세트 보너스" : card.kind === "medkit" ? "상처 전부 회복" : card.kind === "clip" ? "버린 BANG 회수" : "현금 가치"}</small></span></button>)}
-      {state.newGodfatherAvailable && <button type="button" className="cng-loot-card token" disabled={state.phase !== "loot" || !isMyLootTurn || busy} onClick={() => act({ action: "cash-n-guns-loot", lootId: "godfather-token" })}><LootArt kind="token" /><span><b>NEW GODFATHER</b><small>다음 라운드의 대부</small></span></button>}
-    </div>{state.phase === "loot" && <p className="cng-turn-note">{isMyLootTurn ? "내 차례예요. 하나를 가져가세요." : `${scoreName(currentTurnId)}의 차례를 기다리는 중`}</p>}</section>
-
-    <section className={`cng-panel cng-action-panel ${PHASE_CLASS[state.phase]}`}>
-      {state.phase === "loot_reveal" && <div className="cng-message"><span className="cng-stamp">LOOT</span><h3>전리품이 테이블에 깔렸어요</h3><p>잠시 후 탄환을 비밀리에 선택합니다.</p></div>}
-      {state.phase === "bullet_select" && <div><div className="cng-section-head"><div><span className="cng-kicker">HIDDEN LOADOUT</span><h3>탄환을 고르세요</h3></div><span>{state.my.bullets.length}발 보유</span></div><div className="cng-bullet-grid">{(["click", "bang"] as CashNGunsBullet[]).map((bullet) => <BulletCard key={bullet} bullet={bullet} selected={selectedBullet === bullet} disabled={busy || Boolean(selectedBullet) || !state.my.bullets.includes(bullet)} onClick={() => act({ action: "cash-n-guns-bullet", bullet })} />)}</div><p className="cng-private-note">선택한 탄환은 나만 볼 수 있어요.</p></div>}
-      {state.phase === "aim" && <div className="cng-message"><span className="cng-stamp">AIM</span><h3>총구를 한 명에게 고정하세요</h3><p>{selectedTarget ? `${scoreName(selectedTarget)}을(를) 겨누고 있어요.` : "위 플레이어 카드를 눌러 목표를 선택하세요."}</p></div>}
-      {state.phase === "godfather" && <div className="cng-message"><span className="cng-stamp">GODFATHER</span><h3>{godfather ? "한 명에게 다시 겨누라고 명령할까요?" : `${scoreName(state.godfatherId)}가 대부입니다.`}</h3>{godfather ? <div className="cng-command-grid">{alive.filter((player) => player.id !== meId).map((player) => <button key={player.id} type="button" disabled={busy || state.godfatherCommandUsed} onClick={() => act({ action: "cash-n-guns-godfather-command", targetId: player.id })}><CrewSprite index={state.players.findIndex((item) => item.id === player.id) % 8} /><span>{player.name}</span><small>목표 변경 지시</small></button>)}<button type="button" className="ghost" disabled={busy || state.godfatherCommandUsed} onClick={() => act({ action: "cash-n-guns-godfather-pass" })}>명령하지 않고 진행</button></div> : <p>대부의 선택이 끝나면 모두가 숨을지 결정합니다.</p>}</div>}
-      {state.phase === "reaim" && <div className="cng-message"><span className="cng-stamp">RE-AIM</span><h3>{state.commandTargetId === meId ? "대부의 명령! 목표를 바꾸세요" : `${scoreName(state.commandTargetId)}가 목표를 바꾸는 중입니다.`}</h3><p>기존과 다른 플레이어를 눌러야 합니다.</p></div>}
-      {state.phase === "courage" && <div><div className="cng-message"><span className="cng-stamp">COURAGE</span><h3>숨을까요, 설까요?</h3><p>숨으면 총알은 공개되지 않지만 전리품 분배에서 빠집니다.</p></div><div className="cng-courage-grid"><button type="button" className={state.my.courage === "crouch" ? "selected" : ""} disabled={busy || !state.my.canAct} onClick={() => act({ action: "cash-n-guns-courage", courage: "crouch" })}><span>▾</span><b>숨기</b><small>총알을 숨겨요</small></button><button type="button" className={state.my.courage === "stand" ? "selected" : ""} disabled={busy || !state.my.canAct} onClick={() => act({ action: "cash-n-guns-courage", courage: "stand" })}><span>↑</span><b>서기</b><small>전리품을 노려요</small></button></div></div>}
-      {state.phase === "resolve" && <div><div className="cng-message"><span className="cng-stamp">FIRE</span><h3>총성이 멎었습니다</h3><p>이번 라운드의 모든 결과가 동시에 공개됩니다.</p></div><div className="cng-shot-list">{(state.roundOutcome?.shots ?? []).map((shot) => <div key={`${shot.shooterId}-${shot.targetId}`}><span>{scoreName(shot.shooterId)} → {scoreName(shot.targetId)}</span><b className={shot.result}>{shot.result === "bang" ? "BANG!" : shot.result === "click" ? "CLICK" : shot.result === "hidden" ? "숨김" : "빗나감"}</b></div>)}</div></div>}
-      {state.phase === "game_over" && <div className="cng-final"><span className="cng-stamp">FINAL TABLE</span><h3>{state.winnerIds?.length === 1 ? `${scoreName(state.winnerIds[0])} 승리` : "공동 우승"}</h3><p>살아남은 사람 중 가장 많은 돈을 모은 플레이어가 승리합니다.</p><div className="cng-score-list">{(state.finalScores ?? []).sort((a, b) => b.money - a.money).map((score) => <div key={score.playerId} className={state.winnerIds?.includes(score.playerId) ? "winner" : ""}><span>{scoreName(score.playerId)} {score.alive ? "" : "· OUT"}</span><b>${score.money.toLocaleString()}</b><small>현금 ${score.cash.toLocaleString()} · 다이아 ${score.diamonds.toLocaleString()} · 그림 {score.paintings}장 · 상처 {score.wounds}</small></div>)}</div><div className="cng-result-actions">{isHost && <button type="button" className="cng-primary" onClick={onReplay}>같은 게임 다시하기</button>}{isHost && <button type="button" className="cng-secondary" onClick={onLobby}>다른 게임 하러가기</button>}</div></div>}
-    </section>
-    {canDebug && <aside className="cng-debug-panel" aria-label="캐시 앤 건즈 디버그 모드">
-      <div className="cng-debug-head"><div><span className="cng-kicker">DEVELOPER TOOL</span><strong>DEBUG MODE</strong></div><span className="cng-debug-live">SERVER STATE</span></div>
-      <div className="cng-debug-grid"><span>PHASE <b>{state.phase}</b></span><span>ROUND <b>{state.round}/{state.totalRounds}</b></span><span>ALIVE <b>{alive.length}</b></span><span>TIMER <b>{timerText(state.phaseEndsAt, now)}</b></span></div>
-      <div className="cng-debug-actions"><button type="button" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-step")}>현재 단계 넘기기</button><button type="button" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-auto")}>8라운드 자동 진행</button><button type="button" className="danger" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-reset")}>게임 상태 초기화</button></div>
-      {debugMessage && <small className="cng-debug-message">{debugMessage}</small>}
-      <details><summary>상태 JSON 보기</summary><pre>{debugSnapshot}</pre></details>
-    </aside>}
-    {overlays}
-  </main>;
+    {debugOpen && canDebug && <div className="cng2-debug-shade"><aside className="cng2-debug-panel"><header><div><small>SOLO TEST LAB</small><b>DEBUG CONTROL</b></div><button type="button" onClick={() => setDebugOpen(false)}>×</button></header><div className="cng2-debug-summary"><span>PHASE <b>{state.phase}</b></span><span>ROUND <b>{state.round}/8</b></span><span>BOT <b>{state.debug?.botIds.length ?? 0}</b></span><span>AUTO <b>{state.debug?.botAuto ? "ON" : "OFF"}</b></span></div><section><h3>진행</h3><div className="cng2-debug-buttons three"><button disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-step")}>다음 단계</button><button disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-auto")}>8R AUTO</button><button disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-reset")}>초기화</button></div></section><section><h3>단계 이동</h3><div className="cng2-debug-buttons phase">{Object.entries(PHASE_LABEL).map(([phase, label]) => <button key={phase} className={state.phase === phase ? "active" : ""} onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "phase", phase })}>{label}</button>)}</div></section><section><h3>플레이어 상태</h3><select value={debugTarget} onChange={(event) => setDebugTarget(event.target.value)}>{state.players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select><div className="cng2-debug-buttons three"><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "wound", targetId: debugTarget, delta: 1 })}>상처 +1</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "wound", targetId: debugTarget, delta: -1 })}>상처 -1</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "godfather", targetId: debugTarget })}>대부 지정</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "kill", targetId: debugTarget })}>죽이기</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "revive", targetId: debugTarget })}>부활</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "bot-auto", enabled: !state.debug?.botAuto })}>BOT {state.debug?.botAuto ? "OFF" : "ON"}</button></div></section><section><h3>행동 강제</h3><div className="cng2-debug-buttons three"><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "bullet", targetId: debugTarget, bullet: "bang" })}>BANG</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "bullet", targetId: debugTarget, bullet: "click" })}>CLICK</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "courage", targetId: debugTarget, courage: "crouch" })}>숙임</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "courage", targetId: debugTarget, courage: "stand" })}>버팀</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "loot-add" })}>Loot +</button><button onClick={() => void runDebug("cash-n-guns-debug-mutate", { command: "loot-remove" })}>Loot -</button></div></section><section><h3>팝업 검수</h3><div className="cng2-debug-buttons three"><button onClick={() => { setDebugOpen(false); setForcedModal("aim"); }}>TARGET</button><button onClick={() => { setDebugOpen(false); setForcedModal("godfather"); }}>GODFATHER</button><button onClick={() => { setDebugOpen(false); setForcedModal("loot"); }}>LOOT</button></div></section></aside></div>}
+  </div>{overlays}</main>;
 }

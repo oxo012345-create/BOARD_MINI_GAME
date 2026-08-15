@@ -6,7 +6,7 @@ import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
-import { advanceCashNGunsIfDue, createCashNGunsState, debugAutoCashNGuns, debugStepCashNGuns, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
+import { advanceCashNGunsIfDue, createCashNGunsState, debugAutoCashNGuns, debugMutateCashNGuns, debugStepCashNGuns, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -210,6 +210,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       courage?: "crouch" | "stand";
       lootId?: string;
       debug?: boolean;
+      debugPlayers?: number;
+      command?: string;
+      phase?: string;
+      delta?: number;
+      aimTargetId?: string;
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
       mafiaCount?: number;
@@ -375,7 +380,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           mafiaCount: setup.mafiaCount,
         });
       }
-      if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players);
+      if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players, {
+        debugPlayerCount: cashNGunsDebugStart ? Math.max(4, Math.min(8, Math.floor(Number(payload.debugPlayers) || 8))) : undefined,
+      });
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -489,7 +496,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       const debugAction = String(payload.action);
       if (debugAction === "cash-n-guns-debug-step") debugStepCashNGuns(game.cashNGuns);
       else if (debugAction === "cash-n-guns-debug-auto") debugAutoCashNGuns(game.cashNGuns);
-      else if (debugAction === "cash-n-guns-debug-reset") game.cashNGuns = createCashNGunsState(room.players);
+      else if (debugAction === "cash-n-guns-debug-reset") game.cashNGuns = createCashNGunsState(room.players, { debugPlayerCount: game.cashNGuns.participantIds.length });
+      else if (debugAction === "cash-n-guns-debug-mutate") {
+        try {
+          debugMutateCashNGuns(game.cashNGuns, String(payload.command ?? ""), payload, viewer.id);
+        } catch (error) {
+          return Response.json({ error: error instanceof Error ? error.message : "디버그 상태를 변경하지 못했어요." }, { status: 422 });
+        }
+      }
       else return Response.json({ error: "지원하지 않는 디버그 동작이에요." }, { status: 400 });
       return persistAndRespond(room, viewer.id);
     }
