@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PlaceMafiaPhase } from "./place-mafia-shared";
 
-export type PlaceMafiaCue = "tap" | "select" | "confirm" | "role-citizen" | "role-mafia" | "night" | "tick" | "attack" | "dawn" | "quiet" | "incident" | "evidence" | "vote" | "tie" | "citizen-out" | "mafia-out" | "citizen-win" | "mafia-win";
+export type PlaceMafiaCue = "tap" | "select" | "confirm" | "role-citizen" | "role-mafia" | "night" | "tick" | "attack" | "dawn" | "quiet" | "incident" | "gunshot" | "birds" | "evidence" | "vote" | "tie" | "citizen-out" | "mafia-out" | "citizen-win" | "mafia-win";
 
 export type PlaceMafiaPreferences = {
   music: boolean;
@@ -91,13 +91,21 @@ class NoirAudioEngine {
     if (this.preferences.haptics && typeof navigator !== "undefined") {
       const vibration: Partial<Record<PlaceMafiaCue, number | number[]>> = {
         select: 12, confirm: 25, "role-mafia": [35, 45, 55], night: 30, tick: 8,
-        attack: [35, 35, 70], incident: 100, vote: 30, tie: [25, 40, 25],
+        attack: [35, 35, 70], gunshot: [45, 55, 80], incident: 100, vote: 30, tie: [25, 40, 25],
         "citizen-win": [30, 50, 30], "mafia-win": [50, 40, 90],
       };
       const pattern = vibration[cue];
       if (pattern) navigator.vibrate?.(pattern);
     }
     if (!this.preferences.effects || !this.context || !this.effectsGain) return;
+    if (cue === "gunshot") {
+      this.gunshot();
+      return;
+    }
+    if (cue === "birds") {
+      this.birds();
+      return;
+    }
     const patterns: Record<PlaceMafiaCue, Array<[number, number, number, OscillatorType]>> = {
       tap: [[420, 0, 0.045, "sine"]],
       select: [[620, 0, 0.08, "sine"], [820, 0.05, 0.08, "sine"]],
@@ -110,6 +118,8 @@ class NoirAudioEngine {
       dawn: [[261.63, 0, 0.3, "sine"], [392, 0.16, 0.48, "sine"]],
       quiet: [[392, 0, 0.24, "sine"], [523.25, 0.14, 0.4, "sine"]],
       incident: [[155.56, 0, 0.28, "sawtooth"], [116.54, 0.18, 0.5, "triangle"]],
+      gunshot: [],
+      birds: [],
       evidence: [[740, 0, 0.05, "sine"], [988, 0.08, 0.12, "sine"]],
       vote: [[220, 0, 0.12, "triangle"], [330, 0.1, 0.2, "sine"]],
       tie: [[196, 0, 0.16, "triangle"], [174.61, 0.16, 0.28, "triangle"]],
@@ -119,6 +129,65 @@ class NoirAudioEngine {
       "mafia-win": [[98, 0, 0.3, "sawtooth"], [73.42, 0.24, 0.55, "triangle"]],
     };
     for (const [frequency, delay, duration, type] of patterns[cue]) this.tone(frequency, delay, duration, type);
+  }
+
+  private gunshot() {
+    if (!this.context || !this.effectsGain) return;
+    const now = this.context.currentTime;
+    const length = Math.floor(this.context.sampleRate * 0.22);
+    const buffer = this.context.createBuffer(1, length, this.context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < samples.length; index += 1) {
+      const decay = Math.pow(1 - index / samples.length, 2.4);
+      samples[index] = (Math.random() * 2 - 1) * decay;
+    }
+    const noise = this.context.createBufferSource();
+    const filter = this.context.createBiquadFilter();
+    const noiseGain = this.context.createGain();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(2_400, now);
+    filter.frequency.exponentialRampToValueAtTime(380, now + 0.2);
+    noiseGain.gain.setValueAtTime(0.52, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    noise.buffer = buffer;
+    noise.connect(filter).connect(noiseGain).connect(this.effectsGain);
+    noise.start(now);
+    noise.stop(now + 0.24);
+
+    const thump = this.context.createOscillator();
+    const thumpGain = this.context.createGain();
+    thump.type = "sawtooth";
+    thump.frequency.setValueAtTime(132, now);
+    thump.frequency.exponentialRampToValueAtTime(44, now + 0.16);
+    thumpGain.gain.setValueAtTime(0.32, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    thump.connect(thumpGain).connect(this.effectsGain);
+    thump.start(now);
+    thump.stop(now + 0.2);
+  }
+
+  private birds() {
+    if (!this.context || !this.effectsGain) return;
+    const now = this.context.currentTime;
+    const chirps: Array<[number, number, number]> = [
+      [1_560, 2_180, 0],
+      [1_820, 2_520, 0.16],
+      [1_420, 2_040, 0.36],
+    ];
+    for (const [startFrequency, endFrequency, delay] of chirps) {
+      const oscillator = this.context.createOscillator();
+      const gain = this.context.createGain();
+      const start = now + delay;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(startFrequency, start);
+      oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + 0.1);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.08, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.13);
+      oscillator.connect(gain).connect(this.effectsGain);
+      oscillator.start(start);
+      oscillator.stop(start + 0.15);
+    }
   }
 
   private tone(frequency: number, delay: number, duration: number, type: OscillatorType) {

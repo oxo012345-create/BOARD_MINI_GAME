@@ -71,8 +71,6 @@ export function PlaceMafiaBriefing({
   onDiscussionChange,
   onBalanceChange,
   onMafiaCountChange,
-  onDebugModeChange,
-  onDebugRoleChange,
   onStart,
   topBar,
   overlays,
@@ -107,7 +105,7 @@ export function PlaceMafiaBriefing({
         <h2 id="pm-briefing-guide-title">장소 마피아 핵심 규칙</h2>
         <ol>
           <li><b>1</b><span><strong>이동</strong><small>현재 또는 연결된 주변 장소만</small></span></li>
-          <li><b>2</b><span><strong>특수 장소</strong><small>경찰서·광장·병원 연속 체류 불가</small></span></li>
+          <li><b>2</b><span><strong>특수 장소</strong><small>경찰서: 습격 성공 시 범인 후보 3곳 · 광장: 방문자 공개 · 병원: 외부 습격 방어</small></span></li>
           <li><b>3</b><span><strong>마피아 습격</strong><small>이동한 곳 또는 연결된 주변만 공격</small></span></li>
           <li><b>4</b><span><strong>목격</strong><small>같은 장소에서 만난 사람만 확인</small></span></li>
           <li><b>5</b><span><strong>조용한 밤</strong><small>공격 실패 원인은 모두 비공개</small></span></li>
@@ -318,7 +316,7 @@ export function PlaceMafiaGame({
     if (previous === state.phase) return;
     previousPhaseRef.current = state.phase;
     const cue: PlaceMafiaCue = state.phase === "night" ? "night"
-      : state.phase === "day_reveal" ? state.night?.quiet ? "quiet" : "incident"
+      : state.phase === "day_reveal" ? state.night?.victimId ? "gunshot" : "birds"
         : state.phase === "vote" ? "vote"
           : state.phase === "execution" ? state.execution?.tied ? "tie" : state.execution?.role === "mafia" ? "mafia-out" : "citizen-out"
             : state.phase === "game_over" ? state.winner === "mafia" ? "mafia-win" : "citizen-win"
@@ -392,7 +390,8 @@ export function PlaceMafiaGame({
     setRoleSeen(true);
     setRoleOpen(true);
     await experience.unlock();
-    experience.cue(me?.role === "mafia" ? "role-mafia" : "role-citizen");
+    // 마피아도 시민과 같은 역할 확인음을 사용해 소리로 역할이 드러나지 않게 합니다.
+    experience.cue("role-citizen");
   };
 
   const hideRole = () => setRoleOpen(false);
@@ -409,9 +408,19 @@ export function PlaceMafiaGame({
   const mapSelected = state.phase === "night" ? mapMode === "attack" ? attackChoices : moveChoice ? [moveChoice] : me?.selectedMove ? [me.selectedMove] : [] : [];
   const mapSelectable = mapMode === "attack" ? me?.legalAttackLocations ?? [] : mapMode === "move" ? me?.legalMoves ?? [] : [];
 
-  return <main className={`pm-shell pm-game-shell pm-phase-${state.phase} ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
+  const isDeadViewer = Boolean(me && !me.alive && state.phase !== "game_over");
+
+  return <main className={`pm-shell pm-game-shell pm-phase-${state.phase} ${isDeadViewer ? "pm-viewer-dead" : ""} ${experience.preferences.reduceMotion ? "pm-reduce-motion" : ""}`} onPointerDownCapture={() => void experience.unlock()}>
     <header className="pm-topbar"><div className="pm-room-code"><i />{code}</div><strong>장소 마피아</strong><div>{isHost && <button type="button" disabled={busy} onClick={onLobby}>대기실</button>}<button type="button" onClick={onLeave}>나가기</button></div></header>
     <PhaseHeader state={state} remaining={remaining} />
+    {isDeadViewer && <>
+      <div className="pm-dead-vignette" aria-hidden="true" />
+      <section className="pm-dead-banner" role="status" aria-live="polite">
+        <span>YOU ARE OUT</span>
+        <strong>사망</strong>
+        <p>이제 게임을 관전합니다.</p>
+      </section>
+    </>}
     {state.phase === "role_reveal" && me && <section className="pm-role-stage">
       <div
         className={`pm-role-card ${roleOpen ? "open" : ""} ${me.role}`}
