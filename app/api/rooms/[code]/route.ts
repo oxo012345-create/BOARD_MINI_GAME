@@ -6,7 +6,7 @@ import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
-import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
+import { advanceCashNGunsIfDue, createCashNGunsState, debugAutoCashNGuns, debugStepCashNGuns, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -209,6 +209,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       bullet?: "click" | "bang";
       courage?: "crouch" | "stand";
       lootId?: string;
+      debug?: boolean;
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
       mafiaCount?: number;
@@ -478,6 +479,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
       }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (String(payload.action).startsWith("cash-n-guns-debug-")) {
+      if (!isHost || payload.debug !== true) return Response.json({ error: "디버그 모드는 방장 전용이에요." }, { status: 403 });
+      if (game.id !== "cash-n-guns" || !game.cashNGuns || room.view !== "game") return Response.json({ error: "캐시 앤 건즈가 진행 중이 아니에요." }, { status: 409 });
+      const debugAction = String(payload.action);
+      if (debugAction === "cash-n-guns-debug-step") debugStepCashNGuns(game.cashNGuns);
+      else if (debugAction === "cash-n-guns-debug-auto") debugAutoCashNGuns(game.cashNGuns);
+      else if (debugAction === "cash-n-guns-debug-reset") game.cashNGuns = createCashNGunsState(room.players);
+      else return Response.json({ error: "지원하지 않는 디버그 동작이에요." }, { status: 400 });
       return persistAndRespond(room, viewer.id);
     }
 

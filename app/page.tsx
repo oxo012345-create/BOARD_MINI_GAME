@@ -646,6 +646,7 @@ export default function Home() {
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
+  const debugMode = typeof window !== "undefined" && new URLSearchParams(location.search).get("debug") === "1";
   const fallbackSyncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
   const syncInterval = realtimeConnected ? REALTIME_SAFETY_SYNC_INTERVAL_MS : fallbackSyncInterval;
 
@@ -934,7 +935,7 @@ export default function Home() {
       const { response, body } = entry;
       if (!response.ok || !body.room) throw new Error(body.error || "방에 들어가지 못했어요.");
       localStorage.setItem("hanpan-name", name.trim()); localStorage.setItem("hanpan-avatar", avatar); localStorage.setItem("hanpan-room", body.room.code);
-      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
+      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}${debugMode ? "&debug=1" : ""}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
     } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } finally { setBusy(false); }
   };
   const leaveRoom = async (permanent = false) => {
@@ -1311,6 +1312,7 @@ export default function Home() {
     meId={room.meId}
     state={currentGame.cashNGuns}
     isHost={isHost}
+    debugMode={debugMode}
     busy={hostActionLocked}
     onAction={applyAction}
     onReplay={() => void startGame()}

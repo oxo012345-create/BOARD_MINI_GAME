@@ -387,11 +387,27 @@ export function advanceCashNGunsIfDue(state: CashNGunsState, now = Date.now()): 
     if (state.phase === "godfather") { enterCourage(state, now); continue; }
     if (state.phase === "reaim") { if (state.commandTargetId) state.players[state.commandTargetId].aimTargetId = state.previousAimTargetId; enterCourage(state, now); continue; }
     if (state.phase === "courage") { defaultCourageAndResolve(state, now); continue; }
-    if (state.phase === "resolve") { beginNextRound(state, now); continue; }
+    // Keep the reveal screen visible, then move to the loot draft. The round
+    // only advances after the loot timer expires or the last card is taken.
+    if (state.phase === "resolve") { phaseDeadline(state, "loot", now); continue; }
     if (state.phase === "loot") { state.currentLoot = []; beginNextRound(state, now); continue; }
     break;
   }
   return changed;
+}
+
+/** Developer-only helpers used by the host debug panel. They still run the
+ * normal server transition code so the debug view cannot hide phase bugs. */
+export function debugStepCashNGuns(state: CashNGunsState, now = Date.now()) {
+  if (state.phase === "game_over") return;
+  state.phaseEndsAt = now - 1;
+  advanceCashNGunsIfDue(state, now);
+}
+
+export function debugAutoCashNGuns(state: CashNGunsState, now = Date.now()) {
+  for (let step = 0; step < 96 && state.phase !== "game_over"; step += 1) {
+    debugStepCashNGuns(state, now);
+  }
 }
 
 function remainingLoot(state: CashNGunsState) {

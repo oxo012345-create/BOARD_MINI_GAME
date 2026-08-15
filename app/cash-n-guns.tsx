@@ -6,6 +6,7 @@ export type { CashNGunsClientState } from "./api/_lib/cash-n-guns";
 
 type Player = { id: string; name: string; avatar: string; status: "active" | "waiting" };
 type ActionHandler = (payload: Record<string, unknown>) => Promise<unknown>;
+type DebugAction = "cash-n-guns-debug-step" | "cash-n-guns-debug-auto" | "cash-n-guns-debug-reset";
 
 const PHASE_LABEL: Record<CashNGunsClientState["phase"], string> = {
   loot_reveal: "전리품 공개",
@@ -89,6 +90,7 @@ export function CashNGunsGame({
   meId,
   state,
   isHost,
+  debugMode = false,
   busy,
   onAction,
   onReplay,
@@ -101,6 +103,7 @@ export function CashNGunsGame({
   meId?: string;
   state: CashNGunsClientState;
   isHost: boolean;
+  debugMode?: boolean;
   busy: boolean;
   onAction: ActionHandler;
   onReplay: () => void;
@@ -115,6 +118,10 @@ export function CashNGunsGame({
   const remainingLoot = state.currentLoot.filter((card) => !state.lootTakenIds.includes(card.id));
   const selectedBullet = state.my.chosenBullet;
   const selectedTarget = state.my.aimTargetId;
+  const [debugBusy, setDebugBusy] = useState(false);
+  const [debugMessage, setDebugMessage] = useState("");
+  const canDebug = debugMode && isHost;
+  const currentTurnId = state.lootTurnOrder[state.lootTurnIndex];
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);
@@ -128,8 +135,29 @@ export function CashNGunsGame({
   }, [now, onAction, state.phase, state.phaseEndsAt]);
 
   const act = (payload: Record<string, unknown>) => { if (!busy) void onAction(payload); };
+  const runDebug = async (action: DebugAction) => {
+    if (!canDebug || debugBusy) return;
+    setDebugBusy(true);
+    setDebugMessage("서버 상태를 갱신하는 중…");
+    try {
+      await onAction({ action, debug: true });
+      setDebugMessage("완료 · 최신 서버 상태 반영");
+    } catch (error) {
+      setDebugMessage(error instanceof Error ? error.message : "디버그 동작에 실패했어요.");
+    } finally {
+      setDebugBusy(false);
+    }
+  };
+  const debugSnapshot = JSON.stringify({
+    phase: state.phase,
+    round: state.round,
+    phaseEndsAt: state.phaseEndsAt,
+    godfatherId: state.godfatherId,
+    players: state.players.map((player) => ({ id: player.id, name: player.name, alive: player.alive, wounds: player.wounds, aimedAt: player.aimTargetId })),
+    lootRemaining: remainingLoot.length,
+    lootTurn: currentTurnId,
+  }, null, 2);
   const godfather = state.godfatherId === meId;
-  const currentTurnId = state.lootTurnOrder[state.lootTurnIndex];
   const scoreName = (id?: string) => playerLabel(state.players, id);
 
   return <main className="cng-shell">
@@ -176,6 +204,13 @@ export function CashNGunsGame({
       {state.phase === "resolve" && <div><div className="cng-message"><span className="cng-stamp">FIRE</span><h3>총성이 멎었습니다</h3><p>이번 라운드의 모든 결과가 동시에 공개됩니다.</p></div><div className="cng-shot-list">{(state.roundOutcome?.shots ?? []).map((shot) => <div key={`${shot.shooterId}-${shot.targetId}`}><span>{scoreName(shot.shooterId)} → {scoreName(shot.targetId)}</span><b className={shot.result}>{shot.result === "bang" ? "BANG!" : shot.result === "click" ? "CLICK" : shot.result === "hidden" ? "숨김" : "빗나감"}</b></div>)}</div></div>}
       {state.phase === "game_over" && <div className="cng-final"><span className="cng-stamp">FINAL TABLE</span><h3>{state.winnerIds?.length === 1 ? `${scoreName(state.winnerIds[0])} 승리` : "공동 우승"}</h3><p>살아남은 사람 중 가장 많은 돈을 모은 플레이어가 승리합니다.</p><div className="cng-score-list">{(state.finalScores ?? []).sort((a, b) => b.money - a.money).map((score) => <div key={score.playerId} className={state.winnerIds?.includes(score.playerId) ? "winner" : ""}><span>{scoreName(score.playerId)} {score.alive ? "" : "· OUT"}</span><b>${score.money.toLocaleString()}</b><small>현금 ${score.cash.toLocaleString()} · 다이아 ${score.diamonds.toLocaleString()} · 그림 {score.paintings}장 · 상처 {score.wounds}</small></div>)}</div><div className="cng-result-actions">{isHost && <button type="button" className="cng-primary" onClick={onReplay}>같은 게임 다시하기</button>}{isHost && <button type="button" className="cng-secondary" onClick={onLobby}>다른 게임 하러가기</button>}</div></div>}
     </section>
+    {canDebug && <aside className="cng-debug-panel" aria-label="캐시 앤 건즈 디버그 모드">
+      <div className="cng-debug-head"><div><span className="cng-kicker">DEVELOPER TOOL</span><strong>DEBUG MODE</strong></div><span className="cng-debug-live">SERVER STATE</span></div>
+      <div className="cng-debug-grid"><span>PHASE <b>{state.phase}</b></span><span>ROUND <b>{state.round}/{state.totalRounds}</b></span><span>ALIVE <b>{alive.length}</b></span><span>TIMER <b>{timerText(state.phaseEndsAt, now)}</b></span></div>
+      <div className="cng-debug-actions"><button type="button" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-step")}>현재 단계 넘기기</button><button type="button" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-auto")}>8라운드 자동 진행</button><button type="button" className="danger" disabled={debugBusy} onClick={() => void runDebug("cash-n-guns-debug-reset")}>게임 상태 초기화</button></div>
+      {debugMessage && <small className="cng-debug-message">{debugMessage}</small>}
+      <details><summary>상태 JSON 보기</summary><pre>{debugSnapshot}</pre></details>
+    </aside>}
     {overlays}
   </main>;
 }
