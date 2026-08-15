@@ -605,6 +605,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (["initial", "trivia"].includes(game.id)) {
         if (!game.answerRevealed) return Response.json({ error: "정답을 먼저 공개해 주세요." }, { status: 409 });
         advanceQuestion(game, room.players);
+      } else if (game.id === "hunmin") {
+        advanceQuestion(game, room.players);
       } else if (["people", "chain", "four", "character", "group-initial"].includes(game.id)) {
         if (advanceCoopQuestion(game, room.players)) room.view = "result";
       } else if (game.id === "syllable") {

@@ -210,6 +210,10 @@ function groupInitialQuestion(): HistoryItem {
   return { prompt: pick(getList("groupInitials", ["ㄷㅂ"])) };
 }
 
+function hunminQuestion(): HistoryItem {
+  return { prompt: pick(getList("infiniteInitials", ["ㄱㅂ"])) };
+}
+
 function syllableQuestion(): HistoryItem {
   return { prompt: pick(getList("이어말하기", ["아이돌"])) };
 }
@@ -716,6 +720,13 @@ function applyQuestion(game: GameRound, item: HistoryItem) {
 }
 
 export function advanceQuestion(game: GameRound, players: Player[]) {
+  if (game.id === "hunmin") {
+    applyQuestion(game, nextUnique(game, hunminQuestion));
+    game.answerRevealed = false;
+    game.correctVotes = [];
+    game.deadline = undefined;
+    return;
+  }
   const order = (game.playerOrder?.length ? game.playerOrder : shuffle(players.map((player) => player.id))).filter((id) => players.some((player) => player.id === id));
   game.playerOrder = order;
   game.currentPlayerIndex = ((game.currentPlayerIndex ?? 0) + 1) % Math.max(1, order.length);
@@ -841,7 +852,10 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
     const item = initialQuestion();
     return { ...base, ...dealerTurnBase(players), prompt: item.prompt, answer: item.answer, category: item.category, history: [item], answerRevealed: false };
   }
-  if (id === "hunmin") return { ...base, prompt: pick(getList("infiniteInitials", ["ㄱㅂ"])) };
+  if (id === "hunmin") {
+    const item = hunminQuestion();
+    return { ...base, prompt: item.prompt, history: [item] };
+  }
   if (id === "taste") return { ...base, prompt: "둘 중 하나를 선택하세요", choices: pick(getList<string[]>("tasteMatch", [["짜장면", "짬뽕"]])), selections: {} };
   if (id === "trivia") {
     const item = triviaQuestion();

@@ -1066,7 +1066,7 @@ export default function Home() {
   const timeUp = Boolean(currentGame?.deadline && synchronizedNow >= currentGame.deadline);
   const myTimerResult = currentGame?.timerResults?.find((item) => item.playerId === room?.meId);
   const gameMeta = useMemo(() => ALL_GAMES.find((item) => item.id === currentGame?.id), [currentGame?.id]);
-  const inlineManagedGame = Boolean(currentGame && ["initial", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id));
+  const inlineManagedGame = Boolean(currentGame && ["initial", "hunmin", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id));
   const activeSurprise = room?.view !== "game" && room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
 
   const topBar = (title: string) => <TopBar code={room?.code ?? ""} title={title} showLobby={isHost && room?.view !== "lobby"} actionsDisabled={hostActionLocked} onLobby={() => setConfirmType("lobby")} onLeave={() => setConfirmType("leave")} />;
@@ -1405,6 +1405,11 @@ export default function Home() {
       {currentGame.answerRevealed && <div className="inline-answer">정답 · {currentGame.answer}</div>}
       {isHost && (!currentGame.answerRevealed ? <button className="button primary xl" disabled={hostActionLocked} onClick={() => void revealAnswer()}>정답 공개</button> : <div className="host-game-controls"><button className="button secondary" disabled={hostActionLocked} onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>)}
     </section></>}
+    {currentGame.id === "hunmin" && <section className="prompt-card">
+      <div className="quiz-category">초성</div><h2 className="prompt-big">{currentGame.prompt}</h2>
+      <p>마지막 술래 오른쪽으로! 제한시간 3초</p>
+      {isHost && <div className="host-game-controls"><button className="button secondary" disabled={hostActionLocked} onClick={() => setConfirmType("finish")}>결과 보기</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}
+    </section>}
     {currentGame.id === "memory" && <section className="prompt-card">
       <div className="memory-word-label">제시어</div><h2 className="memory-word">{currentGame.memoryWord}</h2>
       {!currentGame.memoryReady ? currentGame.isStoryteller ? <>
@@ -1431,7 +1436,7 @@ export default function Home() {
     </section></>}
     {currentGame.id === "syllable" && <section className="prompt-card"><div className="coop-eyebrow">팀전 · 직접 판정</div><h2 className="prompt-big">{currentGame.prompt}</h2><p>두 팀으로 나눠 한 글자씩 이어서 단어를 완성하세요.</p>{isHost && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section>}
     {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} clockOffsetMs={serverClockOffsetMs} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} /></>}
-    {!["initial", "trivia", "memory", "taste", "ten-seconds", "color", "object-initial", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id) && <section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<div className={gameMeta?.category === "coop" ? "coop-eyebrow" : "eyebrow"}>{privateRole ? "역할을 확인했다면" : gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어"}</div><h2 className={!privateRole && currentGame.prompt.length <= 8 ? "prompt-big" : ""}>{privateRole ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요" : currentGame.id === "face-liar" ? "차례대로 표정만 보여주세요" : currentGame.id === "unknown" ? "차례대로 질문에 답하세요" : "내 단어를 라이어가 모르게 설명하세요." : currentGame.prompt}</h2>{currentGame.id === "hunmin" && <p>마지막 술래 오른쪽으로! 제한시간 3초</p>}</section>}
+    {!["initial", "hunmin", "trivia", "memory", "taste", "ten-seconds", "color", "object-initial", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id) && <section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<div className={gameMeta?.category === "coop" ? "coop-eyebrow" : "eyebrow"}>{privateRole ? "역할을 확인했다면" : gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어"}</div><h2 className={!privateRole && currentGame.prompt.length <= 8 ? "prompt-big" : ""}>{privateRole ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요" : currentGame.id === "face-liar" ? "차례대로 표정만 보여주세요" : currentGame.id === "unknown" ? "차례대로 질문에 답하세요" : "내 단어를 라이어가 모르게 설명하세요." : currentGame.prompt}</h2></section>}
     {currentGame.answer && !privateRole && !["trivia", "initial", "people", "ten-seconds"].includes(currentGame.id) && <details className="answer-reveal"><summary>정답 확인</summary><strong>{currentGame.answer}</strong></details>}
     {currentGame.id !== "gem-heist" && <div className="sticky-action">{isHost ? inlineManagedGame ? <div className="waiting"><span className="pulse" />진행중</div> : <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "memory" && !currentGame.memoryReady)} onClick={() => setConfirmType("finish")}>{currentGame.id === "memory" && !currentGame.memoryReady ? "추억 작성 대기 중" : "결과 보기"}</button> : <div className="waiting"><span className="pulse" />진행중</div>}</div>}{commonOverlays}</main>;
 }
