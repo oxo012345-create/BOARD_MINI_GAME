@@ -323,7 +323,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "apartment" && room.players.length < 3) {
         return Response.json({ error: "아파트 게임은 3명 이상이 함께할 수 있어요." }, { status: 409 });
       }
-      if (gameId === "cash-n-guns" && (room.players.length < 4 || room.players.length > 8)) {
+      const cashNGunsDebugStart = gameId === "cash-n-guns" && payload.debug === true;
+      if (gameId === "cash-n-guns" && (room.players.length > 8 || (room.players.length < 4 && !cashNGunsDebugStart))) {
         return Response.json({ error: "캐시 앤 건즈는 4~8명이 필요해요." }, { status: 409 });
       }
       if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
