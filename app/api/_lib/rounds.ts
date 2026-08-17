@@ -151,7 +151,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   "group-initial": { title: "단체 초성 퀴즈", briefing: "랜덤으로 지목된 사람이 3초 안에 초성에 맞는 단어를 말합니다. 방장이 다음 문제를 진행합니다.", category: "coop" },
 };
 
-GAME_INFO["cash-n-guns"] = { title: "캐시 앤 건즈", briefing: "총을 겨누고, 숨고, 전리품을 나누세요. 8라운드 동안 살아남아 가장 많은 돈을 모으는 게임입니다.", category: "solo" };
+GAME_INFO["cash-n-guns"] = { title: "CASH AND GUNS", briefing: "총을 겨누고, 숨고, 전리품을 예약하세요. 8라운드 동안 살아남아 가장 많은 돈을 모으는 게임입니다.", category: "solo" };
 export const GAME_IDS = Object.keys(GAME_INFO);
 const CONTENT = GAME_CONTENT as Record<string, unknown>;
 export const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];

@@ -130,7 +130,7 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
   { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
-BOARD_GAMES.push({ id: "cash-n-guns", title: "캐시 앤 건즈", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
+BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
 const randomGamesForPlayers = (count: number) => RANDOM_GAMES.filter((game) => game.id !== "cash-n-guns" || (count >= 4 && count <= 8));
@@ -1178,7 +1178,7 @@ export default function Home() {
         <div className="eyebrow">시작 전 설명</div>
         <h1>{currentGame.title}</h1>
         <p>{currentGame.briefing ?? currentGame.prompt}</p>
-        {currentGame.id === "cash-n-guns" && <div className={`cng-briefing-note ${cashNGunsPlayerCountValid ? "ready" : "warning"}`}><b>4~8명 · POWER MODE 없음</b><span>{cashNGunsPlayerCountValid ? "8라운드 · 탄환 선택 → 조준 → 숨기/서기 → 전리품 분배" : debugMode ? "디버그 모드 · 혼자서 단계별 테스트 가능" : `현재 ${room.players.length}명 · 4~8명이 모이면 시작할 수 있어요`}</span></div>}
+        {currentGame.id === "cash-n-guns" && <div className={`cng-briefing-note ${cashNGunsPlayerCountValid ? "ready" : "warning"}`}><b>4~8명 · POWER MODE 없음</b><span>{cashNGunsPlayerCountValid ? "8라운드 · 탄환 선택 → 직접 조준 → 결단 → 예약 드래프트" : debugMode ? "디버그 모드 · 혼자서 단계별 테스트 가능" : `현재 ${room.players.length}명 · 4~8명이 모이면 시작할 수 있어요`}</span></div>}
         {currentGame.id === "cash-n-guns" && isHost && <div className="cng-debug-toggle"><div><b>디버그 모드</b><small>게임 중 단계 넘기기와 자동 진행 패널을 표시해요.</small></div><button type="button" aria-pressed={debugMode} onClick={() => setCashDebugModeEnabled(!debugMode)}>{debugMode ? "켜짐" : "꺼짐"}</button></div>}
         {currentGame.id === "cash-n-guns" && isHost && debugMode && <div className="cng-debug-count"><span>디버그 인원</span><div>{([4, 5, 6, 7, 8] as const).map((count) => <button type="button" key={count} className={cashDebugPlayers === count ? "active" : ""} onClick={() => setCashDebugPlayers(count)}>{count}명</button>)}</div><small>부족한 자리는 BOT이 자동으로 채워요.</small></div>}
         {currentGame.id === "apartment" && <div className="apartment-briefing"><ApartmentBuilding maxFloor={room.players.length + 2} submittedIds={[]} players={room.players} preview /></div>}
@@ -1225,7 +1225,7 @@ export default function Home() {
           <div className={`gem-player-rule ${dealerPlayerCountValid ? "ready" : "warning"}`}><span>{dealerPlayerCountValid ? "✓" : "!"}</span><div><strong>휴대폰 전용 · 3~8명</strong><small>현재 {room.players.length}명 · {dealerPlayerCountValid ? "음성채팅 없이 같은 자리에서 대화해요" : room.players.length < 3 ? `${3 - room.players.length}명 더 필요해요` : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
         </>}
       </section>
-      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid) || (currentGame.id === "double-dealers" && !dealerPlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : currentGame.id === "double-dealers" ? "경매장 입장" : currentGame.id === "cash-n-guns" ? "캐시 앤 건즈 선택 · 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
+      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid) || (currentGame.id === "double-dealers" && !dealerPlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : currentGame.id === "double-dealers" ? "경매장 입장" : currentGame.id === "cash-n-guns" ? "CASH AND GUNS 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;
   }

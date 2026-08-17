@@ -209,6 +209,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       bullet?: "click" | "bang";
       courage?: "crouch" | "stand";
       lootId?: string;
+      reservationIds?: string[];
       debug?: boolean;
       debugPlayers?: number;
       command?: string;
@@ -516,6 +517,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           targetId: payload.targetId,
           courage: payload.courage,
           lootId: payload.lootId,
+          reservationIds: payload.reservationIds,
         });
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
