@@ -128,12 +128,13 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "place-mafia", title: "장소 마피아", icon: "⌖", description: "4~8인 위치·동선 추리 마피아", category: "board" },
   { id: "double-dealers", title: "수상한 딜러들", icon: "🎩", description: "3~8인 프라이빗 경매와 사실적인 소장품 카드", category: "board" },
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
-  { id: "gem-heist", title: "사라진 보석", icon: "◇", description: "단서를 합쳐 보석 도둑을 찾아요", category: "board" },
 ];
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
-const RANDOM_GAMES = ALL_GAMES.filter((game) => game.id !== "syllable");
-const randomGamesForPlayers = (count: number) => RANDOM_GAMES.filter((game) => game.id !== "cash-n-guns" || (count >= 4 && count <= 8));
+// 랜덤게임은 개인전·모두 협동 탭의 게임만 대상으로 한다.
+// 팀전 이어말하기는 기존 규칙대로 랜덤 대상에서 제외한다.
+const RANDOM_GAMES = [...SOLO_GAMES, ...COOP_GAMES].filter((game) => game.id !== "syllable");
+const randomGamesForPlayers = () => RANDOM_GAMES;
 const LIAR_OPTION_GAMES = ["liar", "body-liar", "face-liar", "unknown"];
 const FAST_SYNC_INTERVAL_MS = 500;
 const IDLE_SYNC_INTERVAL_MS = 1400;
@@ -1128,7 +1129,7 @@ export default function Home() {
 
   if (me?.status === "waiting") return <main className="app-shell">{topBar("다음 판 대기")}<section className="waiting-card"><span className="big-emoji">👋</span><h2>현재 게임이 진행 중이에요</h2><p>이번 판이 끝나면 동일한 참가자로 자동 참여해요.</p></section>{commonOverlays}</main>;
 
-  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : tab === "coop" ? COOP_GAMES : BOARD_GAMES; const randomPool = randomGamesForPlayers(room.players.length); return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(randomPool))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{randomPool.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button><button role="tab" aria-selected={tab === "board"} className={tab === "board" ? "active" : ""} onClick={() => setTab("board")}>미니(보드)게임 <span>{BOARD_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className={`game-icon ${game.id === "gem-heist" ? "gem-photo-icon" : ""}`}>{game.id === "gem-heist" ? "" : game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
+  if (room.view === "hub") { const games = tab === "solo" ? SOLO_GAMES : tab === "coop" ? COOP_GAMES : BOARD_GAMES; const randomPool = randomGamesForPlayers(); return <main className="app-shell">{topBar("게임 고르기")}<button className="random-card" disabled={isHost && hostActionLocked} onClick={() => void prepareGame(pick(randomPool))}><span className="random-icon">✦</span><span><strong>랜덤 게임</strong><small>{randomPool.length}개 게임 중 하나를 골라요</small></span><span>→</span></button><div className="segmented" role="tablist"><button role="tab" aria-selected={tab === "solo"} className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>개인전 <span>{SOLO_GAMES.length}</span></button><button role="tab" aria-selected={tab === "coop"} className={tab === "coop" ? "active" : ""} onClick={() => setTab("coop")}>모두 협동 <span>{COOP_GAMES.length}</span></button><button role="tab" aria-selected={tab === "board"} className={tab === "board" ? "active" : ""} onClick={() => setTab("board")}>미니(보드)게임 <span>{BOARD_GAMES.length}</span></button></div><div className="game-list">{games.map((game) => <button className="game-row" disabled={isHost && hostActionLocked} key={game.id} onClick={() => void prepareGame(game)}><span className={`game-icon ${game.id === "gem-heist" ? "gem-photo-icon" : ""}`}>{game.id === "gem-heist" ? "" : game.icon}</span><span><strong>{game.title}</strong><small>{game.description}</small></span><span className="chevron">›</span></button>)}</div>{!isHost && <div className="floating-wait">방장이 게임을 고르는 중</div>}{commonOverlays}</main>; }
 
   if (room.view === "briefing" && currentGame) {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
