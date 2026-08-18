@@ -7,8 +7,6 @@
 .cng2-target-route{display:grid;grid-template-columns:1fr 38px 1fr;align-items:center;gap:4px;margin-top:8px;color:#d3a54a;font-size:9px;font-weight:900;text-align:center}.cng2-target-route i{position:relative;font-size:18px;font-style:normal}.cng2-target-route i:before,.cng2-target-route i:after{content:"";position:absolute;top:50%;width:22px;border-top:1px dashed #b77e28}.cng2-target-route i:before{right:100%}.cng2-target-route i:after{left:100%}.cng2-command-note{margin:0 0 8px;color:#8d877a;font-size:8px;text-align:center}
 .cng2-assets-list{display:grid;gap:3px}.cng2-assets-list>div{display:grid;grid-template-columns:60px 1fr;align-items:center;min-height:61px;border-bottom:1px solid #4c391f}.cng2-assets-list .cng2-loot-sprite{width:54px;height:54px}.cng2-assets-list span{display:grid;gap:1px}.cng2-assets-list small{color:#aa9c82;font-size:8px}.cng2-assets-list b{color:#e3b95e;font-size:18px}.cng2-assets-list em{color:#80796e;font-size:8px;font-style:normal}.cng2-total{display:grid;justify-items:center;gap:2px;padding:9px 0}.cng2-total small{color:#9d917c;font-size:8px}.cng2-total b{color:#e5b850;font-size:25px}.cng2-bonus{display:flex;align-items:center;justify-content:center;gap:3px;min-height:31px;border:1px solid #665027;color:#b9a47b;font-size:8px}.cng2-bonus .cng2-action-sprite{width:26px;height:26px}.cng2-bonus b{color:#4dbb6d}.cng2-death-warning{margin:8px 0 0;color:#9b6254;font-size:9px;font-weight:900;text-align:center}
 .cng2-settings{display:grid;gap:7px}.cng2-settings button{display:flex;justify-content:space-between;min-height:42px;padding:0 12px;align-items:center;border:1px solid #594529;background:#121617;color:#c9bfae;font:800 10px/1 inherit}.cng2-settings b{color:#d6a64b}.cng2-final-list{display:grid;gap:3px;max-height:272px;overflow:auto}.cng2-final-list>div{display:grid;grid-template-columns:22px 1fr auto;align-items:center;min-height:29px;padding:3px 6px;border:1px solid #34302a;background:#101415;color:#938b7e;font-size:8px}.cng2-final-list>div.winner{border-color:#a8782e;color:#efd18f;background:#332615}.cng2-final-list em{font-style:normal;color:#d5aa55}.cng2-result-buttons{display:grid;gap:6px;margin-top:9px}.cng2-result-buttons button:first-child{border-color:#a97a2f;color:#f1d28d}
-.cng2-debug-shade{position:absolute;z-index:70;inset:0;display:flex;align-items:stretch;justify-content:flex-end;background:rgba(0,0,0,.62)}.cng2-debug-panel{width:min(94%,365px);height:100%;overflow:auto;padding:10px;border-left:2px solid #4e8290;background:#071015;color:#cce9ef;box-shadow:-8px 0 24px #000;user-select:text;-webkit-user-select:text}.cng2-debug-panel>header{position:sticky;z-index:2;top:-10px;display:flex;align-items:center;justify-content:space-between;padding:10px 3px;border-bottom:1px solid #31535c;background:#071015}.cng2-debug-panel header div{display:grid}.cng2-debug-panel header small{color:#58a9bc;font:7px/1 ui-monospace,monospace;letter-spacing:.16em}.cng2-debug-panel header b{margin-top:3px;font:900 13px/1 ui-monospace,monospace;letter-spacing:.08em}.cng2-debug-panel header button{width:30px;height:30px;border:1px solid #376b78;background:#0d2027;color:#94d6e3;font-size:18px}
-.cng2-debug-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0}.cng2-debug-summary span{display:grid;gap:2px;padding:6px 4px;border:1px solid #213d45;color:#557c86;font:7px/1 ui-monospace,monospace}.cng2-debug-summary b{overflow:hidden;color:#bce2e9;font-size:8px;text-overflow:ellipsis}.cng2-debug-panel section{margin-top:9px;padding-top:8px;border-top:1px solid #1d343b}.cng2-debug-panel h3{margin:0 0 6px;color:#6baebe;font:800 8px/1 ui-monospace,monospace;letter-spacing:.12em}.cng2-debug-panel select{width:100%;min-height:32px;margin-bottom:6px;border:1px solid #31545e;background:#0b191f;color:#c8e4e9;font-size:10px}.cng2-debug-buttons{display:grid;gap:4px}.cng2-debug-buttons.three,.cng2-debug-buttons.phase{grid-template-columns:repeat(3,1fr)}.cng2-debug-buttons button{min-height:31px;padding:4px;border:1px solid #315763;background:#0d2229;color:#a5d1da;font:800 8px/1.2 inherit}.cng2-debug-buttons button.active{border-color:#d0a140;background:#4a3618;color:#ffe090}.cng2-debug-buttons button:disabled{opacity:.5}
 @media (min-height:721px){.cng2-game-frame{margin-block:auto;border-block:1px solid #4b351b}}
 @media (max-height:600px){.cng2-game-frame{grid-template-rows:70px minmax(0,1fr) 60px}.cng2-hud{grid-template-rows:35px 35px}.cng2-hud-main{grid-template-columns:96px 1fr 90px}.cng2-hud-main h1{font-size:14px}.cng2-hud-status{grid-template-columns:58px 62px 1fr 96px}.cng2-character{width:58px;height:73px}.cng2-nameplate{min-width:60px}.cng2-loot-rail{top:18%;gap:0}.cng2-loot-rail button{width:27px;height:27px}.cng2-action-dock{padding:6px 10px}.cng2-wide-action,.cng2-status-action,.cng2-split-actions button{min-height:44px}}
 
@@ -70,11 +68,107 @@ button.cng2-seat{width:min(19.4cqw,82px)}
 .cng2-loot-rail .loot-info small{display:none}
 .cng2-loot-rail em{right:0;width:14px;height:14px;font-size:7px}
 .cng2-reservation-bar{right:5px;bottom:5px;max-width:58%;font-size:6px}
-.cng2-debug-fab{left:6px;right:auto;bottom:74px}
 
 .cng2-assets-button{height:31px;margin-left:4px;padding:2px 5px;border:1px solid #6f4b1e;background:linear-gradient(145deg,rgba(31,35,34,.92),rgba(8,11,12,.94));box-shadow:inset 0 0 0 1px #080909,0 1px #000}
 .cng2-assets-button:after{inset:2px;border-color:rgba(221,168,66,.12)}
 .cng2-audio-credit{display:block;padding:2px 4px;color:#6f6758;font-size:6px;text-align:center}
 
-@media (max-height:600px){.cng2-game-frame{grid-template-rows:66px minmax(0,1fr) 56px}.cng2-hud{grid-template-rows:33px 33px}.cng2-character{width:min(17.3cqw,13cqh,68px);height:min(21.1cqw,15.9cqh,83px)}.cng2-loot-rail{top:15.5%}.cng2-loot-rail button,.cng2-loot-rail button.token{height:clamp(18px,4.9cqh,25px)}.cng2-action-dock{padding:5px 9px}.cng2-wide-action,.cng2-status-action,.cng2-split-actions button{min-height:42px}.cng2-debug-fab{bottom:61px}}
+@media (max-height:600px){.cng2-game-frame{grid-template-rows:66px minmax(0,1fr) 56px}.cng2-hud{grid-template-rows:33px 33px}.cng2-character{width:min(17.3cqw,13cqh,68px);height:min(21.1cqw,15.9cqh,83px)}.cng2-loot-rail{top:15.5%}.cng2-loot-rail button,.cng2-loot-rail button.token{height:clamp(18px,4.9cqh,25px)}.cng2-action-dock{padding:5px 9px}.cng2-wide-action,.cng2-status-action,.cng2-split-actions button{min-height:42px}}
 @media (min-width:440px){.cng2-hud-main{grid-template-columns:122px 1fr 108px}.cng2-hud-status{grid-template-columns:72px 74px 1fr 112px}.cng2-hud-main h1{font-size:15px}.cng2-nameplate b{font-size:8px}}
+
+/* CASH AND GUNS mobile board v5 — readable, table-bound layout */
+.cng2-hud-main{grid-template-columns:58px minmax(0,1fr) 94px}
+.cng2-brand-mark{display:grid;place-items:center;width:27px;height:27px;margin-left:8px;border:1px solid #6f4b1e;background:radial-gradient(circle,#2a2316,#090c0d 68%);color:#d6a74d;font:900 16px/1 Georgia,serif;box-shadow:inset 0 0 0 2px #060808,0 0 6px rgba(194,130,35,.18)}
+.cng2-hud-main h1{font-size:clamp(12px,3.5vw,15px)}
+.cng2-hud-main h1 small{font-size:6px}
+.cng2-hud-status{grid-template-columns:58px 62px minmax(94px,1fr) 98px}
+.cng2-hud-status small{font-size:7px;line-height:1}
+.cng2-hud-status b{font-size:9px}
+.cng2-hud-status>.cng2-assets-button{position:relative;display:grid;grid-template-columns:25px minmax(0,1fr);align-items:center;align-self:stretch;width:auto;height:auto;margin:0;padding:2px 5px;border:0;border-inline:1px solid #4c3418;border-radius:0;background:linear-gradient(180deg,rgba(29,30,25,.92),rgba(8,11,12,.96));box-shadow:inset 0 0 0 1px rgba(217,163,60,.08);animation:cng2-asset-hint 1.8s ease-in-out 2}
+.cng2-hud-status>.cng2-assets-button .cng2-loot-sprite{width:24px;height:24px}
+.cng2-hud-status>.cng2-assets-button>span{display:grid;min-width:0;text-align:left}
+.cng2-hud-status>.cng2-assets-button small{color:#b48d4e;font-size:6px;white-space:nowrap}
+.cng2-hud-status>.cng2-assets-button b{overflow:hidden;color:#ead18d;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.cng2-hud-status .godfather{grid-template-columns:25px minmax(0,1fr);padding-inline:4px}
+.cng2-hud-status .godfather .cng2-action-sprite{width:24px;height:27px}
+.cng2-phase-chip{top:5px;min-height:23px;padding:3px 8px}
+.cng2-phase-chip span{font-size:9px}.cng2-phase-chip i{font-size:7px}
+
+.cng2-seat.seat-top{top:15.5%}.cng2-seat.seat-bottom{top:82%}
+.cng2-nameplate{min-height:21px;padding:2px 4px}
+.cng2-nameplate b{font-size:clamp(7.5px,2.1cqw,9px)}
+.cng2-nameplate em{align-self:start;width:max-content;height:max-content;min-height:0;max-width:70px;padding:1px 4px;border:0;background:rgba(7,9,9,.9);font-size:clamp(6px,1.65cqw,7px);line-height:1.2}
+.cng2-nameplate em.ready,.cng2-nameplate em.waiting{display:flex;align-items:center;gap:3px}
+.cng2-nameplate em.ready:before,.cng2-nameplate em.waiting:before{content:"";display:block;width:3px;height:3px;border-radius:50%;background:currentColor;box-shadow:0 0 3px currentColor}
+
+.cng2-aim-lines line{vector-effect:non-scaling-stroke;stroke-width:.8;stroke-dasharray:3 3}
+.cng2-aim-lines line.confirmed{stroke:rgba(225,211,179,.63);stroke-width:.65}
+.cng2-aim-lines line.mine,.cng2-aim-lines .active-line line{stroke-width:.95}
+.cng2-aim-lines .command-line line{stroke-width:.95}
+.cng2-aim-lines marker path{fill:#efb54a;filter:drop-shadow(0 0 1px #000)}
+.cng2-aim-lines .target-ring,.cng2-aim-lines .target-dot{vector-effect:non-scaling-stroke}
+.cng2-aim-lines .target-ring.mine,.cng2-aim-lines .target-ring.active{stroke-width:1;animation:none}
+
+/* The full nine-card pool remains inside the green felt at every supported ratio. */
+.cng2-loot-rail{top:50%;left:50%;z-index:9;width:min(42cqw,166px);gap:clamp(0px,.18cqh,1px);translate:-50% -50%}
+.cng2-loot-rail button,.cng2-loot-rail button.token{grid-template-columns:min(5.5cqh,25px) minmax(0,1fr);height:clamp(18px,4.55cqh,24px);padding:0 16px 0 0;overflow:hidden;border:0;outline:0;background:transparent;box-shadow:none;filter:drop-shadow(0 1px 2px #000)}
+.cng2-loot-rail button:focus,.cng2-loot-rail button:focus-visible{outline:0}
+.cng2-loot-rail button.reserved,.cng2-loot-rail button.token.reserved{background:linear-gradient(90deg,transparent,rgba(169,112,26,.25),transparent);box-shadow:inset 0 0 0 1px rgba(235,181,72,.48);filter:drop-shadow(0 0 3px rgba(233,170,54,.35))}
+.cng2-loot-rail .cng2-loot-sprite{width:min(5.5cqh,25px);height:min(5.5cqh,25px)}
+.cng2-loot-rail .loot-info b{font-size:clamp(7.5px,2.05cqw,9px);line-height:1.05}
+.cng2-loot-rail em{right:1px;width:13px;height:13px;font-size:7px}
+.cng2-reservation-bar{right:5px;bottom:5px;max-width:62%;gap:3px;padding:3px 4px;font-size:7px}
+.cng2-reservation-bar button{min-height:20px;font-size:7px}
+
+@media (max-height:600px){
+  .cng2-hud-main{grid-template-columns:54px minmax(0,1fr) 88px}
+  .cng2-hud-status{grid-template-columns:54px 58px minmax(88px,1fr) 91px}
+  .cng2-brand-mark{width:24px;height:24px;margin-left:7px;font-size:14px}
+  .cng2-loot-rail{top:50%;width:min(42cqw,150px)}
+  .cng2-loot-rail button,.cng2-loot-rail button.token{height:clamp(18px,4.35cqh,22px)}
+  .cng2-loot-rail .cng2-loot-sprite{width:min(5.2cqh,23px);height:min(5.2cqh,23px)}
+  .cng2-nameplate b{font-size:clamp(7px,2.05cqw,8px)}
+}
+@media (max-width:350px){
+  .cng2-hud-main{grid-template-columns:50px minmax(0,1fr) 84px}
+  .cng2-hud-main h1{font-size:11px}
+  .cng2-hud-status{grid-template-columns:52px 54px minmax(84px,1fr) 86px}
+  .cng2-hud-status>.cng2-assets-button{grid-template-columns:21px minmax(0,1fr);padding-inline:3px}
+  .cng2-hud-status>.cng2-assets-button .cng2-loot-sprite{width:20px;height:20px}
+  .cng2-hud-status>.cng2-assets-button small{font-size:5.5px}
+  .cng2-hud-status>.cng2-assets-button b{font-size:7px}
+  .cng2-loot-rail{width:42cqw}
+}
+
+/* CASH AND GUNS mobile board v6 — compact loot and award motion */
+.cng2-help-button{display:grid;place-items:center;width:27px;height:27px;margin-left:8px;padding:0;border:1px solid #8a6228;background:radial-gradient(circle,#292215,#090c0d 70%);color:#e2b75f;font:950 16px/1 ui-monospace,monospace;box-shadow:inset 0 0 0 2px #060808,0 0 6px rgba(194,130,35,.2)}
+.cng2-help-button:active{scale:.93}
+.cng2-loot-rail{width:min(35cqw,138px)}
+.cng2-loot-rail button,.cng2-loot-rail button.token{grid-template-columns:min(5.2cqh,23px) minmax(0,1fr);padding-right:15px}
+.cng2-loot-rail .cng2-loot-sprite{width:min(5.2cqh,23px);height:min(5.2cqh,23px)}
+.cng2-loot-rail .loot-info b{font-size:clamp(7.5px,2cqw,8.5px);text-align:center}
+
+.cng2-help-steps{display:grid;gap:5px}.cng2-help-steps>div{display:grid;grid-template-columns:25px minmax(0,1fr);align-items:center;gap:7px;min-height:42px;padding:5px 7px;border:1px solid #44351f;background:rgba(13,17,18,.86)}
+.cng2-help-steps>div>b{display:grid;place-items:center;width:22px;height:22px;border:1px solid #a8752d;background:#251c0f;color:#efc36c;font:950 10px/1 ui-monospace,monospace}
+.cng2-help-steps span{display:grid;gap:3px}.cng2-help-steps strong{color:#e1c48c;font-size:10px}.cng2-help-steps small{color:#9b9385;font-size:8px;line-height:1.35}
+.cng2-help-win{margin:8px 0 0;padding:7px;border:1px solid #775421;background:rgba(74,48,13,.24);color:#e7c77f;font-size:8px;font-weight:900;text-align:center}
+
+.cng2-loot-flight-layer{position:absolute;z-index:16;inset:0;overflow:hidden;pointer-events:none}
+.cng2-loot-flight{--flight-x:0cqw;--flight-y:0cqh;--flight-delay:0ms;position:absolute;display:grid;grid-template-columns:30px auto;align-items:center;gap:2px;opacity:0;filter:drop-shadow(0 0 5px #f1b849) drop-shadow(0 3px 3px #000);animation:cng2-loot-flight 1.45s cubic-bezier(.18,.76,.24,1) var(--flight-delay) both}
+.cng2-loot-flight .cng2-loot-sprite{width:30px;height:30px}
+.cng2-loot-flight b{padding:3px 5px;border:1px solid #bc8733;background:rgba(9,12,12,.9);color:#ffe09a;font:950 8px/1 ui-monospace,monospace;white-space:nowrap;box-shadow:inset 0 0 0 1px #080909}
+.cng2-loot-flight.mine{z-index:2;filter:drop-shadow(0 0 9px #ffd668) drop-shadow(0 3px 4px #000)}
+.loot-celebrating .cng2-assets-button{animation:cng2-assets-receive .72s steps(2,end) 1.12s 2}
+@keyframes cng2-loot-flight{0%{opacity:0;transform:translate(calc(-50% + var(--flight-x)),calc(-50% + var(--flight-y))) scale(.68)}10%{opacity:1}72%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}88%{opacity:1;transform:translate(-50%,-50%) scale(.94)}100%{opacity:0;transform:translate(-50%,-50%) scale(.65)}}
+@keyframes cng2-assets-receive{50%{filter:drop-shadow(0 0 8px #ffc952);scale:1.05}}
+
+@media (max-height:600px){.cng2-help-button{width:24px;height:24px;margin-left:7px;font-size:14px}.cng2-loot-rail{width:min(35cqw,126px)}.cng2-loot-flight{grid-template-columns:25px auto}.cng2-loot-flight .cng2-loot-sprite{width:25px;height:25px}.cng2-loot-flight b{font-size:7px}}
+@media (max-width:350px){.cng2-loot-rail{width:35cqw}.cng2-help-button{width:23px;height:23px;margin-left:6px}}
+
+/* CASH AND GUNS mobile board v7 — straight aim paths and readable ranks */
+.cng2-aim-lines polyline{fill:none;vector-effect:non-scaling-stroke;stroke:rgba(225,211,179,.63);stroke-width:.8;stroke-dasharray:3 3;stroke-linecap:round;stroke-linejoin:round;animation:cng2-dash-flow .42s linear infinite}
+.cng2-aim-lines polyline.confirmed{stroke-width:.7}
+.cng2-aim-lines polyline.mine,.cng2-aim-lines .active-line polyline{stroke:#ff4f36;stroke-width:1.2;filter:drop-shadow(0 0 2px #e73d2a)}
+.cng2-aim-lines .command-line polyline{stroke:#f3c257;stroke-width:1.2;filter:drop-shadow(0 0 2px #e8a728)}
+.cng2-loot-rail em{right:0;width:18px;height:18px;border-width:2px;background:#8b4515;color:#fff7d5;font:1000 11px/1 "Arial Black","Noto Sans KR",sans-serif;text-shadow:0 1px #321400;box-shadow:0 0 0 1px #3a2109,0 0 7px #e39b2f}
+@media (max-height:600px){.cng2-loot-rail em{width:16px;height:16px;font-size:10px}}

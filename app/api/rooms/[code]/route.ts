@@ -6,7 +6,7 @@ import { createMazeState } from "../../_lib/maze";
 import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resumeDealerIfReady, tickDealer, type DealerState } from "../../_lib/dealer";
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
-import { advanceCashNGunsIfDue, createCashNGunsState, debugAutoCashNGuns, debugMutateCashNGuns, debugStepCashNGuns, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
+import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -210,11 +210,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       courage?: "crouch" | "stand";
       lootId?: string;
       reservationIds?: string[];
-      debug?: boolean;
-      debugPlayers?: number;
-      command?: string;
-      phase?: string;
-      delta?: number;
       aimTargetId?: string;
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
@@ -329,8 +324,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "apartment" && room.players.length < 3) {
         return Response.json({ error: "아파트 게임은 3명 이상이 함께할 수 있어요." }, { status: 409 });
       }
-      const cashNGunsDebugStart = gameId === "cash-n-guns" && payload.debug === true;
-      if (gameId === "cash-n-guns" && (room.players.length > 8 || (room.players.length < 4 && !cashNGunsDebugStart))) {
+      if (gameId === "cash-n-guns" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "캐시 앤 건즈는 4~8명이 필요해요." }, { status: 409 });
       }
       if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
@@ -381,9 +375,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           mafiaCount: setup.mafiaCount,
         });
       }
-      if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players, {
-        debugPlayerCount: cashNGunsDebugStart ? Math.max(4, Math.min(8, Math.floor(Number(payload.debugPlayers) || 8))) : undefined,
-      });
+      if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players);
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -488,24 +480,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
       }
-      return persistAndRespond(room, viewer.id);
-    }
-
-    if (String(payload.action).startsWith("cash-n-guns-debug-")) {
-      if (!isHost || payload.debug !== true) return Response.json({ error: "디버그 모드는 방장 전용이에요." }, { status: 403 });
-      if (game.id !== "cash-n-guns" || !game.cashNGuns || room.view !== "game") return Response.json({ error: "캐시 앤 건즈가 진행 중이 아니에요." }, { status: 409 });
-      const debugAction = String(payload.action);
-      if (debugAction === "cash-n-guns-debug-step") debugStepCashNGuns(game.cashNGuns);
-      else if (debugAction === "cash-n-guns-debug-auto") debugAutoCashNGuns(game.cashNGuns);
-      else if (debugAction === "cash-n-guns-debug-reset") game.cashNGuns = createCashNGunsState(room.players, { debugPlayerCount: game.cashNGuns.participantIds.length });
-      else if (debugAction === "cash-n-guns-debug-mutate") {
-        try {
-          debugMutateCashNGuns(game.cashNGuns, String(payload.command ?? ""), payload, viewer.id);
-        } catch (error) {
-          return Response.json({ error: error instanceof Error ? error.message : "디버그 상태를 변경하지 못했어요." }, { status: 422 });
-        }
-      }
-      else return Response.json({ error: "지원하지 않는 디버그 동작이에요." }, { status: 400 });
       return persistAndRespond(room, viewer.id);
     }
 

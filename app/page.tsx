@@ -626,8 +626,6 @@ export default function Home() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "restored">("connected");
   const [hostActionLocked, setHostActionLocked] = useState(false);
-  const [cashDebugMode, setCashDebugMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(location.search).get("debug") === "1");
-  const [cashDebugPlayers, setCashDebugPlayers] = useState<4 | 5 | 6 | 7 | 8>(8);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const leavingRef = useRef(false);
   const alertedSurprise = useRef(0);
@@ -648,7 +646,6 @@ export default function Home() {
   const isHost = Boolean(room && room.hostId === room.meId);
   const currentGame = room?.game;
   const roomCode = room?.code;
-  const debugMode = cashDebugMode;
   const fallbackSyncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
   const syncInterval = realtimeConnected ? REALTIME_SAFETY_SYNC_INTERVAL_MS : fallbackSyncInterval;
 
@@ -937,7 +934,7 @@ export default function Home() {
       const { response, body } = entry;
       if (!response.ok || !body.room) throw new Error(body.error || "방에 들어가지 못했어요.");
       localStorage.setItem("hanpan-name", name.trim()); localStorage.setItem("hanpan-avatar", avatar); localStorage.setItem("hanpan-room", body.room.code);
-      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}${debugMode ? "&debug=1" : ""}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
+      leavingRef.current = false; history.replaceState(null, "", `?room=${body.room.code}`); applyRoomSnapshot(body.room, sequence); setIntent(null);
     } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } finally { setBusy(false); }
   };
   const leaveRoom = async (permanent = false) => {
@@ -1020,8 +1017,7 @@ export default function Home() {
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); setPlaceMafiaCount(1); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const setCashDebugModeEnabled = (enabled: boolean) => { setCashDebugMode(enabled); if (typeof window === "undefined") return; const url = new URL(window.location.href); if (enabled) url.searchParams.set("debug", "1"); else url.searchParams.delete("debug"); history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`); };
-  const startGame = async () => { if (!currentGame || !isHost) return; const setup = currentGame.placeMafiaSetup; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요."); if (currentGame.id === "cash-n-guns" && room && (room.players.length > 8 || (room.players.length < 4 && !debugMode))) return showNotice("캐시 앤 건즈는 4~8명이 필요해요. 디버그 모드를 켜면 혼자 테스트할 수 있어요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, debug: currentGame.id === "cash-n-guns" ? debugMode : undefined, debugPlayers: currentGame.id === "cash-n-guns" && debugMode ? cashDebugPlayers : undefined, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? setup?.discussionSeconds ?? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const startGame = async () => { if (!currentGame || !isHost) return; const setup = currentGame.placeMafiaSetup; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요."); if (currentGame.id === "cash-n-guns" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("캐시 앤 건즈는 4~8명이 필요해요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? setup?.discussionSeconds ?? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
   const updatePlaceMafiaSetup = async (patch: Partial<PlaceMafiaSetup>) => {
     if (!isHost || currentGame?.id !== "place-mafia") return;
     if (patch.discussionSeconds) setPlaceMafiaDiscussion(patch.discussionSeconds);
@@ -1178,9 +1174,7 @@ export default function Home() {
         <div className="eyebrow">시작 전 설명</div>
         <h1>{currentGame.title}</h1>
         <p>{currentGame.briefing ?? currentGame.prompt}</p>
-        {currentGame.id === "cash-n-guns" && <div className={`cng-briefing-note ${cashNGunsPlayerCountValid ? "ready" : "warning"}`}><b>4~8명 · POWER MODE 없음</b><span>{cashNGunsPlayerCountValid ? "8라운드 · 탄환 선택 → 직접 조준 → 결단 → 예약 드래프트" : debugMode ? "디버그 모드 · 혼자서 단계별 테스트 가능" : `현재 ${room.players.length}명 · 4~8명이 모이면 시작할 수 있어요`}</span></div>}
-        {currentGame.id === "cash-n-guns" && isHost && <div className="cng-debug-toggle"><div><b>디버그 모드</b><small>게임 중 단계 넘기기와 자동 진행 패널을 표시해요.</small></div><button type="button" aria-pressed={debugMode} onClick={() => setCashDebugModeEnabled(!debugMode)}>{debugMode ? "켜짐" : "꺼짐"}</button></div>}
-        {currentGame.id === "cash-n-guns" && isHost && debugMode && <div className="cng-debug-count"><span>디버그 인원</span><div>{([4, 5, 6, 7, 8] as const).map((count) => <button type="button" key={count} className={cashDebugPlayers === count ? "active" : ""} onClick={() => setCashDebugPlayers(count)}>{count}명</button>)}</div><small>부족한 자리는 BOT이 자동으로 채워요.</small></div>}
+        {currentGame.id === "cash-n-guns" && <div className={`cng-briefing-note ${cashNGunsPlayerCountValid ? "ready" : "warning"}`}><b>4~8명 · 8라운드</b><span>{cashNGunsPlayerCountValid ? "탄환 선택 → 직접 조준 → 결단 → 예약 드래프트" : `현재 ${room.players.length}명 · 4~8명이 모이면 시작할 수 있어요`}</span></div>}
         {currentGame.id === "apartment" && <div className="apartment-briefing"><ApartmentBuilding maxFloor={room.players.length + 2} submittedIds={[]} players={room.players} preview /></div>}
         {currentGame.id === "apartment" && room.players.length < 3 && <div className="count-warning">아파트 게임은 3명 이상 필요해요.</div>}
         {LIAR_OPTION_GAMES.includes(currentGame.id) && isHost && <div className="mode-picker"><button className={liarMode === "normal" ? "active" : ""} onClick={() => setLiarMode("normal")}><strong>일반 라이어</strong><small>라이어는 장르만 확인</small></button><button className={liarMode === "dumb" ? "active" : ""} onClick={() => setLiarMode("dumb")}><strong>바보 라이어 모드</strong><small>라이어만 다른 제시어</small></button></div>}
@@ -1317,7 +1311,6 @@ export default function Home() {
     meId={room.meId}
     state={currentGame.cashNGuns}
     isHost={isHost}
-    debugMode={debugMode}
     busy={hostActionLocked}
     onAction={applyAction}
     onReplay={() => void startGame()}

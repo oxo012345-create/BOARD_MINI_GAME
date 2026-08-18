@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cashNGunsClientState, createCashNGunsState, debugAutoCashNGuns, handleCashNGunsAction } from "../app/api/_lib/cash-n-guns";
+import { auditAutoCashNGuns, cashNGunsClientState, createCashNGunsState, handleCashNGunsAction } from "../app/api/_lib/cash-n-guns";
 import type { Player } from "../app/api/_lib/rooms";
 
 const makePlayers = (count: number): Player[] => Array.from({ length: count }, (_, index) => ({
@@ -13,10 +13,10 @@ const makePlayers = (count: number): Player[] => Array.from({ length: count }, (
 }));
 
 for (let count = 4; count <= 8; count += 1) {
-  const state = createCashNGunsState(makePlayers(1), { debugPlayerCount: count });
-  assert.equal(state.participantIds.length, count, `${count}인 디버그 인원`);
+  const state = createCashNGunsState(makePlayers(1), { auditPlayerCount: count });
+  assert.equal(state.participantIds.length, count, `${count}인 감사 인원`);
   assert.equal(state.currentLoot.length, 8, `${count}인 라운드 전리품 8개`);
-  debugAutoCashNGuns(state);
+  auditAutoCashNGuns(state);
   assert.equal(state.phase, "game_over", `${count}인 자동 플레이 종료`);
   assert.ok(state.round >= 1 && state.round <= 8, `${count}인 라운드 범위`);
   assert.ok((state.winnerIds ?? []).every((id) => state.players[id].alive), `${count}인 사망자 우승 금지`);
