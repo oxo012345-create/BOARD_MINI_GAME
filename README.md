@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 한판 — 모바일 술게임·파티게임
 
 QR 또는 4자리 코드로 같은 방에 모여 즐기는 모바일 웹게임 모음이다. 개인전, 모두 협동, 장소 마피아·사라진 보석·CASH AND GUNS 등의 미니(보드)게임을 한 앱에서 제공한다.
@@ -49,3 +50,6 @@ npm run db:generate
 ## 배포와 보안
 
 `.openai/hosting.json`에 Sites용 D1/R2 설정이 있고, 미로 게임은 Durable Object/WebSocket을 사용한다. `.env`, API 키, 토큰, 비밀번호는 저장소에 커밋하지 않는다. 기존 Git history와 기존 원격은 보존한다.
+=======
+# BOARD_MINI_GAME
+>>>>>>> 1595673e59fe7b45af4968aebe8c0985e928322e
