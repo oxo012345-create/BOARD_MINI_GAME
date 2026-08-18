@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,12 +11,12 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 /.tmp-gem-*.webp
 
 # next.js
-/.next/
-/.vinext/
+**/.next/
+**/.vinext/
 /out/
 
 # misc
@@ -38,8 +38,18 @@ yarn-error.log*
 
 # typescript
 next-env.d.ts
-/dist/
+**/dist/
 /.wrangler/
 **/.wrangler/
 /outputs/
 /work/
+
+# local deployment packages and QA artifacts
+**/.sites-package/
+**/artifacts/
+**/tmp/
+
+# generated caches and package-manager files not used by this npm project
+/tsconfig.tsbuildinfo
+/pnpm-lock.yaml
+/pnpm-workspace.yaml

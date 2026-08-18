@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>미로의 배달부 — 캐릭터 선택</title>
+    <link rel="stylesheet" href="./game-characters.css?v=20260731-online-mobile-31" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="character-shell">
+      <canvas id="character-canvas" aria-label="미로의 배달부 캐릭터 16종"></canvas>
+      <header class="title-card">
+        <p>CHOOSE YOUR COURIER</p>
+        <h1>배달부 선택</h1>
+        <span>16종 중 하나를 선택하세요 · 화면을 드래그하면 회전합니다</span>
+      </header>
+      <section class="multiplayer-lobby" aria-label="온라인 방">
+        <div class="lobby-heading">
+          <span class="online-dot"></span>
+          <strong>실시간 8인 온라인</strong>
+        </div>
+        <div class="room-entry">
+          <input
+            id="room-code"
+            type="text"
+            inputmode="text"
+            maxlength="8"
+            autocomplete="off"
+            placeholder="방 코드"
+            aria-label="참가할 방 코드"
+          />
+          <button id="join-room" type="button">방 참가</button>
+        </div>
+        <button id="create-room" type="button">새 온라인 방 만들기</button>
+        <small id="lobby-message" aria-live="polite">방장은 랜덤 맵과 테마를 함께 변경할 수 있습니다.</small>
+      </section>
+      <section id="character-list" aria-label="캐릭터 선택"></section>
+      <aside id="character-detail" aria-live="polite">
+        <strong id="selected-name">민트 배달부</strong>
+        <span id="selected-role">균형형 · 기본 운반</span>
+        <span id="selected-movement">이동기 · 달리기</span>
+        <span id="selected-disruption">방해기 · 강력 밀치기</span>
+      </aside>
+      <section class="selection-actions" aria-label="캐릭터 선택 완료">
+        <button id="random-character" type="button">🎲 무작위 선택</button>
+        <button id="start-game" type="button">혼자 연습</button>
+      </section>
+      <div id="loading">캐릭터 불러오는 중…</div>
+    </main>
+    <script type="module" src="./game-characters.js?v=20260731-online-mobile-31"></script>
+  </body>
+</html>
