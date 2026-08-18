@@ -817,7 +817,7 @@ test("keeps the requested game set and removes excluded modes", async () => {
     readFile(new URL("../app/api/rooms/[code]/events/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/rooms/[code]/route.ts", import.meta.url), "utf8"),
   ]);
-  for (const required of ["오리지널 라이어", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "미니(보드)게임", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
+  for (const required of ["오리지널 라이어", "오리지널 마피아", "라이어-질문", "가짜 추억 찾기", "무한 훈민정음", "텔레그레이션", "모두 협동", "미니(보드)게임", "같은 게임 다시하기", "게임 시작", "사진 찍기", "재연결 중", "참가자 진행 상태", "다음 그림 공개", "정답으로 인정"]) {
     assert.ok(page.includes(required), `${required} should be present`);
   }
   assert.doesNotMatch(page, /const BOARD_GAMES:[\s\S]*?id: "gem-heist"[\s\S]*?category: "board"/);

@@ -7,6 +7,7 @@ import { createDealerState, dealerAction, pauseDealer, removeDealerPlayer, resum
 import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaState, pausePlaceMafia, removePlaceMafiaPlayer, resumePlaceMafia, shortenPlaceMafiaDiscussion, shortenPlaceMafiaVote, submitPlaceMafiaAttack, submitPlaceMafiaMove, submitPlaceMafiaVote } from "../../_lib/place-mafia";
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
 import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
+import { advanceMafiaIfDue, createMafiaState, handleMafiaAction, removeMafiaPlayer } from "../../_lib/mafia";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -126,6 +127,7 @@ async function persistAndRespond(room: RoomState, viewerId: string) {
   const activeGame = room.game as GameRound | undefined;
   if (activeGame?.id === "place-mafia" && activeGame.placeMafia) advancePlaceMafiaIfDue(activeGame.placeMafia);
   if (activeGame?.id === "cash-n-guns" && activeGame.cashNGuns) advanceCashNGunsIfDue(activeGame.cashNGuns);
+  if (activeGame?.id === "mafia" && activeGame.mafia) advanceMafiaIfDue(activeGame.mafia);
   if (!await writeRoomIfRevision(room, expectedRevision)) {
     return Response.json({ error: "다른 참가자의 입력을 반영하고 다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
   }
@@ -176,7 +178,9 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const placeMafiaChanged = activePlaceMafia ? advancePlaceMafiaIfDue(activePlaceMafia) : false;
     const activeCashNGuns = (room.game as GameRound | undefined)?.cashNGuns;
     const cashNGunsChanged = activeCashNGuns ? advanceCashNGunsIfDue(activeCashNGuns) : false;
-    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged || cashNGunsChanged;
+    const activeMafia = (room.game as GameRound | undefined)?.mafia;
+    const mafiaChanged = activeMafia ? advanceMafiaIfDue(activeMafia) : false;
+    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged || cashNGunsChanged || mafiaChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
@@ -327,6 +331,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "cash-n-guns" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "캐시 앤 건즈는 4~8명이 필요해요." }, { status: 409 });
       }
+      if (gameId === "mafia" && (room.players.length < 4 || room.players.length > 8)) {
+        return Response.json({ error: "오리지널 마피아는 4~8명이 필요해요." }, { status: 409 });
+      }
       if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "장소 마피아는 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
@@ -376,6 +383,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         });
       }
       if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players);
+      if (gameId === "mafia") game.mafia = createMafiaState(room.players);
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -440,6 +448,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       }
       if (activeGame?.id === "place-mafia" && activeGame.placeMafia) removePlaceMafiaPlayer(activeGame.placeMafia, viewer.id);
       if (activeGame?.id === "cash-n-guns" && activeGame.cashNGuns) removeCashNGunsPlayer(activeGame.cashNGuns, viewer.id);
+      if (activeGame?.id === "mafia" && activeGame.mafia) removeMafiaPlayer(activeGame.mafia, viewer.id);
       if (room.players.length === 0) {
         await deleteRoom(room.code);
         return Response.json({ room: null }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
@@ -458,6 +467,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (String(payload.action).startsWith("mafia-")) {
+      if (game.id !== "mafia" || !game.mafia || room.view !== "game") return Response.json({ error: "오리지널 마피아가 진행 중이 아니에요." }, { status: 409 });
+      try {
+        handleMafiaAction(game.mafia, viewer.id, String(payload.action), payload);
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
+      }
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (String(payload.action).startsWith("place-mafia-")) {
       if (game.id !== "place-mafia" || !game.placeMafia || room.view !== "game") return Response.json({ error: "장소 마피아가 진행 중이 아니에요." }, { status: 409 });

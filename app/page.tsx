@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { gemAsset } from "./gem-heist-assets";
 import { PlaceMafiaBriefing, PlaceMafiaGame } from "./place-mafia";
 import type { PlaceMafiaBalance, PlaceMafiaClientState, PlaceMafiaSetup } from "./place-mafia-shared";
+import { MafiaGame } from "./mafia";
+import type { MafiaClientState } from "./api/_lib/mafia";
 import { CashNGunsGame } from "./cash-n-guns";
 import type { CashNGunsClientState } from "./cash-n-guns";
 
@@ -92,6 +94,7 @@ type GameRound = {
   apartmentMaxFloor?: number; apartmentSubmitted?: string[]; apartmentMyChoice?: number; apartmentSelections?: Record<string, number>; apartmentFloorCounts?: Record<string, number>; apartmentPenaltyFloor?: number; apartmentPenaltyPlayerIds?: string[]; apartmentRevealed?: boolean;
   placeMafia?: PlaceMafiaClientState;
   placeMafiaSetup?: PlaceMafiaSetup;
+  mafia?: MafiaClientState;
   cashNGuns?: CashNGunsClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
@@ -114,6 +117,7 @@ const SOLO_GAMES: GameMeta[] = [
   { id: "color", title: "색깔 찾기", icon: "🎨", description: "같은 색 물건을 찍어 올려요", category: "solo" },
   { id: "object-initial", title: "초성 물건 찾기", icon: "📸", description: "초성 물건을 찍어 올려요", category: "solo" },
   { id: "apartment", title: "아파트 게임", icon: "🏢", description: "가장 많이 겹친 층을 찾아 벌칙을 정해요 · 3인 이상", category: "solo" },
+  { id: "mafia", title: "오리지널 마피아", icon: "♠", description: "밤 행동과 익명투표로 마피아를 찾아요 · 4~8인", category: "solo" },
 ];
 const COOP_GAMES: GameMeta[] = [
   { id: "telestration", title: "텔레그레이션", icon: "✏️", description: "그림을 보고 이어 그리는 릴레이", category: "coop" },
@@ -1292,6 +1296,19 @@ export default function Home() {
     </div>
     {commonOverlays}
   </main>;
+  if (currentGame.id === "mafia" && currentGame.mafia) return <MafiaGame
+    code={room.code}
+    meId={room.meId}
+    state={currentGame.mafia}
+    clockOffsetMs={serverClockOffsetMs}
+    isHost={isHost}
+    busy={hostActionLocked}
+    onAction={applyAction}
+    onReplay={() => void startGame()}
+    onLobby={() => setConfirmType("lobby")}
+    onLeave={() => setConfirmType("leave")}
+    overlays={commonOverlays}
+  />;
   if (currentGame.id === "place-mafia" && currentGame.placeMafia) return <PlaceMafiaGame
     code={room.code}
     players={room.players}

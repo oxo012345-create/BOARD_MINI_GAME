@@ -120,6 +120,7 @@ export type GameRound = {
   apartmentRevealed?: boolean;
   placeMafia?: import("./place-mafia").PlaceMafiaState;
   placeMafiaSetup?: import("../../place-mafia-shared").PlaceMafiaSetup;
+  mafia?: import("./mafia").MafiaState;
   cashNGuns?: import("./cash-n-guns").CashNGunsState;
 };
 
@@ -142,6 +143,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   "double-dealers": { title: "수상한 딜러들", briefing: "3~8명이 진짜 가치와 두 조항이 숨겨진 아이템 카드를 사고팝니다. 화면 밖에서는 자유롭게 협상하고, 휴대폰에서는 2D 카드·입찰·아이템·상점만 조작하세요.", category: "solo" },
   apartment: { title: "아파트 게임", briefing: "3명 이상이 각자 한 층을 고릅니다. 가장 많이 겹친 층이 벌칙 층이고, 동률이면 더 낮은 층이 선택됩니다. 아무도 겹치지 않으면 가장 낮은 층입니다.", category: "solo" },
   "place-mafia": { title: "장소 마피아", briefing: "밤마다 장소를 이동하고 목격·광장 기록·경찰 수사를 조합해 거짓 동선을 찾아내세요. 밤 행동은 항상 20초 동안 비공개로 진행됩니다.", category: "solo" },
+  mafia: { title: "오리지널 마피아", briefing: "모든 플레이어가 같은 밤 행동 화면을 사용합니다. 마피아·경찰·의사는 비밀 행동을 하고, 낮에는 토론과 익명투표로 범인을 찾아보세요. 처형된 역할은 공개되지 않습니다.", category: "solo" },
   telestration: { title: "텔레그레이션", briefing: "45초·40초·35초 동안 그림을 이어 그립니다. 마지막 그림의 정답 입력에는 제한시간이 없고, 두 명 이상 맞히면 통과입니다.", category: "coop" },
   people: { title: "인물 퀴즈", briefing: "한 사람씩 5초 안에 사진 속 인물을 맞힙니다. 전원이 성공하면 통과하고, 방장이 다음 문제 또는 실패를 선택합니다.", category: "coop" },
   chain: { title: "줄줄이 말해요", briefing: "같은 주제로 한 사람씩 5초 안에 답합니다. 전원이 성공하면 통과하고, 주제는 도중에 바뀌지 않습니다.", category: "coop" },
@@ -870,6 +872,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "double-dealers") return { ...base, prompt: "2D 카드 비밀 경매" };
   if (id === "apartment") return { ...base, prompt: "층을 선택하세요", apartmentMaxFloor: players.length + 2, apartmentSelections: {}, apartmentSubmitted: [], apartmentRevealed: false };
   if (id === "place-mafia") return { ...base, prompt: "위치, 동선, 거짓말" };
+  if (id === "mafia") return { ...base, prompt: "밤에는 숨고, 낮에는 찾아내세요" };
   if (id === "cash-n-guns") return { ...base, prompt: "총을 겨누고 전리품을 차지하세요" };
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));

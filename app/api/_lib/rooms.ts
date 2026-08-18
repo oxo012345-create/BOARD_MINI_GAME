@@ -4,6 +4,7 @@ import { clientSurprise, type SurpriseState } from "./surprise";
 import { dealerClientState } from "./dealer";
 import { placeMafiaClientState } from "./place-mafia";
 import { cashNGunsClientState } from "./cash-n-guns";
+import { mafiaClientState } from "./mafia";
 
 export type Player = {
   id: string;
@@ -62,6 +63,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const apartmentSelections = internal.apartmentSelections;
     const placeMafia = internal.placeMafia;
     const cashNGuns = internal.cashNGuns;
+    const mafia = internal.mafia;
 
     delete game.answer;
     delete game.liarId;
@@ -90,12 +92,16 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.apartmentSelections;
     delete game.placeMafia;
     delete game.cashNGuns;
+    delete game.mafia;
 
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
     }
     if (internal.id === "cash-n-guns" && cashNGuns) {
       game.cashNGuns = cashNGunsClientState(cashNGuns, viewerId);
+    }
+    if (internal.id === "mafia" && mafia) {
+      game.mafia = mafiaClientState(mafia, viewerId);
     }
 
     if (internal.id === "apartment") {
