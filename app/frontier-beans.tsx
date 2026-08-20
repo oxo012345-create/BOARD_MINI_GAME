@@ -108,8 +108,18 @@ function PlayerFarm({ player, index, position, active, target, onTarget }: {
     <img className="fb-farmer" src={farmerImage(index)} alt="" draggable={false} />
     {active && <span className="fb-turn-lamp">턴</span>}
     {target && <span className="fb-handshake">거래</span>}
-    <span className="fb-nameplate"><b>{player.name}</b><small><i>●</i> {player.coins} · 패 {player.handCount}</small></span>
-    <span className="fb-mini-fields">{player.fields.map((field, fieldIndex) => <i key={fieldIndex} style={{ "--field-color": field.type ? frontierBeanDefinition(field.type).color : "#463725" } as React.CSSProperties}>{field.count || "·"}</i>)}</span>
+    <span className="fb-nameplate"><b>{player.name}</b></span>
+    <span className="fb-opponent-stats">
+      <small className="fb-opponent-coin"><i>●</i>{player.coins}</small>
+      <small className="fb-opponent-hand"><img src="/frontier-beans/card-back.png" alt="" draggable={false}/><b>×{player.handCount}</b></small>
+    </span>
+    <span className={`fb-mini-fields fields-${player.fields.length}`}>{player.fields.map((field, fieldIndex) => {
+      const bean = field.type ? frontierBeanDefinition(field.type) : undefined;
+      return <span className={`fb-mini-field ${field.type ? "planted" : "empty"}`} key={fieldIndex} style={{ "--field-color": bean?.color ?? "#463725" } as React.CSSProperties}>
+        {field.type ? <img src={beanImage(field.type)} alt="" draggable={false}/> : <i/>}
+        <b>{field.type ? `${bean?.shortName} ×${field.count}` : `밭 ${fieldIndex + 1}`}</b>
+      </span>;
+    })}</span>
     {player.receivedCount > 0 && <span className="fb-pending-badge">심기 {player.receivedCount}</span>}
   </button>;
 }
@@ -251,19 +261,22 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   };
 
   if (!meId || !me || !myPublic) return <main className="fb-game"><div className="fb-loading">장터에 입장하는 중…</div>{overlays}</main>;
-  return <main className={`fb-game phase-${state.phase}`}>
+  return <main className={`fb-game players-${state.players.length} phase-${state.phase}`}>
     <img className="fb-world" src="/frontier-beans/market-dusk.png" alt="황혼의 서부 장터" draggable={false}/>
-    <header className="fb-hud"><button type="button" className="fb-code" onClick={() => navigator.clipboard?.writeText(code)}><small>방 코드</small><b>{code}</b></button><div className="fb-phase"><small>ROUND {state.round}</small><b>{PHASE_LABEL[state.phase]}</b><span>{active?.name}</span></div><div className="fb-hud-actions"><button type="button" onClick={() => setHelp(true)}>?</button><button type="button" onClick={() => setMuted((value) => !value)}>{muted ? "×" : "♪"}</button><button type="button" onClick={onLeave}>↗</button></div></header>
-    <div className="fb-deck-status"><span>덱 {state.drawCount}</span><i>{state.exhaustionCount}/3</i><span>버림 {state.discardCount}</span></div>
+    <header className="fb-hud"><button type="button" className="fb-code" onClick={() => navigator.clipboard?.writeText(code)}><small>ROOM</small><b>{code}</b></button><div className="fb-phase"><b>{PHASE_LABEL[state.phase]}</b><span>{active?.name} 차례</span></div><div className="fb-hud-actions"><button type="button" onClick={() => setHelp(true)} aria-label="게임 설명">?</button><button type="button" onClick={() => setMuted((value) => !value)} aria-label="효과음 설정">{muted ? "×" : "♪"}</button><button type="button" onClick={onLeave} aria-label="게임 나가기">↗</button></div></header>
     {opponents.map((player, index) => <PlayerFarm key={player.id} player={player} index={index + 1} position={positions[index]} active={player.isActive} target={selectedTarget === player.id} onTarget={canTarget && (player.id === active?.id || meId === active?.id) ? () => { setSelectedTarget(player.id); playSound("tap"); } : undefined}/>) }
     <section className="fb-market" aria-label="중앙 장터">
-      <div className="fb-pile draw"><img src="/frontier-beans/card-back.png" alt=""/><b>{state.drawCount}</b><small>뽑기</small></div>
-      <div className="fb-pile discard">{state.discardTop ? <img src={beanImage(state.discardTop.type)} alt=""/> : <span/>}<b>{state.discardCount}</b><small>버림</small></div>
+      <div className="fb-market-title"><span>장터</span><small>덱 순환 {state.exhaustionCount}/3</small></div>
+      <div className="fb-market-piles">
+        <div className="fb-pile draw"><img src="/frontier-beans/card-back.png" alt=""/><b>{state.drawCount}</b><small>DRAW</small></div>
+        <div className="fb-pile discard">{state.discardTop ? <img src={beanImage(state.discardTop.type)} alt=""/> : <span/>}<b>{state.discardCount}</b><small>DISCARD</small></div>
+      </div>
+      <small className="fb-reveal-label">공개콩</small>
       <div className="fb-revealed">{state.revealed.length ? state.revealed.map((card) => <BeanCard key={card.id} card={card} compact flipped={flipped.has(card.id)} selected={selectedGive.includes(card.id)} onFlip={() => flip(card.id)} onSelect={state.phase === "trade" && active?.id === meId ? () => toggleGive(card.id) : undefined}/>) : <span className="fb-market-empty">공개 카드 대기</span>}</div>
     </section>
     <section className="fb-self">
       <img className="fb-self-farmer" src={farmerImage(0)} alt="내 농부" draggable={false}/>
-      <div className={`fb-self-name ${myPublic.isActive ? "active" : ""}`}><b>{myPublic.name}</b><span>● {myPublic.coins} · 패 {myPublic.handCount}</span></div>
+      <div className={`fb-self-name ${myPublic.isActive ? "active" : ""}`}><b>{myPublic.name}{isHost && <i>♛</i>}</b><span>● {myPublic.coins} · 패 {myPublic.handCount}</span></div>
       <div className={`fb-own-fields fields-${me.fields.length}`}>{me.fields.map((field, index) => {
         const publicField = myPublic.fields[index];
         const canPlant = (state.phase === "plant_hand" && myPublic.isActive) || (state.phase === "plant_received" && Boolean(pendingCard));
@@ -298,7 +311,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     />}
     <section className={`fb-hand ${state.phase === "plant_received" ? "dimmed" : ""}`} aria-label="내 손패">
       <div className="fb-hand-label"><span>내 손패 · 순서 고정</span>{state.phase === "plant_hand" && myPublic.isActive && state.handPlantsThisTurn > 0 && <button type="button" onClick={() => void act({ action: "frontier-beans-finish-plant" })}>두 번째 카드 안 심기</button>}{state.phase === "trade" && myPublic.isActive && <button type="button" onClick={() => void act({ action: "frontier-beans-end-trade" })}>거래 마치기</button>}</div>
-      <div className="fb-hand-cards">{me.hand.map((card, index) => <BeanCard key={card.id} card={card} flipped={flipped.has(card.id)} mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedGive.includes(card.id)} onFlip={() => flip(card.id)} onSelect={state.phase === "trade" ? () => toggleGive(card.id) : undefined}/>)}</div>
+      <div className={`fb-hand-cards ${me.hand.length > 8 ? "dense" : me.hand.length > 5 ? "crowded" : ""}`}>{me.hand.map((card, index) => <BeanCard key={card.id} card={card} flipped={flipped.has(card.id)} mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedGive.includes(card.id)} onFlip={() => flip(card.id)} onSelect={state.phase === "trade" ? () => toggleGive(card.id) : undefined}/>)}</div>
     </section>
     {state.debug && <button type="button" className="fb-debug-toggle" onClick={() => setDebugOpen((value) => !value)}>DEBUG</button>}
     {state.debug && debugOpen && <div className="fb-debug-menu"><header><b>QA 장면</b><button type="button" onClick={() => setDebugOpen(false)}>×</button></header>{[

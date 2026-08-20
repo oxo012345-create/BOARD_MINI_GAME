@@ -16,5 +16,9 @@
 | `10-harvest-resolution.png` | 밭 전체 수확 뒤 코인·버림 더미 서버 반영 |
 | `11-full-bot-game-result.png` | 봇 한 판 완주와 최종 순위 |
 | `12-four-player-layout.png` | 4인 상대 3명·내 밭 2개 모바일 배치 |
+| `13-layout-3p.png` | 정보 위계 개선 후 3인·밭 3개 최종 배치 |
+| `14-layout-4p.png` | 중앙 상대와 장터가 겹치지 않는 4인 최종 배치 |
+| `15-layout-5p-trade.png` | 상대 미니 밭·확대 공개콩이 보이는 5인 거래 단계 |
+| `16-card-flip-same-slot.png` | 손패 순서와 위치를 유지한 동일 카드 뒤집기 |
 
 논리 검증은 `npm run test:frontier-beans`, 화면 검증은 게임 설명 화면의 혼자 디버깅과 인게임 `DEBUG` 메뉴를 사용한다.
