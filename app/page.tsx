@@ -10,6 +10,8 @@ import { MafiaGame } from "./mafia";
 import type { MafiaClientState } from "./api/_lib/mafia";
 import { CashNGunsGame } from "./cash-n-guns";
 import type { CashNGunsClientState } from "./cash-n-guns";
+import { FrontierBeansBriefing, FrontierBeansGame } from "./frontier-beans";
+import type { FrontierBeanClientState } from "./frontier-beans";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -96,6 +98,7 @@ type GameRound = {
   placeMafiaSetup?: PlaceMafiaSetup;
   mafia?: MafiaClientState;
   cashNGuns?: CashNGunsClientState;
+  frontierBeans?: FrontierBeanClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -134,6 +137,7 @@ const BOARD_GAMES: GameMeta[] = [
   { id: "maze-courier", title: "미로의 배달부", icon: "📦", description: "최대 8인 서버 판정 3D 배달 대결", category: "board" },
 ];
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
+BOARD_GAMES.push({ id: "frontier-beans", title: "황혼의 콩시장", icon: "♨", description: "3~5인 · 손패 순서와 협상이 핵심인 서부 농장 거래게임", category: "board" });
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 // 랜덤게임은 개인전·모두 협동 탭의 게임만 대상으로 한다.
 // 팀전 이어말하기는 기존 규칙대로 랜덤 대상에서 제외한다.
@@ -625,6 +629,12 @@ export default function Home() {
   const [placeMafiaDiscussion, setPlaceMafiaDiscussion] = useState<60 | 90 | 120>(90);
   const [placeMafiaBalance, setPlaceMafiaBalance] = useState<PlaceMafiaBalance>("normal");
   const [placeMafiaCount, setPlaceMafiaCount] = useState<1 | 2>(1);
+  const [frontierDebugPlayers, setFrontierDebugPlayers] = useState<number | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const count = Number(params.get("players"));
+    return params.get("debug") === "1" && [3, 4, 5].includes(count) ? count : undefined;
+  });
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
   const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "right", y: 220 });
@@ -1022,7 +1032,29 @@ export default function Home() {
   };
   const shareRoom = async () => { if (!room) return; const url = `${location.origin}${location.pathname}?room=${room.code}`; try { if (navigator.share) await navigator.share({ title: "한판 술게임", text: `방 코드 ${room.code}`, url }); else { await navigator.clipboard.writeText(url); showNotice("참가 링크를 복사했어요."); } } catch { /* 공유 취소 */ } };
   const prepareGame = async (meta: GameMeta) => { if (!isHost) return showNotice("방장이 게임을 고르고 있어요."); if (meta.id === "gem-heist") { setGemSpecialRoles(false); setGemDifficulty("normal"); } if (meta.id === "place-mafia") { setPlaceMafiaDiscussion(90); setPlaceMafiaBalance("normal"); setPlaceMafiaCount(1); } await withHostLock(async () => { try { await applyAction({ action: "prepare-game", gameId: meta.id }); } catch (error) { showNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); } }); };
-  const startGame = async () => { if (!currentGame || !isHost) return; const setup = currentGame.placeMafiaSetup; if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요."); if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요."); if (currentGame.id === "cash-n-guns" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("캐시 앤 건즈는 4~8명이 필요해요."); await withHostLock(async () => { try { await applyAction({ action: "start-game", gameId: currentGame.id, mode: liarMode, specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined, difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined, discussionSeconds: currentGame.id === "place-mafia" ? setup?.discussionSeconds ?? placeMafiaDiscussion : undefined, balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined, mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined }); } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); } }); };
+  const startGame = async () => {
+    if (!currentGame || !isHost) return;
+    const setup = currentGame.placeMafiaSetup;
+    if (currentGame.id === "apartment" && room && room.players.length < 3) return showNotice("아파트 게임은 3명 이상 필요해요.");
+    if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요.");
+    if (currentGame.id === "cash-n-guns" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("캐시 앤 건즈는 4~8명이 필요해요.");
+    if (currentGame.id === "frontier-beans" && !frontierDebugPlayers && room && (room.players.length < 3 || room.players.length > 5)) return showNotice("황혼의 콩시장은 3~5명이 필요해요.");
+    await withHostLock(async () => {
+      try {
+        await applyAction({
+          action: "start-game",
+          gameId: currentGame.id,
+          mode: liarMode,
+          specialRoles: currentGame.id === "gem-heist" ? gemSpecialRoles : undefined,
+          difficulty: currentGame.id === "gem-heist" ? gemDifficulty : undefined,
+          discussionSeconds: currentGame.id === "place-mafia" ? setup?.discussionSeconds ?? placeMafiaDiscussion : undefined,
+          balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined,
+          mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined,
+          debugPlayers: currentGame.id === "frontier-beans" ? frontierDebugPlayers : undefined,
+        });
+      } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); }
+    });
+  };
   const updatePlaceMafiaSetup = async (patch: Partial<PlaceMafiaSetup>) => {
     if (!isHost || currentGame?.id !== "place-mafia") return;
     if (patch.discussionSeconds) setPlaceMafiaDiscussion(patch.discussionSeconds);
@@ -1140,6 +1172,16 @@ export default function Home() {
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
     const cashNGunsPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
+    if (currentGame.id === "frontier-beans") return <FrontierBeansBriefing
+      playerCount={room.players.length}
+      debugPlayers={frontierDebugPlayers}
+      isHost={isHost}
+      busy={hostActionLocked}
+      onDebugPlayers={setFrontierDebugPlayers}
+      onStart={() => void startGame()}
+      topBar={topBar("황혼의 콩시장")}
+      overlays={commonOverlays}
+    />;
     if (currentGame.id === "place-mafia") return <PlaceMafiaBriefing
       players={room.players}
       isHost={isHost}
@@ -1332,6 +1374,17 @@ export default function Home() {
     busy={hostActionLocked}
     onAction={applyAction}
     onReplay={() => void startGame()}
+    onLobby={() => setConfirmType("lobby")}
+    onLeave={() => setConfirmType("leave")}
+    overlays={commonOverlays}
+  />;
+  if (currentGame.id === "frontier-beans" && currentGame.frontierBeans) return <FrontierBeansGame
+    code={room.code}
+    meId={room.meId}
+    state={currentGame.frontierBeans}
+    isHost={isHost}
+    busy={hostActionLocked}
+    onAction={applyAction}
     onLobby={() => setConfirmType("lobby")}
     onLeave={() => setConfirmType("leave")}
     overlays={commonOverlays}

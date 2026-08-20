@@ -57,6 +57,9 @@
 | 미로의 배달부 | `app/api/_lib/maze.ts`, `app/api/_lib/maze-rules.ts`, `worker/maze-room.ts` | `public/maze-courier/` |
 | 사라진 보석 | `app/api/_lib/gem-heist-data.ts`, `app/api/_lib/rounds.ts`, `app/gem-heist-assets.ts` | `public/gem-heist/` |
 | CASH AND GUNS | `app/cash-n-guns.tsx`, `app/cash-n-guns.css`, `app/api/_lib/cash-n-guns.ts` | `public/cash-n-guns/` |
+| 황혼의 콩시장 | `app/frontier-beans.tsx`, `app/frontier-beans.css`, `app/api/_lib/frontier-beans.ts` | `public/frontier-beans/` |
+
+사라진 보석의 코드와 에셋은 보존되어 있지만 현재 미니(보드)게임 선택 목록에서는 제외되어 있다. 황혼의 콩시장은 3~5인 서버 권위 거래게임이며 `docs/BOHNANZA_3_5P_CODEX_RULE_REFERENCE.md`가 규칙의 단일 기준이다.
 
 ## 개발 명령
 
@@ -74,6 +77,7 @@ npm test
 npm run test:gem-logic
 npm run test:place-mafia
 npx tsx scripts/cash-n-guns-audit.ts
+npm run test:frontier-beans
 ```
 
 콘텐츠 변경 후 동기화:

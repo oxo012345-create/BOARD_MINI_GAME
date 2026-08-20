@@ -5,6 +5,7 @@ import { dealerClientState } from "./dealer";
 import { placeMafiaClientState } from "./place-mafia";
 import { cashNGunsClientState } from "./cash-n-guns";
 import { mafiaClientState } from "./mafia";
+import { frontierBeanClientState } from "./frontier-beans";
 
 export type Player = {
   id: string;
@@ -64,6 +65,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const placeMafia = internal.placeMafia;
     const cashNGuns = internal.cashNGuns;
     const mafia = internal.mafia;
+    const frontierBeans = internal.frontierBeans;
 
     delete game.answer;
     delete game.liarId;
@@ -93,6 +95,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.placeMafia;
     delete game.cashNGuns;
     delete game.mafia;
+    delete game.frontierBeans;
 
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
@@ -102,6 +105,9 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     }
     if (internal.id === "mafia" && mafia) {
       game.mafia = mafiaClientState(mafia, viewerId);
+    }
+    if (internal.id === "frontier-beans" && frontierBeans) {
+      game.frontierBeans = frontierBeanClientState(frontierBeans, viewerId);
     }
 
     if (internal.id === "apartment") {

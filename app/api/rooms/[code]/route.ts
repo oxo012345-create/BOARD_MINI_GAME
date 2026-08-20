@@ -8,6 +8,7 @@ import { acknowledgePlaceMafiaRole, advancePlaceMafiaIfDue, createPlaceMafiaStat
 import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocationId, type PlaceMafiaSetup } from "../../../place-mafia-shared";
 import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 import { advanceMafiaIfDue, createMafiaState, handleMafiaAction, removeMafiaPlayer } from "../../_lib/mafia";
+import { advanceFrontierBeanBots, createFrontierBeanState, handleFrontierBeanAction, replaceFrontierBeanPlayerWithBot } from "../../_lib/frontier-beans";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -218,6 +219,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       discussionSeconds?: number;
       balance?: PlaceMafiaBalance;
       mafiaCount?: number;
+      debugPlayers?: number;
+      fieldIndex?: number;
+      offerId?: string;
+      giveCardIds?: string[];
+      returnCardIds?: string[];
+      wants?: Array<{ type: import("../../_lib/frontier-beans").FrontierBeanType; quantity: number }>;
     };
 
     if (payload.action === "join") {
@@ -237,7 +244,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (room.players.length >= 12) return Response.json({ error: "방이 가득 찼어요." }, { status: 409 });
       if (room.players.some((item) => item.name.toLowerCase() === profile.name.toLowerCase())) return Response.json({ error: "이미 사용 중인 이름이에요." }, { status: 409 });
       const activeGame = room.game as GameRound | undefined;
-      if (["double-dealers", "place-mafia", "cash-n-guns"].includes(String(activeGame?.id)) && ["game", "result"].includes(room.view)) {
+      if (["double-dealers", "place-mafia", "cash-n-guns", "frontier-beans"].includes(String(activeGame?.id)) && ["game", "result"].includes(room.view)) {
         return Response.json({ error: "게임이 이미 시작되어 늦은 참가자를 받을 수 없습니다.", code: "GAME_IN_PROGRESS" }, { status: 409 });
       }
       const session = await createSession();
@@ -337,6 +344,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "place-mafia" && (room.players.length < 4 || room.players.length > 8)) {
         return Response.json({ error: "장소 마피아는 4~8명이 함께할 수 있어요." }, { status: 409 });
       }
+      const frontierDebugCount = [3, 4, 5].includes(Number(payload.debugPlayers)) ? Number(payload.debugPlayers) : undefined;
+      if (gameId === "frontier-beans" && !frontierDebugCount && (room.players.length < 3 || room.players.length > 5)) {
+        return Response.json({ error: "황혼의 콩시장은 3~5명이 필요해요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const previousContentKey = pendingGame?.id === gameId
         ? pendingGame.previousContentKey ?? (room.view === "briefing" ? undefined : roundContentKey(pendingGame))
@@ -384,6 +395,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       }
       if (gameId === "cash-n-guns") game.cashNGuns = createCashNGunsState(room.players);
       if (gameId === "mafia") game.mafia = createMafiaState(room.players);
+      if (gameId === "frontier-beans") {
+        const humanParticipants = room.players.slice(0, frontierDebugCount ? 1 : room.players.length).map((player) => ({ id: player.id, name: player.name, avatar: player.avatar }));
+        const botCount = Math.max(0, (frontierDebugCount ?? humanParticipants.length) - humanParticipants.length);
+        const bots = Array.from({ length: botCount }, (_, index) => ({ id: `frontier-bot-${index + 1}`, name: `농부 BOT ${index + 1}`, avatar: "🤠", bot: true }));
+        game.frontierBeans = createFrontierBeanState([...humanParticipants, ...bots], { debug: Boolean(frontierDebugCount) });
+        advanceFrontierBeanBots(game.frontierBeans);
+      }
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
@@ -449,6 +467,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (activeGame?.id === "place-mafia" && activeGame.placeMafia) removePlaceMafiaPlayer(activeGame.placeMafia, viewer.id);
       if (activeGame?.id === "cash-n-guns" && activeGame.cashNGuns) removeCashNGunsPlayer(activeGame.cashNGuns, viewer.id);
       if (activeGame?.id === "mafia" && activeGame.mafia) removeMafiaPlayer(activeGame.mafia, viewer.id);
+      if (activeGame?.id === "frontier-beans" && activeGame.frontierBeans && activeGame.frontierBeans.phase !== "game_over") {
+        replaceFrontierBeanPlayerWithBot(activeGame.frontierBeans, viewer.id);
+      }
       if (room.players.length === 0) {
         await deleteRoom(room.code);
         return Response.json({ room: null }, { headers: { "Set-Cookie": sessionCookie(room.code, "", true) } });
@@ -512,6 +533,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
           lootId: payload.lootId,
           reservationIds: payload.reservationIds,
         });
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
+      }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (String(payload.action).startsWith("frontier-beans-")) {
+      if (game.id !== "frontier-beans" || !game.frontierBeans || room.view !== "game") return Response.json({ error: "황혼의 콩시장이 진행 중이 아니에요." }, { status: 409 });
+      try {
+        handleFrontierBeanAction(game.frontierBeans, viewer.id, String(payload.action), payload as Record<string, unknown>);
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "행동을 처리하지 못했어요." }, { status: 422 });
       }

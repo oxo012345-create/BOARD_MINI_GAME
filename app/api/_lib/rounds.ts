@@ -122,6 +122,7 @@ export type GameRound = {
   placeMafiaSetup?: import("../../place-mafia-shared").PlaceMafiaSetup;
   mafia?: import("./mafia").MafiaState;
   cashNGuns?: import("./cash-n-guns").CashNGunsState;
+  frontierBeans?: import("./frontier-beans").FrontierBeanState;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -154,6 +155,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
 };
 
 GAME_INFO["cash-n-guns"] = { title: "CASH AND GUNS", briefing: "총을 겨누고, 숨고, 전리품을 예약하세요. 8라운드 동안 살아남아 가장 많은 돈을 모으는 게임입니다.", category: "solo" };
+GAME_INFO["frontier-beans"] = { title: "황혼의 콩시장", briefing: "손패 순서를 지키며 콩을 심고 공개된 콩과 손패를 협상하세요. 거래받은 콩은 모두 심고, 세 번째 덱이 끝날 때 가장 많은 코인을 모으면 승리합니다.", category: "solo" };
 export const GAME_IDS = Object.keys(GAME_INFO);
 const CONTENT = GAME_CONTENT as Record<string, unknown>;
 export const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
@@ -874,6 +876,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
   if (id === "place-mafia") return { ...base, prompt: "위치, 동선, 거짓말" };
   if (id === "mafia") return { ...base, prompt: "밤에는 숨고, 낮에는 찾아내세요" };
   if (id === "cash-n-guns") return { ...base, prompt: "총을 겨누고 전리품을 차지하세요" };
+  if (id === "frontier-beans") return { ...base, prompt: "심고, 거래하고, 황혼의 장터를 제패하세요" };
   if (id === "telestration") {
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));
