@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import {
   advanceFrontierBeanBots,
   createFrontierBeanState,
+  frontierActivePlayer,
   frontierBeanClientState,
   frontierAcceptOffer,
+  frontierCancelOffer,
+  frontierConfirmTrade,
   frontierCreateOffer,
   frontierDebugScenario,
   frontierEndTrade,
@@ -13,6 +16,7 @@ import {
   frontierLegalHarvests,
   frontierPlantHand,
   frontierPlantReceived,
+  frontierUpdateTradeCards,
   playFrontierBeanBotGame,
   replaceFrontierBeanPlayerWithBot,
   type FrontierBeanCard,
@@ -35,6 +39,14 @@ function stateWithFields(fields: Array<[FrontierBeanType, number] | undefined>, 
   return { state, player };
 }
 
+function plantReceivedAfterExplicitHarvest(state: Parameters<typeof frontierPlantReceived>[0], playerId: string, cardId: string, fieldIndex: number) {
+  const player = state.players.find((entry) => entry.id === playerId)!;
+  const cardToPlant = player.received.find((entry) => entry.id === cardId)!;
+  const field = player.fields[fieldIndex];
+  if (field.cards.length && field.cards[0].type !== cardToPlant.type) frontierHarvest(state, playerId, fieldIndex);
+  frontierPlantReceived(state, playerId, cardId, fieldIndex);
+}
+
 const test = (name: string, run: () => void) => {
   run();
   console.log(`✓ ${name}`);
@@ -53,6 +65,8 @@ test("CASE A/B/C/P — one-card protection and zero-coin harvest table", () => {
   });
   const { state, player } = stateWithFields([["ruby", 1], ["forest", 1]], ["midnight"]);
   const before = state.discardPile.length;
+  assert.throws(() => frontierPlantReceived(state, player.id, player.received[0].id, 0), /먼저 수확/);
+  frontierHarvest(state, player.id, 0);
   frontierPlantReceived(state, player.id, player.received[0].id, 0);
   assert.equal(player.fields[0].cards[0].type, "midnight");
   assert.equal(player.coins, 0);
@@ -70,9 +84,59 @@ test("DEBUG — in-game 3/4/5 player scene switching keeps field rules", () => {
   }
 });
 
+test("RULE — every player receives the correct 3/4/5-player field count", () => {
+  for (const count of [3, 4, 5] as const) {
+    const state = createFrontierBeanState(participants(count), { random: () => 0.42 });
+    const expected = count === 3 ? 3 : 2;
+    assert.equal(state.players.length, count);
+    assert.equal(state.players.every((player) => player.fields.length === expected), true);
+  }
+});
+
+test("4P FLOW — one complete human turn preserves order, resolves trade, plants pending cards, and passes clockwise", () => {
+  const state = createFrontierBeanState(participants(4), { random: () => 0.37 });
+  const active = state.players[0];
+  const recipient = state.players[1];
+  const initialHand = active.hand.map((entry) => entry.id);
+
+  frontierPlantHand(state, active.id, 0);
+  assert.deepEqual(active.hand.map((entry) => entry.id), initialHand.slice(1), "first card must leave without reordering the rest");
+  frontierFinishHandPlant(state, active.id);
+  assert.equal(state.phase, "trade");
+  assert.equal(state.revealed.length, 2);
+
+  const giftedId = state.revealed[0].id;
+  const gift = frontierCreateOffer(state, active.id, recipient.id, [giftedId], []);
+  frontierAcceptOffer(state, recipient.id, gift.id, []);
+  assert.equal(recipient.received.some((entry) => entry.id === giftedId), true);
+  assert.equal(state.revealed.length, 1);
+
+  const untradedId = state.revealed[0].id;
+  frontierEndTrade(state, active.id);
+  assert.equal(state.phase, "plant_received");
+  assert.equal(active.received.some((entry) => entry.id === untradedId), true, "untraded public card must become active player's pending card");
+
+  plantReceivedAfterExplicitHarvest(state, recipient.id, recipient.received[0].id, 0);
+  const handBeforeDraw = active.hand.map((entry) => entry.id);
+  const activePending = active.received[0];
+  const matching = active.fields.findIndex((field) => field.cards[0]?.type === activePending.type);
+  const empty = active.fields.findIndex((field) => field.cards.length === 0);
+  frontierPlantReceived(state, active.id, activePending.id, matching >= 0 ? matching : empty >= 0 ? empty : 0);
+
+  assert.equal(state.phase, "plant_hand");
+  assert.equal(frontierActivePlayer(state).id, recipient.id, "turn must pass clockwise after phase 4 draw");
+  assert.deepEqual(active.hand.slice(0, handBeforeDraw.length).map((entry) => entry.id), handBeforeDraw, "three drawn cards must append behind the existing hand");
+  assert.equal(active.hand.length, handBeforeDraw.length + 3);
+  assert.equal(state.players.every((player) => player.fields.length === 2), true);
+  assert.equal(state.players.every((player) => player.received.length === 0), true);
+});
+
 test("CASE B — protected single field cannot be sacrificed", () => {
   const { state, player } = stateWithFields([["ruby", 1], ["forest", 6]], ["midnight"]);
-  assert.throws(() => frontierPlantReceived(state, player.id, player.received[0].id, 0), /보호/);
+  assert.throws(() => frontierPlantReceived(state, player.id, player.received[0].id, 0), /먼저 수확/);
+  assert.throws(() => frontierHarvest(state, player.id, 0), /보호/);
+  assert.throws(() => frontierPlantReceived(state, player.id, player.received[0].id, 1), /먼저 수확/);
+  frontierHarvest(state, player.id, 1);
   frontierPlantReceived(state, player.id, player.received[0].id, 1);
   assert.equal(player.fields[1].cards[0].type, "midnight");
 });
@@ -80,8 +144,11 @@ test("CASE B — protected single field cannot be sacrificed", () => {
 test("CASE D/E/R/T — mandatory queue order, repeats, and matching fields", () => {
   const { state, player } = stateWithFields([["ruby", 1], ["forest", 1]], ["midnight", "honey"]);
   const honey = player.received.find((entry) => entry.type === "honey")!;
+  assert.throws(() => frontierPlantReceived(state, player.id, honey.id, 0), /먼저 수확/);
+  frontierHarvest(state, player.id, 0);
   frontierPlantReceived(state, player.id, honey.id, 0);
   assert.equal(player.received.length, 1);
+  frontierHarvest(state, player.id, 1);
   frontierPlantReceived(state, player.id, player.received[0].id, 1);
   assert.deepEqual(player.fields.map((field) => field.cards[0]?.type), ["honey", "midnight"]);
 
@@ -110,19 +177,46 @@ test("CASE G/H/L — accepted gifts stay outside hand and cannot be re-traded", 
   frontierAcceptOffer(state, recipient.id, gift.id, []);
   assert.deepEqual(recipient.hand.map((entry) => entry.id), handBefore);
   assert.equal(recipient.received.length, 1);
+  state.activePlayerIndex = state.playerOrder.indexOf(recipient.id);
   assert.throws(() => frontierCreateOffer(state, recipient.id, state.players[0].id, [recipient.received[0].id], []), /손패/);
 });
 
-test("TRADE UI — a counter offer is a newly validated offer and replaces the old pair", () => {
+test("TRADE UI — live room opens for both players and transfers only after both confirm", () => {
   const state = createFrontierBeanState(participants(3), { random: () => 0.42 });
   state.phase = "trade";
   const active = state.players[0];
   const target = state.players[1];
-  const first = frontierCreateOffer(state, active.id, target.id, [active.hand[0].id], [{ type: target.hand[0].type, quantity: 1 }]);
-  const counter = frontierCreateOffer(state, target.id, active.id, [target.hand[0].id], [{ type: active.hand[0].type, quantity: 1 }]);
-  assert.equal(first.status, "cancelled");
-  assert.equal(counter.status, "pending");
-  assert.deepEqual(counter.giveTypes, [target.hand[0].type]);
+  const activeCard = active.hand[0];
+  const targetCard = target.hand[0];
+  const room = frontierCreateOffer(state, active.id, target.id, [], []);
+  assert.equal(room.fromReady, false, "selecting a player opens an unconfirmed room for both players");
+  assert.equal(room.toReady, false);
+  const activeView = frontierBeanClientState(state, active.id);
+  const targetView = frontierBeanClientState(state, target.id);
+  assert.ok(activeView.offers.some((offer) => offer.id === room.id && offer.toId === target.id), "the initiator must receive the live trade room");
+  assert.ok(targetView.offers.some((offer) => offer.id === room.id && offer.fromId === active.id), "the invited player must receive the same live trade room");
+  assert.throws(() => frontierConfirmTrade(state, active.id, room.id), /한 장 이상/);
+  frontierUpdateTradeCards(state, active.id, room.id, [activeCard.id]);
+  frontierUpdateTradeCards(state, target.id, room.id, [targetCard.id]);
+  assert.deepEqual(room.returnCardIds, [targetCard.id]);
+  assert.equal(room.status, "pending");
+  frontierConfirmTrade(state, active.id, room.id);
+  assert.equal(room.status, "pending");
+  frontierConfirmTrade(state, target.id, room.id);
+  assert.equal(room.status, "accepted");
+  assert.ok(target.received.some((entry) => entry.id === activeCard.id));
+  assert.ok(active.received.some((entry) => entry.id === targetCard.id));
+  assert.throws(() => frontierCreateOffer(state, target.id, active.id, [target.hand[0].id], []), /현재 턴/);
+
+  const cancelState = createFrontierBeanState(participants(3), { random: () => 0.36 });
+  cancelState.phase = "trade";
+  const cancelFrom = cancelState.players[0];
+  const cancelTo = cancelState.players[1];
+  const cancelledRoom = frontierCreateOffer(cancelState, cancelFrom.id, cancelTo.id, [], []);
+  frontierCancelOffer(cancelState, cancelTo.id, cancelledRoom.id);
+  assert.equal(cancelledRoom.status, "cancelled", "either participant can close the shared trade room");
+  assert.equal(frontierBeanClientState(cancelState, cancelFrom.id).offers.some((offer) => offer.id === cancelledRoom.id && offer.status === "pending"), false, "cancellation disappears from the initiator view");
+  assert.equal(frontierBeanClientState(cancelState, cancelTo.id).offers.some((offer) => offer.id === cancelledRoom.id && offer.status === "pending"), false, "cancellation disappears from the invited player view");
 });
 
 test("CASE I/W — revealed cards remain mandatory and an empty market does not auto-end trading", () => {
@@ -135,9 +229,11 @@ test("CASE I/W — revealed cards remain mandatory and an empty market does not 
 
   const second = createFrontierBeanState(participants(3), { random: () => 0.19 });
   second.phase = "trade";
-  second.revealed = [card("forest")];
-  const offer = frontierCreateOffer(second, second.players[0].id, second.players[1].id, [second.revealed[0].id], []);
-  frontierAcceptOffer(second, second.players[1].id, offer.id, []);
+  second.revealed = [card("forest"), card("honey")];
+  const firstRevealed = frontierCreateOffer(second, second.players[0].id, second.players[1].id, [second.revealed[0].id], []);
+  frontierAcceptOffer(second, second.players[1].id, firstRevealed.id, []);
+  const lastRevealed = frontierCreateOffer(second, second.players[0].id, second.players[2].id, [second.revealed[0].id], []);
+  frontierAcceptOffer(second, second.players[2].id, lastRevealed.id, []);
   assert.equal(second.revealed.length, 0);
   assert.equal(second.phase, "trade");
 });
@@ -206,7 +302,7 @@ test("CASE Y/Z — third exhaustion finishes phase 2/3, then dedicated final sco
   assert.equal(state.endAfterMandatory, true);
   frontierEndTrade(state, state.players[0].id);
   const pending = state.players[0].received[0];
-  frontierPlantReceived(state, state.players[0].id, pending.id, 0);
+  plantReceivedAfterExplicitHarvest(state, state.players[0].id, pending.id, 0);
   assert.equal(state.phase, "game_over");
   assert.ok(state.rankings?.length === 3);
 });

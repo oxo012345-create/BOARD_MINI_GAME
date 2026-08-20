@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 async function withDevServer(run) {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const cli = fileURLToPath(new URL("../node_modules/vinext/dist/cli.js", import.meta.url));
   const port = 4300 + Math.floor(Math.random() * 400);
+  const persistPath = await mkdtemp(join(tmpdir(), "hanpan-vinext-test-"));
   const child = spawn(process.execPath, [cli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
-    env: process.env,
+    env: {
+      ...process.env,
+      HANPAN_LOCAL_PERSIST_PATH: persistPath,
+      MINIFLARE_REGISTRY_PATH: join(persistPath, "registry"),
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";
@@ -31,6 +38,13 @@ async function withDevServer(run) {
     return await run(baseUrl, readyResponse);
   } finally {
     child.kill("SIGTERM");
+    if (child.exitCode === null) {
+      await Promise.race([
+        new Promise((resolve) => child.once("exit", resolve)),
+        new Promise((resolve) => setTimeout(resolve, 3_000)),
+      ]);
+    }
+    await rm(persistPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
 }
 

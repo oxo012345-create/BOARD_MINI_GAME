@@ -11,14 +11,14 @@ export type FrontierBeanDefinition = {
 };
 
 export const FRONTIER_BEANS: readonly FrontierBeanDefinition[] = [
-  { id: "azure", name: "물빛콩", shortName: "물빛", count: 20, color: "#4aaee8", harvest: [4, 6, 8, 10] },
-  { id: "copper", name: "황동콩", shortName: "황동", count: 18, color: "#d96f2a", harvest: [3, 6, 8, 9] },
-  { id: "roast", name: "로스트콩", shortName: "로스트", count: 16, color: "#795038", harvest: [3, 5, 7, 8] },
-  { id: "forest", name: "숲콩", shortName: "숲", count: 14, color: "#5f9f45", harvest: [3, 5, 6, 7] },
-  { id: "honey", name: "꿀빛콩", shortName: "꿀빛", count: 12, color: "#e7b83e", harvest: [2, 4, 6, 7] },
-  { id: "midnight", name: "밤하늘콩", shortName: "밤하늘", count: 10, color: "#34323b", harvest: [2, 4, 5, 6] },
-  { id: "ruby", name: "루비콩", shortName: "루비", count: 8, color: "#bb4050", harvest: [2, 3, 4, 5] },
-  { id: "ivory", name: "상아콩", shortName: "상아", count: 6, color: "#e7d7ae", harvest: [2, 3, 4, 5] },
+  { id: "azure", name: "푸르대콩", shortName: "푸르대", count: 20, color: "#2778d8", harvest: [4, 6, 8, 10] },
+  { id: "copper", name: "칠리콩", shortName: "칠리", count: 18, color: "#ef6b26", harvest: [3, 6, 8, 9] },
+  { id: "roast", name: "똥콩", shortName: "똥콩", count: 16, color: "#4b392f", harvest: [3, 5, 7, 8] },
+  { id: "forest", name: "완두콩", shortName: "완두", count: 14, color: "#62ad32", harvest: [3, 5, 6, 7] },
+  { id: "honey", name: "대두", shortName: "대두", count: 12, color: "#e7b83e", harvest: [2, 4, 6, 7] },
+  { id: "midnight", name: "동부", shortName: "동부", count: 10, color: "#91bd4b", harvest: [2, 4, 5, 6] },
+  { id: "ruby", name: "팥", shortName: "팥", count: 8, color: "#bd3b35", harvest: [2, 3, 4, 5] },
+  { id: "ivory", name: "강낭콩", shortName: "강낭", count: 6, color: "#8ec431", harvest: [2, 3, 4, 5] },
 ] as const;
 
 export type FrontierBeanCard = { id: string; type: FrontierBeanType };
@@ -42,7 +42,11 @@ export type FrontierTradeOffer = {
   toId: string;
   giveCardIds: string[];
   giveTypes: FrontierBeanType[];
+  returnCardIds: string[];
+  returnTypes: FrontierBeanType[];
   wants: FrontierTradeRequest[];
+  fromReady: boolean;
+  toReady: boolean;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   createdAt: number;
 };
@@ -232,10 +236,8 @@ export function frontierHarvest(state: FrontierBeanState, playerId: string, fiel
 
 function plantIntoField(state: FrontierBeanState, player: FrontierBeanPlayer, card: FrontierBeanCard, fieldIndex: number) {
   const field = requireField(player, fieldIndex);
-  if (field.cards.length && field.cards[0].type !== card.type) frontierHarvest(state, player.id, fieldIndex);
-  const openField = requireField(player, fieldIndex);
-  if (openField.cards.length && openField.cards[0].type !== card.type) throw new Error("이 밭에는 다른 종류의 콩이 자라고 있어요.");
-  openField.cards.push(card);
+  if (field.cards.length && field.cards[0].type !== card.type) throw new Error("다른 종류의 콩이 자라고 있어요. 밭을 먼저 수확한 뒤 심어 주세요.");
+  field.cards.push(card);
 }
 
 function drawOne(state: FrontierBeanState, context: "reveal" | "draw") {
@@ -307,11 +309,13 @@ function requestedMatches(cards: FrontierBeanCard[], wants: FrontierTradeRequest
 export function frontierCreateOffer(state: FrontierBeanState, actorId: string, targetId: string, giveCardIds: string[], wants: FrontierTradeRequest[]) {
   if (state.phase !== "trade") throw new Error("지금은 거래 단계가 아니에요.");
   const activeId = frontierActivePlayer(state).id;
-  if (actorId === targetId || (actorId !== activeId && targetId !== activeId)) throw new Error("모든 거래에는 현재 턴 플레이어가 포함되어야 해요.");
+  if (actorId !== activeId) throw new Error("현재 턴 플레이어만 거래를 시작할 수 있어요.");
+  if (actorId === targetId) throw new Error("자기 자신과는 거래할 수 없어요.");
   const actor = requirePlayer(state, actorId);
   requirePlayer(state, targetId);
   const uniqueIds = [...new Set(giveCardIds)];
-  if (!uniqueIds.length) throw new Error("최소 한 장은 주어야 해요.");
+  const liveTrade = wants.length === 0;
+  if (!uniqueIds.length && !liveTrade) throw new Error("최소 한 장은 주어야 해요.");
   const locatedCards = uniqueIds.map((cardId) => locateOwnedTradeCard(state, actor, cardId));
   if (locatedCards.some((located) => !located)) throw new Error("내 손패 또는 내 공개 카드만 거래할 수 있어요.");
   const normalizedWants = wants
@@ -328,27 +332,64 @@ export function frontierCreateOffer(state: FrontierBeanState, actorId: string, t
     toId: targetId,
     giveCardIds: uniqueIds,
     giveTypes: locatedCards.map((located) => located!.card.type),
+    returnCardIds: [],
+    returnTypes: [],
     wants: normalizedWants,
+    fromReady: false,
+    toReady: false,
     status: "pending",
     createdAt: Date.now(),
   };
   state.offers.push(offer);
-  event(state, "trade", `${actor.name}님이 거래를 제안했어요.`, actorId, uniqueIds);
+  event(state, "trade", `${actor.name}님이 ${requirePlayer(state, targetId).name}님과 거래를 시작했어요.`, actorId, uniqueIds);
+  return offer;
+}
+
+export function frontierUpdateTradeCards(state: FrontierBeanState, playerId: string, offerId: string, cardIds: string[]) {
+  if (state.phase !== "trade") throw new Error("거래 단계가 끝났어요.");
+  const offer = state.offers.find((candidate) => candidate.id === offerId && candidate.status === "pending");
+  if (!offer || (offer.fromId !== playerId && offer.toId !== playerId)) throw new Error("참여 중인 거래가 없어요.");
+  const owner = requirePlayer(state, playerId);
+  const uniqueIds = [...new Set(cardIds)];
+  const locatedCards = uniqueIds.map((cardId) => locateOwnedTradeCard(state, owner, cardId));
+  if (locatedCards.some((located) => !located)) throw new Error("내 손패 또는 내 공개 카드만 거래할 수 있어요.");
+  if (playerId === offer.fromId) {
+    offer.giveCardIds = uniqueIds;
+    offer.giveTypes = locatedCards.map((located) => located!.card.type);
+    offer.fromReady = false;
+  } else {
+    offer.returnCardIds = uniqueIds;
+    offer.returnTypes = locatedCards.map((located) => located!.card.type);
+    offer.toReady = false;
+  }
+  state.revision += 1;
+  return offer;
+}
+
+export function frontierConfirmTrade(state: FrontierBeanState, playerId: string, offerId: string) {
+  if (state.phase !== "trade") throw new Error("거래 단계가 끝났어요.");
+  const offer = state.offers.find((candidate) => candidate.id === offerId && candidate.status === "pending");
+  if (!offer || (offer.fromId !== playerId && offer.toId !== playerId)) throw new Error("참여 중인 거래가 없어요.");
+  if (offer.giveCardIds.length + offer.returnCardIds.length === 0) throw new Error("거래할 콩을 한 장 이상 올려 주세요.");
+  if (playerId === offer.fromId) offer.fromReady = true;
+  else offer.toReady = true;
+  if (offer.fromReady && offer.toReady) return frontierAcceptOffer(state, offer.toId, offer.id, offer.returnCardIds);
+  event(state, "trade", `${requirePlayer(state, playerId).name}님이 거래하기를 눌렀어요.`, playerId);
   return offer;
 }
 
 export function frontierRejectOffer(state: FrontierBeanState, playerId: string, offerId: string) {
   const offer = state.offers.find((candidate) => candidate.id === offerId && candidate.status === "pending");
-  if (!offer || offer.toId !== playerId) throw new Error("응답할 거래 제안이 없어요.");
-  offer.status = "rejected";
-  event(state, "trade", `${requirePlayer(state, playerId).name}님이 거래를 거절했어요.`, playerId);
+  if (!offer || (offer.fromId !== playerId && offer.toId !== playerId)) throw new Error("취소할 거래가 없어요.");
+  offer.status = "cancelled";
+  event(state, "trade", `${requirePlayer(state, playerId).name}님이 거래를 취소했어요.`, playerId);
 }
 
 export function frontierCancelOffer(state: FrontierBeanState, playerId: string, offerId: string) {
   const offer = state.offers.find((candidate) => candidate.id === offerId && candidate.status === "pending");
-  if (!offer || offer.fromId !== playerId) throw new Error("취소할 거래 제안이 없어요.");
+  if (!offer || (offer.fromId !== playerId && offer.toId !== playerId)) throw new Error("취소할 거래가 없어요.");
   offer.status = "cancelled";
-  event(state, "trade", `${requirePlayer(state, playerId).name}님이 거래 제안을 취소했어요.`, playerId);
+  event(state, "trade", `${requirePlayer(state, playerId).name}님이 거래를 취소했어요.`, playerId);
 }
 
 function takeTradeCard(state: FrontierBeanState, owner: FrontierBeanPlayer, cardId: string) {
@@ -365,7 +406,8 @@ export function frontierAcceptOffer(state: FrontierBeanState, playerId: string, 
   const to = requirePlayer(state, offer.toId);
   const uniqueReturnIds = [...new Set(returnCardIds)];
   const returnCards = uniqueReturnIds.map((cardId) => locateOwnedTradeCard(state, to, cardId)?.card).filter((card): card is FrontierBeanCard => Boolean(card));
-  if (returnCards.length !== uniqueReturnIds.length || !requestedMatches(returnCards, offer.wants)) throw new Error("요청한 종류와 수량의 카드를 선택해 주세요.");
+  const liveTrade = offer.wants.length === 0;
+  if (returnCards.length !== uniqueReturnIds.length || (!liveTrade && !requestedMatches(returnCards, offer.wants))) throw new Error("거래판에 올린 카드를 다시 확인해 주세요.");
   if (offer.giveCardIds.some((cardId) => !locateOwnedTradeCard(state, from, cardId))) {
     offer.status = "cancelled";
     throw new Error("다른 거래에서 사용된 카드가 있어 제안이 만료됐어요.");
@@ -375,9 +417,13 @@ export function frontierAcceptOffer(state: FrontierBeanState, playerId: string, 
   to.received.push(...given);
   from.received.push(...returned);
   offer.status = "accepted";
+  offer.returnCardIds = uniqueReturnIds;
+  offer.returnTypes = returnCards.map((card) => card.type);
+  offer.fromReady = true;
+  offer.toReady = true;
   const consumed = new Set([...offer.giveCardIds, ...uniqueReturnIds]);
   state.offers.forEach((other) => {
-    if (other.status === "pending" && other.id !== offer.id && other.giveCardIds.some((cardId) => consumed.has(cardId))) other.status = "cancelled";
+    if (other.status === "pending" && other.id !== offer.id && [...other.giveCardIds, ...other.returnCardIds].some((cardId) => consumed.has(cardId))) other.status = "cancelled";
   });
   event(state, "trade", `${from.name}님과 ${to.name}님의 거래가 성사됐어요.`, playerId, [...given, ...returned].map((card) => card.id));
 }
@@ -516,7 +562,22 @@ export function frontierDebugScenario(state: FrontierBeanState, playerId: string
   if (scenario === "trade") {
     setViewerTurn();
     state.phase = "trade";
+    const displayCrops: FrontierBeanType[][] = [
+      ["ruby", "honey"],
+      ["midnight", "forest"],
+      ["honey", "ruby"],
+      ["forest", "roast"],
+      ["ruby", "midnight"],
+    ];
+    state.players.forEach((player, playerIndex) => {
+      player.fields.forEach((field, fieldIndex) => {
+        const type = displayCrops[playerIndex % displayCrops.length][fieldIndex % 2];
+        const count = player.id === playerId ? (fieldIndex === 0 ? 4 : 2) : 3;
+        field.cards = Array.from({ length: count }, () => frontierDebugCard(type));
+      });
+    });
     state.revealed = [frontierDebugCard("ruby"), frontierDebugCard("midnight")];
+    viewer.received = [frontierDebugCard("honey")];
     event(state, "reveal", "공개콩 두 장과 거래 화면을 준비했어요.", playerId, state.revealed.map((card) => card.id));
     return;
   }
@@ -617,6 +678,13 @@ function choosePlantField(player: FrontierBeanPlayer, type: FrontierBeanType) {
   return legal.sort((a, b) => player.fields[a].cards.length - player.fields[b].cards.length)[0] ?? 0;
 }
 
+function prepareBotPlantField(state: FrontierBeanState, player: FrontierBeanPlayer, type: FrontierBeanType) {
+  const fieldIndex = choosePlantField(player, type);
+  const field = player.fields[fieldIndex];
+  if (field.cards.length && field.cards[0].type !== type) frontierHarvest(state, player.id, fieldIndex);
+  return fieldIndex;
+}
+
 function botTrade(state: FrontierBeanState, active: FrontierBeanPlayer) {
   const target = state.players.find((player) => player.id !== active.id && player.bot && player.hand.length);
   const give = state.revealed[0] ?? active.hand.at(-1);
@@ -634,8 +702,8 @@ export function advanceFrontierBeanBots(state: FrontierBeanState, maxSteps = 500
     const active = frontierActivePlayer(state);
     if (state.phase === "plant_hand") {
       if (!active.bot) break;
-      if (active.hand.length && state.handPlantsThisTurn === 0) frontierPlantHand(state, active.id, choosePlantField(active, active.hand[0].type));
-      else if (active.hand.length && state.handPlantsThisTurn === 1 && Math.random() < 0.45) frontierPlantHand(state, active.id, choosePlantField(active, active.hand[0].type));
+      if (active.hand.length && state.handPlantsThisTurn === 0) frontierPlantHand(state, active.id, prepareBotPlantField(state, active, active.hand[0].type));
+      else if (active.hand.length && state.handPlantsThisTurn === 1 && Math.random() < 0.45) frontierPlantHand(state, active.id, prepareBotPlantField(state, active, active.hand[0].type));
       else frontierFinishHandPlant(state, active.id);
       continue;
     }
@@ -662,7 +730,7 @@ export function advanceFrontierBeanBots(state: FrontierBeanState, maxSteps = 500
       const pendingBot = state.players.find((player) => player.bot && player.received.length);
       if (pendingBot) {
         const card = pendingBot.received[0];
-        frontierPlantReceived(state, pendingBot.id, card.id, choosePlantField(pendingBot, card.type));
+        frontierPlantReceived(state, pendingBot.id, card.id, prepareBotPlantField(state, pendingBot, card.type));
         continue;
       }
       if (state.players.some((player) => !player.bot && player.received.length)) break;
@@ -695,6 +763,8 @@ export function handleFrontierBeanAction(state: FrontierBeanState, playerId: str
   else if (action === "frontier-beans-finish-plant") frontierFinishHandPlant(state, playerId);
   else if (action === "frontier-beans-harvest") frontierHarvest(state, playerId, Number(payload.fieldIndex));
   else if (action === "frontier-beans-offer") frontierCreateOffer(state, playerId, String(payload.targetId ?? ""), Array.isArray(payload.giveCardIds) ? payload.giveCardIds.map(String) : [], Array.isArray(payload.wants) ? payload.wants as FrontierTradeRequest[] : []);
+  else if (action === "frontier-beans-update-trade") frontierUpdateTradeCards(state, playerId, String(payload.offerId ?? ""), Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : []);
+  else if (action === "frontier-beans-confirm-trade") frontierConfirmTrade(state, playerId, String(payload.offerId ?? ""));
   else if (action === "frontier-beans-accept") frontierAcceptOffer(state, playerId, String(payload.offerId ?? ""), Array.isArray(payload.returnCardIds) ? payload.returnCardIds.map(String) : []);
   else if (action === "frontier-beans-reject") frontierRejectOffer(state, playerId, String(payload.offerId ?? ""));
   else if (action === "frontier-beans-cancel") frontierCancelOffer(state, playerId, String(payload.offerId ?? ""));

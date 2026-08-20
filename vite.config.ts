@@ -11,6 +11,7 @@ const nodeCompatFlag = ["nodejs", "_compat"].join("");
 const isLocalDevServer = process.argv.some((value) => value === "dev" || value === "serve");
 const useLocalCompatibility = isLocalDevServer;
 const compatibilityDate = useLocalCompatibility ? "2026-05-15" : "2026-08-04";
+const localPersistPath = process.env.HANPAN_LOCAL_PERSIST_PATH?.trim();
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -77,6 +78,10 @@ export default defineConfig(async () => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: localBindingConfig,
+        // Browser/API integration tests may run while a developer already has
+        // `npm run dev` open. Giving those test servers an isolated Miniflare
+        // directory prevents both processes from locking the same local D1.
+        ...(localPersistPath ? { persistState: { path: localPersistPath } } : {}),
       }),
     ],
   };
