@@ -1352,10 +1352,12 @@ export default function Home() {
     overlays={commonOverlays}
   />;
   if (currentGame.id === "place-mafia" && currentGame.placeMafia) return <PlaceMafiaGame
+    key={`${currentGame.placeMafia.day}-${currentGame.placeMafia.phase}`}
     code={room.code}
     players={room.players}
     meId={room.meId}
     state={currentGame.placeMafia}
+    initialServerNow={room.serverNow}
     clockOffsetMs={serverClockOffsetMs}
     isHost={isHost}
     busy={hostActionLocked}

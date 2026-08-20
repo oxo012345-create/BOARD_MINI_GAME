@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaceMafiaPhase } from "./place-mafia-shared";
 
 export type PlaceMafiaCue = "tap" | "select" | "confirm" | "role-citizen" | "role-mafia" | "night" | "tick" | "attack" | "dawn" | "quiet" | "incident" | "gunshot" | "birds" | "evidence" | "vote" | "tie" | "citizen-out" | "mafia-out" | "citizen-win" | "mafia-win";
@@ -230,14 +230,20 @@ function readPreferences(): PlaceMafiaPreferences {
 
 export function usePlaceMafiaExperience(scene: PlaceMafiaPhase | "briefing") {
   const [preferences, setPreferences] = useState<PlaceMafiaPreferences>(DEFAULTS);
+  const preferencesLoadedRef = useRef(false);
 
   useEffect(() => {
-    const loaded = readPreferences();
-    setPreferences(loaded);
-    engine.setPreferences(loaded);
+    const frame = window.requestAnimationFrame(() => {
+      const loaded = readPreferences();
+      preferencesLoadedRef.current = true;
+      engine.setPreferences(loaded);
+      setPreferences(loaded);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
+    if (!preferencesLoadedRef.current) return;
     engine.setPreferences(preferences);
     engine.setScene(scene);
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));

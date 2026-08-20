@@ -247,6 +247,7 @@ export function PlaceMafiaGame({
   players: roomPlayers,
   meId,
   state,
+  initialServerNow,
   clockOffsetMs,
   isHost,
   busy,
@@ -260,6 +261,7 @@ export function PlaceMafiaGame({
   players: MafiaPlayer[];
   meId?: string;
   state: PlaceMafiaClientState;
+  initialServerNow: number;
   clockOffsetMs: number;
   isHost: boolean;
   busy: boolean;
@@ -269,7 +271,7 @@ export function PlaceMafiaGame({
   onLeave: () => void;
   overlays?: ReactNode;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [synchronizedNow, setSynchronizedNow] = useState(initialServerNow);
   const [roleOpen, setRoleOpen] = useState(false);
   const [roleSeen, setRoleSeen] = useState(false);
   const [moveChoice, setMoveChoice] = useState<PlaceMafiaLocationId | undefined>();
@@ -278,14 +280,13 @@ export function PlaceMafiaGame({
   const [voteConfirm, setVoteConfirm] = useState(false);
   const [working, setWorking] = useState(false);
   const [localNotice, setLocalNotice] = useState("");
-  const [resultNoticeOpen, setResultNoticeOpen] = useState(false);
+  const [resultNoticeOpen, setResultNoticeOpen] = useState(state.phase === "day_reveal" || state.phase === "execution");
   const lastTickRef = useRef("");
   const lastCutRef = useRef(0);
   const lastVoteCutRef = useRef(0);
   const lastCountdownRef = useRef(0);
   const previousPhaseRef = useRef(state.phase);
   const experience = usePlaceMafiaExperience(state.phase);
-  const synchronizedNow = now + clockOffsetMs;
   const remaining = Math.max(0, (state.phaseEndsAt ?? synchronizedNow) - synchronizedNow);
   const me = state.my;
   const gamePlayers = useMemo<MafiaPlayer[]>(() => state.participants?.length
@@ -294,20 +295,11 @@ export function PlaceMafiaGame({
   const livingPlayers = useMemo(() => gamePlayers.filter((player) => state.alivePlayerIds.includes(player.id)), [gamePlayers, state.alivePlayerIds]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 200);
+    const interval = window.setInterval(() => setSynchronizedNow(Date.now() + clockOffsetMs), 200);
     return () => window.clearInterval(interval);
-  }, []);
-  useEffect(() => {
-    setMoveChoice(undefined);
-    setAttackChoices([]);
-    setVoteTarget("");
-    setVoteConfirm(false);
-    setRoleOpen(false);
-    setRoleSeen(false);
-  }, [state.day, state.phase]);
+  }, [clockOffsetMs]);
   useEffect(() => {
     if (state.phase !== "day_reveal" && state.phase !== "execution") return;
-    setResultNoticeOpen(true);
     const timer = window.setTimeout(() => setResultNoticeOpen(false), 5_500);
     return () => window.clearTimeout(timer);
   }, [state.day, state.phase]);
