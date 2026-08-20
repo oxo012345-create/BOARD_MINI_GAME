@@ -1216,6 +1216,8 @@
 }
 .fb3-received > b { top: 4px; font-size: 9px; }
 .fb3-received .fb3-card.compact { width: 39px; height: 59px; flex-basis: 39px; transform: translateY(7px); }
+.fb3-received .fb3-card.compact.selected { transform: translateY(7px) scale(1.03); }
+.fb3-received .fb3-card > em { top: 1px; right: -3px; }
 
 .fb3-trade-modal {
   top: max(3px, env(safe-area-inset-top));
@@ -1339,4 +1341,273 @@
   .fb3-own-fields { gap: 4px; }
   .fb3-field-actions { width: calc(100% - 12px); }
   .fb3-trade-modal { right: 5px; left: 5px; padding-right: 13px; padding-left: 13px; }
+}
+
+/* UI V8 — 버튼/문자 슬롯 정합, 명확한 거래 상태, 비가림 수확표 */
+.fb3-phase b { font-size: 13px; line-height: 15px; }
+.fb3-phase small { font-size: 9px; line-height: 11px; }
+.fb3-player-head b { font-size: 12px; line-height: 14px; }
+.fb3-player-head small { font-size: 9px; line-height: 11px; }
+.fb3-player-status em { min-height: 17px; padding: 3px 5px; font-size: 8px; line-height: 11px; }
+.fb3-opponent-field > b {
+  min-height: 16px;
+  padding: 2px 2px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fb3-market .fb3-card.compact > b { bottom: 3px; font-size: 8px; line-height: 10px; }
+.fb3-pile small { font-size: 10px; font-weight: 900; }
+.fb3-self-card > b { font-size: 12px; line-height: 14px; }
+.fb3-self-card > small { font-size: 9px; line-height: 11px; }
+.fb3-own-field > button:first-of-type > b {
+  min-height: 20px;
+  padding: 3px 4px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fb3-protected {
+  right: 12px;
+  left: 12px;
+  min-height: 17px;
+  padding: 3px 2px;
+  color: #fff5c8;
+  background: rgba(79, 42, 14, .88);
+  font-size: 9px;
+  line-height: 11px;
+  text-align: center;
+  text-shadow: 0 1px 1px #2a1305;
+}
+.fb3-field-actions { z-index: 22; gap: 5px; }
+.fb3-field-actions .fb3-harvest,
+.fb3-harvest-info-toggle {
+  min-height: 31px;
+  padding: 7px 6px;
+  color: #392108;
+  font-size: 11px;
+  line-height: 15px;
+  text-shadow: 0 1px rgba(255, 248, 199, .75);
+  filter: brightness(1.16) saturate(1.08);
+}
+.fb3-field-actions .fb3-harvest:disabled { color: #5b4729; opacity: .9; }
+.fb3-field-harvest-table {
+  position: absolute;
+  right: auto;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  width: 164px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 7px;
+  transform: translateX(-50%);
+}
+.fb3-field-harvest-table > b { font-size: 10px; line-height: 13px; }
+.fb3-field-harvest-table span { display: grid; justify-items: center; gap: 1px; font-size: 8px; line-height: 10px; }
+.fb3-own-field.info-open .fb3-tree { opacity: 1; }
+.fb3-own-field:first-child .fb3-field-harvest-table { transform: translateX(-35%); }
+.fb3-own-field:last-child .fb3-field-harvest-table { transform: translateX(-65%); }
+
+.fb3-hand > header { height: 27px; }
+.fb3-hand > header b { font-size: 12px; line-height: 14px; }
+.fb3-hand > header span { color: #ffe3a1; font-size: 9px; line-height: 11px; }
+.fb3-hand > header button {
+  min-width: 78px;
+  min-height: 25px;
+  padding: 5px 8px;
+  color: #392108;
+  font-size: 9px;
+  line-height: 12px;
+}
+
+.fb3-received {
+  padding-top: 21px;
+  border-color: #ffd86a;
+  background: rgba(78, 39, 13, .97);
+  box-shadow: 0 0 0 2px rgba(71, 35, 10, .8), 0 5px 13px rgba(35, 18, 4, .42);
+}
+.fb3-received > b {
+  top: 4px;
+  right: 8px;
+  color: #fff6ca;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  text-shadow: 0 1px 2px #1f0d02;
+}
+
+.fb3-side-name {
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: #fff0c1;
+  font-size: 11px;
+  line-height: 14px;
+}
+.fb3-side-name small {
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 8px;
+  line-height: 11px;
+}
+.fb3-side-name small.waiting { color: #5b3a18; background: #f5d58f; }
+.fb3-side-name small.ready { color: #f5ffe9; background: #4f8b31; }
+.fb3-trade-empty {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 210px;
+  margin: 0;
+  color: #f9e3b4;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  text-shadow: 0 1px 2px #321504;
+  transform: translate(-50%, -42%);
+  pointer-events: none;
+}
+.fb3-trade-modal > footer button {
+  min-height: 42px;
+  padding: 9px 7px;
+  font-size: 12px;
+  line-height: 16px;
+  background-size: 100% 100%;
+}
+.fb3-trade-modal > footer button:disabled { opacity: .78; }
+
+.fb3-toast {
+  position: fixed;
+  top: max(6px, env(safe-area-inset-top));
+  width: min(350px, calc(100% - 24px));
+  max-width: none;
+  display: grid;
+  gap: 2px;
+  padding: 12px 18px 7px;
+  border-radius: 18px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.fb3-toast::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(84, 52, 19, .35);
+  transform: translateX(-50%);
+}
+.fb3-toast span { font-size: 11px; line-height: 15px; }
+.fb3-toast small { color: #82602f; font-size: 8px; line-height: 10px; }
+
+.fb3-game.players-3 .fb3-field-actions .fb3-harvest,
+.fb3-game.players-3 .fb3-harvest-info-toggle {
+  min-height: 29px;
+  padding: 6px 2px;
+  font-size: 10px;
+  line-height: 13px;
+}
+.fb3-game.players-3 .fb3-field-harvest-table {
+  width: 158px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 7px;
+}
+.fb3-game.players-3 .fb3-own-field:nth-child(1) .fb3-field-harvest-table { transform: translateX(-22%); }
+.fb3-game.players-3 .fb3-own-field:nth-child(2) .fb3-field-harvest-table { transform: translateX(-50%); }
+.fb3-game.players-3 .fb3-own-field:nth-child(3) .fb3-field-harvest-table { transform: translateX(-78%); }
+.fb3-game.players-3 .fb3-field-harvest-table > b { font-size: 10px; }
+.fb3-game.players-3 .fb3-field-harvest-table span { font-size: 8px; }
+
+@media (max-width: 365px) {
+  .fb3-player-head b { font-size: 11px; }
+  .fb3-player-head small { font-size: 8px; }
+  .fb3-player-status em { padding: 3px; font-size: 7px; }
+  .fb3-opponent-field > b { font-size: 8px; }
+  .fb3-own-field > button:first-of-type > b { right: 6px; left: 6px; font-size: 10px; }
+  .fb3-field-actions { width: calc(100% - 8px); }
+  .fb3-field-actions .fb3-harvest,
+  .fb3-harvest-info-toggle { padding-right: 2px; padding-left: 2px; font-size: 10px; }
+  .fb3-trade-empty { width: 190px; font-size: 9px; }
+}
+
+/* 긴 모바일 화면: 아래쪽에 빈 공간이 생기지 않도록 플레이 영역을 세로로 분산 */
+@media (min-height: 760px) {
+  .fb3-market {
+    top: calc(max(5px, env(safe-area-inset-top)) + 270px);
+    height: 100px;
+  }
+  .fb3-self-zone {
+    top: calc(max(5px, env(safe-area-inset-top)) + clamp(382px, 43dvh, 400px));
+    bottom: calc(221px + env(safe-area-inset-bottom));
+    height: auto;
+  }
+  .fb3-self-card { height: clamp(112px, 17dvh, 150px); }
+  .fb3-tree { top: 34px; bottom: 16px; width: 82%; }
+  .fb3-field-actions { top: clamp(48px, 8dvh, 72px); }
+  .fb3-game.players-3 .fb3-market {
+    top: calc(max(5px, env(safe-area-inset-top)) + 174px);
+    height: 104px;
+  }
+  .fb3-game.players-3 .fb3-self-zone {
+    top: calc(max(5px, env(safe-area-inset-top)) + 294px);
+    bottom: auto;
+    height: clamp(259px, 34dvh, 320px);
+  }
+  .fb3-game.players-3 .fb3-field-actions { top: clamp(50px, 8dvh, 72px); }
+}
+
+/* 설명 화면에서 바로 켜는 1인 디버그 모드 */
+.fb3-briefing .fb3-debug-setup {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 232, 179, .28);
+}
+.fb3-briefing .fb3-debug-setup > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.fb3-briefing .fb3-debug-setup > div > span { display: grid; gap: 2px; }
+.fb3-briefing .fb3-debug-setup > div > span b { margin: 0; color: #fff3c4; font-size: 12px; }
+.fb3-briefing .fb3-debug-setup > div > span small { color: #e7c98f; font-size: 9px; }
+.fb3-briefing .fb3-debug-setup .fb3-debug-toggle {
+  min-width: 58px;
+  min-height: 30px;
+  margin: 0;
+  padding: 6px 10px;
+  color: #fff0c6;
+  background: #6e3d1c;
+  font-size: 10px;
+  font-weight: 900;
+}
+.fb3-briefing .fb3-debug-setup .fb3-debug-toggle.active { color: #26350e; background: #9ed244; }
+.fb3-briefing .fb3-debug-setup nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fb3-briefing .fb3-debug-setup nav button {
+  min-height: 30px;
+  margin: 0;
+  padding: 6px;
+  color: #fff1c9;
+  font-size: 10px;
+  font-weight: 900;
+}
+.fb3-briefing .fb3-debug-setup nav button.active { color: #382208; background: #ffd95b; }
+
+@media (max-height: 680px) {
+  .fb3-briefing > section { top: 15%; padding-top: 15px; padding-bottom: 15px; }
+  .fb3-briefing h1 { font-size: 27px; }
+  .fb3-briefing p { margin-bottom: 9px; }
+  .fb3-briefing .fb3-debug-setup { margin-top: 9px; padding-top: 8px; }
 }
