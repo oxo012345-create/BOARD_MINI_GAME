@@ -219,6 +219,31 @@ test("TRADE UI — live room opens for both players and transfers only after bot
   assert.equal(frontierBeanClientState(cancelState, cancelTo.id).offers.some((offer) => offer.id === cancelledRoom.id && offer.status === "pending"), false, "cancellation disappears from the invited player view");
 });
 
+test("TRADE UI — debug bot keeps the live room open until the human confirms", () => {
+  const state = createFrontierBeanState([
+    { id: "human", name: "Human" },
+    { id: "bot", name: "Bot", bot: true },
+    { id: "bot2", name: "Bot 2", bot: true },
+  ], { random: () => 0.42 });
+  state.phase = "trade";
+  const human = state.players[0];
+  const bot = state.players[1];
+  const room = frontierCreateOffer(state, human.id, bot.id, [], []);
+  advanceFrontierBeanBots(state);
+  assert.equal(room.status, "pending", "an empty live room must remain visible");
+  assert.equal(room.toReady, false, "the bot must not confirm an empty trade");
+
+  frontierUpdateTradeCards(state, human.id, room.id, [human.hand[0].id]);
+  advanceFrontierBeanBots(state);
+  assert.equal(room.status, "pending", "the bot waits while the human is still selecting");
+
+  frontierConfirmTrade(state, human.id, room.id);
+  advanceFrontierBeanBots(state);
+  assert.equal(room.status, "accepted", "the bot responds after the human confirms");
+  assert.equal(human.received.length, 1);
+  assert.equal(bot.received.length, 1);
+});
+
 test("CASE I/W — revealed cards remain mandatory and an empty market does not auto-end trading", () => {
   const state = createFrontierBeanState(participants(3), { random: () => 0.23 });
   state.phase = "trade";

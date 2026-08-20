@@ -712,6 +712,16 @@ export function advanceFrontierBeanBots(state: FrontierBeanState, maxSteps = 500
       if (incomingForBot) {
         const bot = requirePlayer(state, incomingForBot.toId);
         const available = [...bot.hand, ...(bot.id === active.id ? state.revealed : [])];
+        // 실시간 거래는 빈 거래판으로 먼저 열립니다. 봇이 생성 직후 빈 거래를
+        // 수락해 팝업을 닫지 않도록, 사람 플레이어가 카드를 올리고 확인할 때까지
+        // 그대로 기다립니다. 확인 후에는 봇도 카드 한 장을 올리고 동의합니다.
+        if (incomingForBot.wants.length === 0) {
+          if (!incomingForBot.fromReady || incomingForBot.giveCardIds.length === 0) break;
+          const returnCard = available[0];
+          if (returnCard) frontierUpdateTradeCards(state, bot.id, incomingForBot.id, [returnCard.id]);
+          frontierConfirmTrade(state, bot.id, incomingForBot.id);
+          continue;
+        }
         const selected: string[] = [];
         for (const want of incomingForBot.wants) {
           selected.push(...available.filter((candidate) => candidate.type === want.type && !selected.includes(candidate.id)).slice(0, want.quantity).map((candidate) => candidate.id));

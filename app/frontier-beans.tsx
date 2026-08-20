@@ -118,9 +118,9 @@ function TradeModal({ state, meId, selectedTarget, selectedGive, room, busy, onC
   const isEmpty = lowerGroups.length === 0 && upperGroups.length === 0;
   return <section className="fb3-trade-modal" aria-label="거래 화면">
     <header><button type="button" onClick={onClose}>‹</button><b>{target?.name ?? "플레이어"}</b><span>실시간 거래</span></header>
-    <div className="fb3-trade-side target-side"><b className="fb3-side-name">{target?.name ?? "상대"}<small className={otherReady ? "ready" : "waiting"}>{otherReady ? "✓ 확인 완료" : "● 선택 중"}</small></b><TradeGrid groups={upperGroups}/></div>
+    <div className="fb3-trade-side target-side"><b className="fb3-side-name">{target?.name ?? "상대"}<small className={otherReady ? "fb3-ready" : "fb3-waiting"}>{otherReady ? "✓ 확인 완료" : "● 선택 중"}</small></b><TradeGrid groups={upperGroups}/></div>
     <div className="fb3-trade-divider"><span>↕</span></div>
-    <div className="fb3-trade-side self-side" data-fb-trade-give="true"><b className="fb3-side-name">나<small className={myReady ? "ready" : "waiting"}>{myReady ? "✓ 확인 완료" : "● 선택 중"}</small></b><TradeGrid groups={lowerGroups} onRemove={onGiveRemove} draggable={!myReady} pointerHandlers={!myReady ? (card, cardIds) => dragHandlers(card, "trade", cardIds) : undefined}/>{isEmpty && <p className="fb3-trade-empty">아래 손패나 공개 카드를 눌러<br/>거래판에 올려 주세요.</p>}</div>
+    <div className="fb3-trade-side self-side" data-fb-trade-give="true"><b className="fb3-side-name">나<small className={myReady ? "fb3-ready" : "fb3-waiting"}>{myReady ? "✓ 확인 완료" : "● 선택 중"}</small></b><TradeGrid groups={lowerGroups} onRemove={onGiveRemove} draggable={!myReady} pointerHandlers={!myReady ? (card, cardIds) => dragHandlers(card, "trade", cardIds) : undefined}/>{isEmpty && <p className="fb3-trade-empty">아래 손패나 공개 카드를 눌러<br/>거래판에 올려 주세요.</p>}</div>
     <footer><button type="button" className="reject" disabled={busy} onClick={onClose}>거래 취소</button><button type="button" className="accept" disabled={busy || !room || myReady || (!selectedGive.length && !upperGroups.length)} onClick={onTrade}>{myReady ? "확인 완료" : "거래하기"}</button></footer>
   </section>;
 }
@@ -150,6 +150,35 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   const tradeOpen = state.phase === "trade" && (Boolean(effectiveSelectedTarget) || Boolean(liveTrade));
 
   useEffect(() => { setSoundMuted(muted); }, [muted, setSoundMuted]);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("fb3-no-pull");
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      const target = event.target instanceof Element ? event.target : null;
+      const verticalScroller = target?.closest<HTMLElement>("[data-fb-allow-y-scroll]");
+      if (verticalScroller && verticalScroller.scrollHeight > verticalScroller.clientHeight) return;
+      if (dy > 0 && Math.abs(dy) > Math.abs(dx)) event.preventDefault();
+    };
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      root.classList.remove("fb3-no-pull");
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
   useEffect(() => { if (!state.lastEvent?.id) return; const kind = state.lastEvent.kind; const text = state.lastEvent.text ?? ""; if (kind === "plant") playSound("plant"); if (kind === "trade") playSound("trade"); if (kind === "harvest") playSound("harvest"); if (kind === "reveal" || kind === "draw") playSound("draw"); if (kind === "turn") playSound("turn"); if (kind === "game_over") playSound("game_end"); const showTimer = window.setTimeout(() => { if (kind === "trade" && (/성사됐어요|거래를 취소했어요/.test(text))) { lastLiveTradeRef.current = undefined; setSelectedTradeKey(undefined); setSelectedTarget(undefined); setSelectedGive([]); setDraftOfferId(undefined); } setNotice(text); }, 0); const hideTimer = window.setTimeout(() => setNotice(""), 3200); return () => { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); }; }, [state.lastEvent?.id, state.lastEvent?.kind, state.lastEvent?.text, playSound]);
   useEffect(() => () => { if (pressRef.current) window.clearTimeout(pressRef.current.timer); dragCleanupRef.current?.(); }, []);
   const updateHandOverflow = useCallback(() => { const hand = handScrollRef.current; if (!hand) return; setHandMoreLeft(hand.scrollLeft > 3); setHandMoreRight(hand.scrollLeft + hand.clientWidth < hand.scrollWidth - 3); }, []);
@@ -267,7 +296,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     {state.debug && debugUi && <button type="button" className="fb3-debug" onClick={() => setDebugOpen((value) => !value)}>DEBUG</button>}
     {state.debug && debugUi && debugOpen && <div className="fb3-debug-menu">{[["plant","첫 카드"],["trade","거래"],["received","받은 콩"],["protection","보호"],["harvest","수확"],["near-end","종료 직전"],["autoplay","봇 완주"],["reset","초기화"],["players-3","3인"],["players-4","4인"],["players-5","5인"]].map(([scenario, label]) => <button type="button" key={scenario} onClick={() => { setDebugOpen(false); setSelectedHarvestField(undefined); setSelectedHarvestInfoField(undefined); void act({ action: "frontier-beans-debug", scenario }); }}>{label}</button>)}</div>}
     {state.phase === "game_over" && <div className="fb3-result"><section><h2>최종 정산</h2>{state.rankings?.map((rank) => <div key={rank.playerId} className={rank.rank === 1 ? "winner" : ""}><b>{rank.rank}위</b><span>{state.players.find((player) => player.id === rank.playerId)?.name}</span><strong>{rank.coins}코인</strong></div>)}<footer>{isHost && <button type="button" onClick={onLobby}>다른 게임</button>}<button type="button" onClick={onLeave}>나가기</button></footer></section></div>}
-    {help && <div className="fb3-help"><section><button type="button" onClick={() => setHelp(false)}>×</button><h2>게임 설명</h2><p><b>심기</b> 첫 카드는 반드시, 두 번째는 선택해서 심습니다.</p><p><b>거래</b> 현재 턴 농부만 거래를 시작할 수 있습니다.</p><p><b>받은 콩</b> 손패에 넣지 않고 전부 밭에 심습니다.</p><p><b>수확</b> 밭 전체를 수확하며 한 칸 밭 보호 규칙이 적용됩니다.</p><div className="fb3-harvest-guide">{FRONTIER_BEANS.map((bean) => <span key={bean.id}><img src={beanImage(bean.id)} alt=""/><b>{bean.name}</b><small>{bean.harvest.map((amount, index) => `${amount}→${index + 1}`).join(" · ")}</small></span>)}</div></section></div>}
+    {help && <div className="fb3-help"><section data-fb-allow-y-scroll="true"><button type="button" onClick={() => setHelp(false)}>×</button><h2>게임 설명</h2><p><b>심기</b> 첫 카드는 반드시, 두 번째는 선택해서 심습니다.</p><p><b>거래</b> 현재 턴 농부만 거래를 시작할 수 있습니다.</p><p><b>받은 콩</b> 손패에 넣지 않고 전부 밭에 심습니다.</p><p><b>수확</b> 밭 전체를 수확하며 한 칸 밭 보호 규칙이 적용됩니다.</p><div className="fb3-harvest-guide">{FRONTIER_BEANS.map((bean) => <span key={bean.id}><img src={beanImage(bean.id)} alt=""/><b>{bean.name}</b><small>{bean.harvest.map((amount, index) => `${amount}→${index + 1}`).join(" · ")}</small></span>)}</div></section></div>}
     {overlays}
   </main>;
 }

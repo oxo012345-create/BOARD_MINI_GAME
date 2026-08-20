@@ -444,6 +444,132 @@
   .fb3-debug-menu { bottom: calc(180px + env(safe-area-inset-bottom)); }
 }
 
+/* UI V9 — 실기기 문자 슬롯/버튼 정렬 및 브라우저 당겨서 새로고침 차단 */
+html.fb3-no-pull,
+html.fb3-no-pull body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.fb3-no-pull body { position: fixed; inset: 0; }
+.fb3-game { overscroll-behavior: none; touch-action: none; }
+.fb3-game button { -webkit-touch-callout: none; }
+.fb3-hand-scroll { touch-action: pan-x; }
+.fb3-help > section[data-fb-allow-y-scroll] { overscroll-behavior: contain; touch-action: pan-y; }
+
+.fb3-hud {
+  align-items: center;
+  padding-top: 6px;
+  padding-bottom: 7px;
+}
+.fb3-hud button,
+.fb3-hud .fb3-phase {
+  height: 31px;
+  min-height: 31px;
+  padding-top: 1px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.fb3-room { display: grid; place-items: center; font-size: 12px; line-height: 14px; }
+.fb3-phase { justify-content: center; }
+.fb3-phase b { font-size: 13px; line-height: 14px; }
+.fb3-phase small { margin-top: 0; font-size: 8px; line-height: 9px; }
+.fb3-hud > div:last-child { height: 31px; align-self: center; }
+.fb3-hud > div:last-child button { height: 31px; font-size: 20px; line-height: 28px; }
+
+.fb3-player { padding: 5px 8px 7px; }
+.fb3-player-head { grid-template-columns: 38px minmax(0, 1fr) 34px; gap: 3px; }
+.fb3-player-head > img { width: 36px; height: 36px; }
+.fb3-player-head > span:nth-child(2) { justify-content: center; height: 34px; padding: 1px 3px 2px; }
+.fb3-player-head b { font-size: 12px; line-height: 13px; }
+.fb3-player-head small { margin-top: 1px; font-size: 8px; line-height: 10px; }
+.fb3-player-status { width: 34px; max-width: 34px; align-items: stretch; justify-content: center; }
+.fb3-player-status em { display: grid; min-height: 17px; place-items: center; padding: 2px; font-size: 7px; line-height: 9px; text-align: center; }
+.fb3-opponent-fields { padding: 3px 6px 2px; }
+.fb3-opponent-field > b {
+  right: 5px;
+  bottom: 1px;
+  left: 5px;
+  min-height: 17px;
+  padding: 3px 2px;
+  font-size: 9px;
+  line-height: 11px;
+  background: rgba(58, 31, 11, .92);
+}
+.fb3-mini-crop { inset: 1px 5px 18px; }
+.fb3-mini-crop img { width: 68%; }
+
+.fb3-market { padding-top: 12px; padding-bottom: 11px; }
+.fb3-pile small { bottom: 0; font-size: 9px; line-height: 10px; }
+.fb3-public-cards > span { font-size: 9px; line-height: 11px; text-align: center; }
+
+.fb3-own-field > button:first-of-type > b {
+  top: 5px;
+  right: 10px;
+  left: 10px;
+  min-height: 21px;
+  display: grid;
+  place-items: center;
+  padding: 3px 4px;
+  font-size: 11px;
+  line-height: 13px;
+}
+.fb3-tree { top: 32px; }
+.fb3-hand > header { top: 5px; right: 17px; left: 17px; height: 28px; padding: 0 9px; }
+.fb3-hand > header b { font-size: 12px; line-height: 14px; }
+.fb3-hand > header span { font-size: 9px; line-height: 11px; }
+.fb3-hand > header button {
+  min-width: 82px;
+  min-height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 4px 8px;
+  border: 0;
+  color: #352008;
+  background: url("/frontier-beans/ui-v6/button-positive.png") center / 100% 100% no-repeat;
+  font-size: 9px;
+  line-height: 11px;
+}
+
+.fb3-field-actions .fb3-harvest,
+.fb3-harvest-info-toggle,
+.fb3-trade-modal > footer button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+.fb3-field-actions .fb3-harvest { background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
+.fb3-harvest-info-toggle { background-image: url("/frontier-beans/ui-v6/button-normal.png"); }
+.fb3-trade-modal > footer .reject { background-image: url("/frontier-beans/ui-v6/button-negative.png"); }
+.fb3-trade-modal > footer .accept { background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
+
+.fb3-trade-modal {
+  grid-template-rows: 40px minmax(0, 1fr) 18px minmax(0, 1fr) 51px;
+  padding: 13px 17px 12px;
+}
+.fb3-trade-modal > header { padding: 1px 5px 5px; }
+.fb3-trade-modal > header button { display: grid; place-items: center; height: 28px; line-height: 1; }
+.fb3-trade-modal > header b { font-size: 13px; line-height: 15px; }
+.fb3-trade-modal > header span { font-size: 9px; line-height: 11px; }
+.fb3-side-name { top: 5px; right: 8px; left: 8px; font-size: 11px; line-height: 14px; }
+.fb3-trade-grid { padding-top: 16px; }
+.fb3-trade-modal > footer { align-items: stretch; padding: 5px 3px 1px; }
+.fb3-trade-modal > footer button { min-height: 42px; padding: 8px; font-size: 12px; line-height: 15px; }
+
+@media (max-width: 365px) {
+  .fb3-player { padding-right: 6px; padding-left: 6px; }
+  .fb3-player-head { grid-template-columns: 32px minmax(0, 1fr) 30px; }
+  .fb3-player-head > img { width: 31px; height: 33px; }
+  .fb3-player-head b { font-size: 11px; }
+  .fb3-opponent-field > b { font-size: 8px; }
+  .fb3-own-field > button:first-of-type > b { right: 5px; left: 5px; font-size: 10px; }
+}
+
 @media (max-height: 610px) {
   .fb3-opponents { height: 147px; }
   .fb3-market { top: calc(max(5px, env(safe-area-inset-top)) + 199px); height: 78px; }
@@ -1456,8 +1582,8 @@
   font-size: 8px;
   line-height: 11px;
 }
-.fb3-side-name small.waiting { color: #5b3a18; background: #f5d58f; }
-.fb3-side-name small.ready { color: #f5ffe9; background: #4f8b31; }
+.fb3-side-name small.fb3-waiting { color: #5b3a18; background: #f5d58f; }
+.fb3-side-name small.fb3-ready { color: #f5ffe9; background: #4f8b31; }
 .fb3-trade-empty {
   position: absolute;
   z-index: 3;
@@ -1610,4 +1736,66 @@
   .fb3-briefing h1 { font-size: 27px; }
   .fb3-briefing p { margin-bottom: 9px; }
   .fb3-briefing .fb3-debug-setup { margin-top: 9px; padding-top: 8px; }
+}
+
+/* UI V9 final overrides — 이후의 구형 반응형 규칙보다 항상 우선한다. */
+.fb3-hud { align-items: center; padding-top: 6px; padding-bottom: 7px; }
+.fb3-hud button,
+.fb3-hud .fb3-phase { height: 31px; min-height: 31px; padding-top: 1px; border: 0; background: transparent; box-shadow: none; }
+.fb3-room { display: grid; place-items: center; font-size: 12px; line-height: 14px; }
+.fb3-phase { justify-content: center; }
+.fb3-phase b { font-size: 13px; line-height: 14px; }
+.fb3-phase small { margin-top: 0; font-size: 8px; line-height: 9px; }
+.fb3-hud > div:last-child { height: 31px; align-self: center; }
+.fb3-hud > div:last-child button { height: 31px; font-size: 20px; line-height: 28px; }
+
+.fb3-player { padding: 5px 8px 7px; }
+.fb3-player-head { grid-template-columns: 38px minmax(0, 1fr) 34px; gap: 3px; }
+.fb3-player-head > img { width: 36px; height: 36px; }
+.fb3-player-head > span:nth-child(2) { justify-content: center; height: 34px; padding: 1px 3px 2px; }
+.fb3-player-head b { font-size: 12px; line-height: 13px; }
+.fb3-player-head small { margin-top: 1px; font-size: 8px; line-height: 10px; }
+.fb3-player-status { width: 34px; max-width: 34px; align-items: stretch; justify-content: center; }
+.fb3-player-status em { display: grid; min-height: 17px; place-items: center; padding: 2px; font-size: 7px; line-height: 9px; text-align: center; }
+.fb3-opponent-fields { padding: 3px 6px 2px; }
+.fb3-opponent-field > b { right: 5px; bottom: 1px; left: 5px; min-height: 17px; padding: 3px 2px; font-size: 9px; line-height: 11px; background: rgba(58,31,11,.92); }
+.fb3-mini-crop { inset: 1px 5px 18px; }
+.fb3-mini-crop img { width: 68%; }
+
+.fb3-market { padding-top: 12px; padding-bottom: 11px; }
+.fb3-pile small { bottom: 0; font-size: 9px; line-height: 10px; }
+.fb3-public-cards > span { font-size: 9px; line-height: 11px; text-align: center; }
+.fb3-own-field > button:first-of-type > b { top: 5px; right: 10px; left: 10px; min-height: 21px; display: grid; place-items: center; padding: 3px 4px; font-size: 11px; line-height: 13px; }
+.fb3-tree { top: 32px; }
+
+.fb3-hand > header { top: 5px; right: 17px; left: 17px; height: 28px; padding: 0 9px; }
+.fb3-hand > header b { font-size: 12px; line-height: 14px; }
+.fb3-hand > header span { font-size: 9px; line-height: 11px; }
+.fb3-hand > header button { min-width: 82px; min-height: 25px; display: grid; place-items: center; padding: 4px 8px; border: 0; color: #352008; background: url("/frontier-beans/ui-v6/button-positive.png") center / 100% 100% no-repeat; font-size: 9px; line-height: 11px; }
+
+.fb3-field-actions .fb3-harvest,
+.fb3-harvest-info-toggle,
+.fb3-trade-modal > footer button { display: grid; place-items: center; border: 0; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; }
+.fb3-field-actions .fb3-harvest { background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
+.fb3-harvest-info-toggle { background-image: url("/frontier-beans/ui-v6/button-normal.png"); }
+.fb3-trade-modal > footer .reject { background-image: url("/frontier-beans/ui-v6/button-negative.png"); }
+.fb3-trade-modal > footer .accept { background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
+
+.fb3-trade-modal { grid-template-rows: 40px minmax(0, 1fr) 18px minmax(0, 1fr) 51px; padding: 13px 17px 12px; }
+.fb3-trade-modal > header { padding: 1px 5px 5px; }
+.fb3-trade-modal > header button { display: grid; place-items: center; height: 28px; line-height: 1; }
+.fb3-trade-modal > header b { font-size: 13px; line-height: 15px; }
+.fb3-trade-modal > header span { font-size: 9px; line-height: 11px; }
+.fb3-side-name { top: 5px; right: 8px; left: 8px; font-size: 11px; line-height: 14px; }
+.fb3-trade-grid { padding-top: 16px; }
+.fb3-trade-modal > footer { align-items: stretch; padding: 5px 3px 1px; }
+.fb3-trade-modal > footer button { min-height: 42px; padding: 8px; font-size: 12px; line-height: 15px; }
+
+@media (max-width: 365px) {
+  .fb3-player { padding-right: 6px; padding-left: 6px; }
+  .fb3-player-head { grid-template-columns: 32px minmax(0, 1fr) 30px; }
+  .fb3-player-head > img { width: 31px; height: 33px; }
+  .fb3-player-head b { font-size: 11px; }
+  .fb3-opponent-field > b { font-size: 8px; }
+  .fb3-own-field > button:first-of-type > b { right: 5px; left: 5px; font-size: 10px; }
 }
