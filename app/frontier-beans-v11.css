@@ -447,3 +447,66 @@ html.fb3-no-pull body { position: fixed; inset: 0; }
   .fb3-briefing > footer button,
   .fb3-briefing > footer span { min-height: 46px; }
 }
+
+/* V12 — 실제 모바일 검수에서 확인한 거래/카드/밭 조작 보정 */
+.fb3-game .fb3-hand > header > .fb3-end-trade {
+  left: 96%;
+  width: 44%;
+  min-height: calc(30 * var(--u));
+  padding: 0 calc(5 * var(--u));
+  font-size: calc(9.5 * var(--u));
+  line-height: 1.12;
+  text-shadow: 0 calc(1 * var(--u)) rgba(255, 248, 201, .78);
+}
+
+.fb3-game .fb3-card-value {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(2 * var(--u));
+  padding: calc(5 * var(--u)) calc(4 * var(--u));
+  font-size: calc(6.2 * var(--u));
+}
+.fb3-game .fb3-card-value > strong { flex: 0 0 auto; margin-bottom: calc(1 * var(--u)); font-size: calc(8 * var(--u)); line-height: 1.05; }
+.fb3-game .fb3-card-value > span {
+  min-height: calc(11 * var(--u));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(7 * var(--u)) minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+}
+.fb3-game .fb3-card-value > span b { justify-self: end; }
+.fb3-game .fb3-card-value > span em { position: static; justify-self: center; color: #8b5510; font-size: inherit; font-style: normal; line-height: inherit; }
+.fb3-game .fb3-card-value > span i { justify-self: start; }
+.fb3-game .fb3-card.compact .fb3-card-value { gap: calc(1 * var(--u)); padding: calc(3 * var(--u)); font-size: calc(4.8 * var(--u)); }
+.fb3-game .fb3-card.compact .fb3-card-value > strong { font-size: calc(5.8 * var(--u)); }
+.fb3-game .fb3-card.compact .fb3-card-value > span { min-height: calc(7 * var(--u)); grid-template-columns: 1fr calc(5 * var(--u)) 1fr; }
+
+.fb3-game .fb3-own-field.blocked { opacity: 1; filter: none; }
+.fb3-game .fb3-own-field.blocked > button:first-of-type .fb3-tree { opacity: .48; filter: brightness(.62) saturate(.7); }
+.fb3-game .fb3-own-field.blocked.harvest-open > button:first-of-type .fb3-tree,
+.fb3-game .fb3-own-field.blocked.info-open > button:first-of-type .fb3-tree { opacity: .35; }
+.fb3-game .fb3-own-field.blocked .fb3-field-actions,
+.fb3-game .fb3-own-field.blocked .fb3-field-actions button { opacity: 1; filter: brightness(1.12) saturate(1.06); }
+.fb3-game .fb3-own-field.blocked .fb3-field-actions .fb3-harvest:disabled { opacity: .82; filter: grayscale(.18) brightness(1.08); }
+
+.fb3-game .fb3-opponent-field { overflow: hidden; }
+.fb3-game .fb3-mini-crop { inset: 4% 9% 31%; overflow: hidden; }
+.fb3-game .fb3-mini-crop img { width: 58%; height: 92%; object-fit: contain; object-position: center 55%; }
+
+.fb3-game .fb3-hand-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+.fb3-game .fb3-hand-scroll .fb3-card,
+.fb3-game .fb3-hand-scroll .fb3-card.draggable { touch-action: pan-x; }
+.fb3-game .fb3-trade-grid .fb3-card.draggable,
+.fb3-game .fb3-received .fb3-card.draggable { touch-action: none; }
+
+@media (max-width: 365px) {
+  .fb3-game .fb3-hand > header > .fb3-end-trade { left: 94%; width: 46%; min-height: calc(29 * var(--u)); font-size: calc(8.8 * var(--u)); }
+  .fb3-game .fb3-mini-crop { right: 7%; left: 7%; }
+}

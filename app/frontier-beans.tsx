@@ -31,42 +31,65 @@ const cardImage = (type: FrontierBeanType) => `/frontier-beans/ui-v3/card-${type
 const beanImage = (type: FrontierBeanType) => `/frontier-beans/bean-${type}.png`;
 const fieldImage = (type: FrontierBeanType, count: number) => `/frontier-beans/fields/bean-${type}-${count <= 3 ? "low" : count <= 6 ? "mid" : "high"}.png`;
 
+type FrontierSound = "tap" | "draw" | "plant" | "trade_open" | "trade_close" | "trade" | "harvest" | "turn" | "game_end" | "card_flip" | "error";
+const FRONTIER_SOUNDS: Record<FrontierSound, string> = {
+  tap: "/frontier-beans/audio/ui-tap.ogg",
+  draw: "/frontier-beans/audio/card-draw.ogg",
+  plant: "/frontier-beans/audio/bean-plant.ogg",
+  trade_open: "/frontier-beans/audio/trade-open.ogg",
+  trade_close: "/frontier-beans/audio/trade-close.ogg",
+  trade: "/frontier-beans/audio/trade-success.ogg",
+  harvest: "/frontier-beans/audio/bean-harvest.ogg",
+  turn: "/frontier-beans/audio/turn-ready.ogg",
+  game_end: "/frontier-beans/audio/game-finish.ogg",
+  card_flip: "/frontier-beans/audio/card-flip.ogg",
+  error: "/frontier-beans/audio/ui-error.ogg",
+};
+
 function useFrontierSound() {
-  const contextRef = useRef<AudioContext | null>(null);
   const mutedRef = useRef(false);
-  const ensure = () => {
-    if (!contextRef.current) contextRef.current = new AudioContext();
-    if (contextRef.current.state === "suspended") void contextRef.current.resume();
-    return contextRef.current;
-  };
-  const play = useCallback((kind: "tap" | "draw" | "plant" | "trade" | "harvest" | "turn" | "game_end" | "error") => {
-    if (mutedRef.current) return;
-    const context = ensure();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = kind === "error" ? "sawtooth" : ["harvest", "game_end"].includes(kind) ? "triangle" : "sine";
-    const base = kind === "plant" ? 230 : kind === "trade" ? 540 : kind === "harvest" ? 740 : kind === "draw" ? 310 : kind === "turn" ? 620 : kind === "game_end" ? 680 : kind === "error" ? 120 : 380;
-    oscillator.frequency.setValueAtTime(base, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(kind === "error" ? 80 : base * 1.35, context.currentTime + 0.14);
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.06, context.currentTime + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
-    oscillator.connect(gain).connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + 0.22);
+  const bgmRef = useRef<HTMLAudioElement>();
+  const unlockedRef = useRef(false);
+  const unlock = useCallback(() => {
+    if (unlockedRef.current) return;
+    unlockedRef.current = true;
+    const bgm = new Audio("/frontier-beans/audio/cozy-market-loop.mp3");
+    bgm.loop = true;
+    bgm.preload = "auto";
+    bgm.volume = .12;
+    bgm.muted = mutedRef.current;
+    bgmRef.current = bgm;
+    if (!mutedRef.current) void bgm.play().catch(() => { unlockedRef.current = false; });
   }, []);
-  return { play, setMuted: useCallback((muted: boolean) => { mutedRef.current = muted; }, []) };
+  const play = useCallback((kind: FrontierSound) => {
+    if (mutedRef.current) return;
+    const sound = new Audio(FRONTIER_SOUNDS[kind]);
+    sound.volume = kind === "tap" ? .18 : kind === "error" ? .22 : .28;
+    void sound.play().catch(() => undefined);
+  }, []);
+  const setMuted = useCallback((muted: boolean) => {
+    mutedRef.current = muted;
+    const bgm = bgmRef.current;
+    if (!bgm) return;
+    bgm.muted = muted;
+    if (!muted && unlockedRef.current) void bgm.play().catch(() => undefined);
+  }, []);
+  useEffect(() => () => { bgmRef.current?.pause(); bgmRef.current = undefined; }, []);
+  return { play, unlock, setMuted };
 }
 
-function HandCard({ card, compact, selected, mandatory, locked, quantity, draggable, flippable, onClick, onPointerDown, onPointerMove, onPointerUp }: {
+function HandCard({ card, compact, selected, mandatory, locked, quantity, draggable, flippable, onClick, onFlip, onPointerDown, onPointerMove, onPointerUp }: {
   card: FrontierBeanCard; compact?: boolean; selected?: boolean; mandatory?: boolean; locked?: boolean; quantity?: number; draggable?: boolean; flippable?: boolean;
   onClick?: () => void;
+  onFlip?: () => void;
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerMove?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerUp?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }) {
   const bean = frontierBeanDefinition(card.type);
   const [flipped, setFlipped] = useState(false);
-  return <button type="button" className={`fb3-card ${compact ? "compact" : ""} ${flippable ? "flippable" : ""} ${flipped ? "flipped" : ""} ${selected ? "selected" : ""} ${mandatory ? "mandatory" : ""} ${locked ? "locked" : ""} ${draggable ? "draggable" : ""}`} onClick={() => { if (flippable) setFlipped((value) => !value); onClick?.(); }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} aria-label={`${bean.name}${quantity && quantity > 1 ? ` ${quantity}개` : ""}`}>
-    {!flipped ? <img src={cardImage(card.type)} alt="" draggable={false}/> : <span className="fb3-card-value"><strong>수확</strong>{bean.harvest.map((count, index) => <span key={count}><b>{count}</b><i>→ {index + 1}</i></span>)}</span>}<b>{bean.name}</b>{quantity && quantity > 1 && <small>×{quantity}개</small>}
+  return <button type="button" className={`fb3-card ${compact ? "compact" : ""} ${flippable ? "flippable" : ""} ${flipped ? "flipped" : ""} ${selected ? "selected" : ""} ${mandatory ? "mandatory" : ""} ${locked ? "locked" : ""} ${draggable ? "draggable" : ""}`} onClick={() => { if (flippable) { setFlipped((value) => !value); onFlip?.(); } onClick?.(); }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} aria-label={`${bean.name}${quantity && quantity > 1 ? ` ${quantity}개` : ""}`}>
+    {!flipped ? <img src={cardImage(card.type)} alt="" draggable={false}/> : <span className="fb3-card-value"><strong>수확</strong>{bean.harvest.map((count, index) => <span key={count}><b>{count}</b><em>→</em><i>{index + 1}</i></span>)}</span>}<b>{bean.name}</b>{quantity && quantity > 1 && <small>×{quantity}개</small>}
     {mandatory && <i>첫 카드</i>}{selected && <em>✓</em>}
   </button>;
 }
@@ -139,7 +162,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   const pressRef = useRef<PressState>(); const dragRef = useRef<DragState>(); const dragCleanupRef = useRef<() => void>(); const handScrollRef = useRef<HTMLDivElement>(null); const suppressClick = useRef(false); const tradeSyncRef = useRef<Promise<unknown>>(Promise.resolve()); const lastLiveTradeRef = useRef<string>(); const noticeSwipeRef = useRef<{ pointerId: number; startY: number }>();
   const debugQuery = useSyncExternalStore(() => () => undefined, () => new URLSearchParams(window.location.search).get("debug") === "1", () => false);
   const debugUi = state.debug || debugQuery;
-  const { play: playSound, setMuted: setSoundMuted } = useFrontierSound();
+  const { play: playSound, unlock: unlockSound, setMuted: setSoundMuted } = useFrontierSound();
   const me = state.me; const myPublic = state.players.find((player) => player.id === meId); const opponents = state.players.filter((player) => player.id !== meId); const active = state.players.find((player) => player.isActive);
   const currentTradeKey = state.phase === "trade" ? `${state.round}:${active?.id ?? ""}` : ""; const effectiveSelectedTarget = selectedTradeKey === currentTradeKey ? selectedTarget : undefined;
   const pendingCard = me?.received.find((card) => card.id === selectedPending) ?? me?.received[0];
@@ -208,9 +231,9 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     setSelectedGive([]);
     setDraftOfferId(undefined);
   }, [liveTrade]);
-  const closeTrade = async () => { if (liveTrade) await act({ action: "frontier-beans-cancel", offerId: liveTrade.id }); clearTradeUi(); };
+  const closeTrade = async () => { playSound("trade_close"); if (liveTrade) await act({ action: "frontier-beans-cancel", offerId: liveTrade.id }); clearTradeUi(); };
   const openTrade = async (targetId: string) => {
-    setSelectedTradeKey(currentTradeKey); setSelectedTarget(targetId); setSelectedGive([]); setDraftOfferId(undefined); playSound("tap");
+    setSelectedTradeKey(currentTradeKey); setSelectedTarget(targetId); setSelectedGive([]); setDraftOfferId(undefined); playSound("trade_open");
     const opened = await act({ action: "frontier-beans-offer", targetId, giveCardIds: [], wants: [] });
     if (!opened) clearTradeUi();
   };
@@ -294,7 +317,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   });
   if (!meId || !me || !myPublic) return <main className="fb3-game"><div className="fb3-loading">농장에 입장하는 중…</div>{overlays}</main>;
   const plantType = drag?.card.type ?? (state.phase === "plant_hand" ? me.hand[0]?.type : pendingCard?.type);
-  return <main className={`fb3-game players-${state.players.length} phase-${state.phase} ${tradeOpen ? "trade-open" : ""} ${drag ? "dragging" : ""}`} onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
+  return <main className={`fb3-game players-${state.players.length} phase-${state.phase} ${tradeOpen ? "trade-open" : ""} ${drag ? "dragging" : ""}`} onPointerDownCapture={(event) => { unlockSound(); const target = event.target; if (!(target instanceof Element)) return; const button = target.closest("button"); const specialized = target.closest(".fb3-player.tradeable, .fb3-trade-modal > header, .fb3-trade-modal .reject, .fb3-card.flippable"); if (button && !specialized) playSound("tap"); }} onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
     <img className="fb3-world" src="/frontier-beans/ui-v3/farm-day.png" alt="밝은 농장 마을" draggable={false}/>
     <header className="fb3-hud"><button type="button" className="fb3-room" onClick={() => navigator.clipboard?.writeText(code)}>방 {code}</button><div className="fb3-phase"><b>{PHASE_LABEL[state.phase]}</b><small>{active?.name} 차례</small></div><div><button type="button" onClick={() => setHelp(true)} aria-label="게임 설명">?</button><button type="button" onClick={() => setSettingsOpen((value) => !value)} aria-label="옵션">⚙</button></div></header>
     <section className="fb3-opponents">{opponents.map((player, index) => { const tradeable = state.phase === "trade" && !liveTrade && meId === active?.id; return <PlayerPanel key={player.id} player={player} index={index + 1} active={player.isActive} tradeable={tradeable} onTrade={tradeable ? () => void openTrade(player.id) : undefined}/>; })}</section>
@@ -302,7 +325,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     <section className="fb3-self-zone"><div className={`fb3-self-card ${myPublic.isActive ? "active" : ""}`}><img src={farmerImage(0)} alt="내 농부"/><b>{myPublic.name}{isHost ? " ♛" : ""}</b><small><i>●</i>{myPublic.coins}　▤ {myPublic.handCount}</small></div><div className={`fb3-own-fields fields-${me.fields.length}`}>{me.fields.map((field, index) => { const publicField = myPublic.fields[index]; const available = Boolean(plantType && canPlantIndex(index, plantType)); const planting = Boolean(drag || selectedPlantCard || state.phase === "plant_received"); const protectedField = publicField.count === 1 && !me.legalHarvests.includes(index); const fieldOpen = selectedHarvestField === index && publicField.count > 0; const bean = publicField.type ? frontierBeanDefinition(publicField.type) : undefined; const infoOpen = fieldOpen && selectedHarvestInfoField === index; return <div key={index} className={`fb3-own-field ${planting ? (available ? "available" : "blocked") : ""} ${fieldOpen ? "harvest-open" : ""} ${infoOpen ? "info-open" : ""} ${protectedField ? "protected" : ""} ${dragOverField === index ? "near" : ""} ${plantFlash === index ? "planted" : ""}`} data-fb-field={index}><button type="button" disabled={working} onClick={() => tapField(index)}><CropTree type={publicField.type} count={publicField.count}/><b>{publicField.type ? `${frontierBeanDefinition(publicField.type).name} ×${publicField.count}개` : `밭 ${index + 1}`}</b></button>{protectedField && !fieldOpen && <span className="fb3-protected">1장 밭 보호</span>}{fieldOpen && bean && <div className="fb3-field-actions"><button type="button" className="fb3-harvest" disabled={working || protectedField} onClick={async () => { if (protectedField) return; const harvested = await act({ action: "frontier-beans-harvest", fieldIndex: index }); if (harvested) { setSelectedHarvestField(undefined); setSelectedHarvestInfoField(undefined); } }}>{protectedField ? "1장 밭 보호" : "수확하기"}</button><button type="button" className="fb3-harvest-info-toggle" aria-expanded={infoOpen} onClick={() => setSelectedHarvestInfoField((current) => current === index ? undefined : index)}>정보</button>{infoOpen && <div className="fb3-field-harvest-table"><b>{bean.name} 수확표</b>{bean.harvest.map((count, payoutIndex) => <span key={count}><strong>{count}개</strong><i>{payoutIndex + 1}코인</i></span>)}</div>}</div>}</div>; })}</div></section>
     {state.phase === "plant_received" && me.received.length > 0 && <section className="fb3-received"><b>받은 콩 · 모두 심기</b>{me.received.map((card) => <HandCard key={card.id} card={card} compact selected={pendingCard?.id === card.id} draggable onClick={() => setSelectedPending(card.id)} {...dragHandlers(card, "received")}/>)}</section>}
     {tradeOpen && <TradeModal state={state} meId={meId} selectedTarget={effectiveSelectedTarget} selectedGive={selectedTradeIds} room={liveTrade} busy={working || busy} onClose={() => void closeTrade()} onGiveRemove={(ids) => updateTradeSelection(selectedTradeIds.filter((id) => !ids.includes(id)))} onTrade={async () => { if (!liveTrade) return; await tradeSyncRef.current; const otherReady = liveTrade.fromId === meId ? liveTrade.toReady : liveTrade.fromReady; const confirmed = await act({ action: "frontier-beans-confirm-trade", offerId: liveTrade.id }); if (confirmed && otherReady) clearTradeUi(); }} dragHandlers={dragHandlers}/>}
-    <section className={`fb3-hand ${state.phase === "plant_received" ? "locked" : ""}`} data-fb-hand="true"><header><span className="fb3-hand-heading"><b><span>내 카드 · {myPublic.name}</span><span className="fb3-hand-metrics"><span className="fb3-metric coin"><i aria-hidden="true"/>{myPublic.coins}</span><span className="fb3-metric cards"><i aria-hidden="true"/>{myPublic.handCount}</span></span></b></span>{state.phase === "plant_hand" && myPublic.isActive && state.handPlantsThisTurn > 0 && <button type="button" onClick={() => void act({ action: "frontier-beans-finish-plant" })}>두 번째 안 심기</button>}{state.phase === "trade" && myPublic.isActive && <button type="button" onClick={() => void act({ action: "frontier-beans-end-trade" })}>거래 마치기</button>}</header>{handMoreLeft && <button type="button" className="fb3-hand-arrow left" aria-label="왼쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })}>◀</button>}<div className="fb3-hand-scroll" ref={handScrollRef} onScroll={updateHandOverflow}>{me.hand.map((card, index) => <HandCard key={card.id} card={card} flippable mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedTradeIds.includes(card.id) || selectedPlantCard === card.id} draggable={canDrag(card, "hand")} onClick={() => { if (suppressClick.current || state.phase === "plant_received") return; if (state.phase === "plant_hand" && myPublic.isActive && index === 0) setSelectedPlantCard((id) => id === card.id ? undefined : card.id); if (state.phase === "trade" && tradeOpen && !myTradeReady) toggleGive(card.id); }} {...dragHandlers(card, "hand")}/>)}</div>{(handMoreRight || (!handMoreLeft && me.hand.length > 5)) && <button type="button" className="fb3-hand-arrow right" aria-label="오른쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })}>▶</button>}</section>
+    <section className={`fb3-hand ${state.phase === "plant_received" ? "locked" : ""}`} data-fb-hand="true"><header><span className="fb3-hand-heading"><b><span>내 카드 · {myPublic.name}</span><span className="fb3-hand-metrics"><span className="fb3-metric coin"><i aria-hidden="true"/>{myPublic.coins}</span><span className="fb3-metric cards"><i aria-hidden="true"/>{myPublic.handCount}</span></span></b></span>{state.phase === "plant_hand" && myPublic.isActive && state.handPlantsThisTurn > 0 && <button type="button" onClick={() => void act({ action: "frontier-beans-finish-plant" })}>두 번째 안 심기</button>}{state.phase === "trade" && myPublic.isActive && <button type="button" className="fb3-end-trade" onClick={() => void act({ action: "frontier-beans-end-trade" })}>거래 마치기</button>}</header>{handMoreLeft && <button type="button" className="fb3-hand-arrow left" aria-label="왼쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })}>◀</button>}<div className="fb3-hand-scroll" ref={handScrollRef} onScroll={updateHandOverflow}>{me.hand.map((card, index) => <HandCard key={card.id} card={card} flippable onFlip={() => playSound("card_flip")} mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedTradeIds.includes(card.id) || selectedPlantCard === card.id} draggable={canDrag(card, "hand")} onClick={() => { if (suppressClick.current || state.phase === "plant_received") return; if (state.phase === "plant_hand" && myPublic.isActive && index === 0) setSelectedPlantCard((id) => id === card.id ? undefined : card.id); if (state.phase === "trade" && tradeOpen && !myTradeReady) toggleGive(card.id); }} {...dragHandlers(card, "hand")}/>)}</div>{(handMoreRight || (!handMoreLeft && me.hand.length > 5)) && <button type="button" className="fb3-hand-arrow right" aria-label="오른쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })}>▶</button>}</section>
     {drag && <div className="fb3-drag-ghost" style={{ transform: `translate3d(${drag.x - 34}px, ${drag.y - 116}px, 0)` }}><HandCard card={drag.card}/></div>}
     {notice && <div className="fb3-toast" role="status" aria-live="polite" onPointerDown={(event) => { noticeSwipeRef.current = { pointerId: event.pointerId, startY: event.clientY }; event.currentTarget.setPointerCapture?.(event.pointerId); }} onPointerMove={(event) => { const swipe = noticeSwipeRef.current; if (swipe?.pointerId === event.pointerId && event.clientY - swipe.startY < -18) { noticeSwipeRef.current = undefined; setNotice(""); } }} onPointerUp={() => { noticeSwipeRef.current = undefined; }} onPointerCancel={() => { noticeSwipeRef.current = undefined; }}><span>{notice}</span><small>위로 밀어 닫기</small></div>}
     {settingsOpen && <div className="fb3-settings"><button type="button" onClick={() => setMuted((value) => !value)}>{muted ? "소리 켜기" : "소리 끄기"}</button><button type="button" onClick={onLeave}>게임 나가기</button></div>}
