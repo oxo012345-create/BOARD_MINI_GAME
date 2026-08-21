@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import "./cash-n-guns-v2.css";
 import "./frontier-beans.css";
+import "./frontier-beans-v11.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
