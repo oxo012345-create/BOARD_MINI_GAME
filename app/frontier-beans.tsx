@@ -31,10 +31,8 @@ const cardImage = (type: FrontierBeanType) => `/frontier-beans/ui-v3/card-${type
 const beanImage = (type: FrontierBeanType) => `/frontier-beans/bean-${type}.png`;
 const fieldImage = (type: FrontierBeanType, count: number) => `/frontier-beans/fields/bean-${type}-${count <= 3 ? "low" : count <= 6 ? "mid" : "high"}.png`;
 
-type FrontierSound = "tap" | "draw" | "plant" | "trade_open" | "trade_close" | "trade" | "harvest" | "turn" | "game_end" | "card_flip" | "error";
+type FrontierSound = "plant" | "trade_open" | "trade_close" | "trade" | "harvest" | "turn" | "game_end";
 const FRONTIER_SOUNDS: Record<FrontierSound, string> = {
-  tap: "/frontier-beans/audio/ui-tap.ogg",
-  draw: "/frontier-beans/audio/card-draw.ogg",
   plant: "/frontier-beans/audio/bean-plant.ogg",
   trade_open: "/frontier-beans/audio/trade-open.ogg",
   trade_close: "/frontier-beans/audio/trade-close.ogg",
@@ -42,29 +40,32 @@ const FRONTIER_SOUNDS: Record<FrontierSound, string> = {
   harvest: "/frontier-beans/audio/bean-harvest.ogg",
   turn: "/frontier-beans/audio/turn-ready.ogg",
   game_end: "/frontier-beans/audio/game-finish.ogg",
-  card_flip: "/frontier-beans/audio/card-flip.ogg",
-  error: "/frontier-beans/audio/ui-error.ogg",
 };
 
 function useFrontierSound() {
   const mutedRef = useRef(false);
   const bgmRef = useRef<HTMLAudioElement>();
   const unlockedRef = useRef(false);
+  const lastPlayedRef = useRef<{ kind?: FrontierSound; at: number }>({ at: 0 });
   const unlock = useCallback(() => {
     if (unlockedRef.current) return;
     unlockedRef.current = true;
     const bgm = new Audio("/frontier-beans/audio/cozy-market-loop.mp3");
     bgm.loop = true;
     bgm.preload = "auto";
-    bgm.volume = .12;
+    bgm.volume = .1;
     bgm.muted = mutedRef.current;
     bgmRef.current = bgm;
     if (!mutedRef.current) void bgm.play().catch(() => { unlockedRef.current = false; });
   }, []);
   const play = useCallback((kind: FrontierSound) => {
     if (mutedRef.current) return;
+    const now = performance.now();
+    const last = lastPlayedRef.current;
+    if (last.kind === kind && now - last.at < 180) return;
+    lastPlayedRef.current = { kind, at: now };
     const sound = new Audio(FRONTIER_SOUNDS[kind]);
-    sound.volume = kind === "tap" ? .18 : kind === "error" ? .22 : .28;
+    sound.volume = .25;
     void sound.play().catch(() => undefined);
   }, []);
   const setMuted = useCallback((muted: boolean) => {
@@ -78,17 +79,16 @@ function useFrontierSound() {
   return { play, unlock, setMuted };
 }
 
-function HandCard({ card, compact, selected, mandatory, locked, quantity, draggable, flippable, onClick, onFlip, onPointerDown, onPointerMove, onPointerUp }: {
+function HandCard({ card, compact, selected, mandatory, locked, quantity, draggable, flippable, onClick, onPointerDown, onPointerMove, onPointerUp }: {
   card: FrontierBeanCard; compact?: boolean; selected?: boolean; mandatory?: boolean; locked?: boolean; quantity?: number; draggable?: boolean; flippable?: boolean;
   onClick?: () => void;
-  onFlip?: () => void;
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerMove?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerUp?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }) {
   const bean = frontierBeanDefinition(card.type);
   const [flipped, setFlipped] = useState(false);
-  return <button type="button" className={`fb3-card ${compact ? "compact" : ""} ${flippable ? "flippable" : ""} ${flipped ? "flipped" : ""} ${selected ? "selected" : ""} ${mandatory ? "mandatory" : ""} ${locked ? "locked" : ""} ${draggable ? "draggable" : ""}`} onClick={() => { if (flippable) { setFlipped((value) => !value); onFlip?.(); } onClick?.(); }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} aria-label={`${bean.name}${quantity && quantity > 1 ? ` ${quantity}개` : ""}`}>
+  return <button type="button" className={`fb3-card ${compact ? "compact" : ""} ${flippable ? "flippable" : ""} ${flipped ? "flipped" : ""} ${selected ? "selected" : ""} ${mandatory ? "mandatory" : ""} ${locked ? "locked" : ""} ${draggable ? "draggable" : ""}`} onClick={() => { if (flippable) setFlipped((value) => !value); onClick?.(); }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} aria-label={`${bean.name}${quantity && quantity > 1 ? ` ${quantity}개` : ""}`}>
     {!flipped ? <img src={cardImage(card.type)} alt="" draggable={false}/> : <span className="fb3-card-value"><strong>수확</strong>{bean.harvest.map((count, index) => <span key={count}><b>{count}</b><em>→</em><i>{index + 1}</i></span>)}</span>}<b>{bean.name}</b>{quantity && quantity > 1 && <small>×{quantity}개</small>}
     {mandatory && <i>첫 카드</i>}{selected && <em>✓</em>}
   </button>;
@@ -202,7 +202,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
       document.removeEventListener("touchmove", onTouchMove);
     };
   }, []);
-  useEffect(() => { if (!state.lastEvent?.id) return; const kind = state.lastEvent.kind; const text = state.lastEvent.text ?? ""; if (kind === "plant") playSound("plant"); if (kind === "trade") playSound("trade"); if (kind === "harvest") playSound("harvest"); if (kind === "reveal" || kind === "draw") playSound("draw"); if (kind === "turn") playSound("turn"); if (kind === "game_over") playSound("game_end"); if (["plant", "trade", "harvest"].includes(kind)) setEventFx(kind as "harvest" | "plant" | "trade"); const showTimer = window.setTimeout(() => { if (kind === "trade" && (/성사됐어요|거래를 취소했어요/.test(text))) { lastLiveTradeRef.current = undefined; setSelectedTradeKey(undefined); setSelectedTarget(undefined); setSelectedGive([]); setDraftOfferId(undefined); } setNotice(text); }, 0); const fxTimer = window.setTimeout(() => setEventFx(undefined), kind === "harvest" ? 620 : 430); const hideTimer = window.setTimeout(() => setNotice(""), 3200); return () => { window.clearTimeout(showTimer); window.clearTimeout(fxTimer); window.clearTimeout(hideTimer); }; }, [state.lastEvent?.id, state.lastEvent?.kind, state.lastEvent?.text, playSound]);
+  useEffect(() => { if (!state.lastEvent?.id) return; const kind = state.lastEvent.kind; const text = state.lastEvent.text ?? ""; const tradeSuccess = kind === "trade" && /성사됐어요/.test(text); const fxKind = kind === "plant" || kind === "harvest" || tradeSuccess ? kind as "harvest" | "plant" | "trade" : undefined; if (kind === "plant") playSound("plant"); if (tradeSuccess) playSound("trade"); if (kind === "harvest") playSound("harvest"); if (kind === "turn") playSound("turn"); if (kind === "game_over") playSound("game_end"); const fxStartTimer = fxKind ? window.setTimeout(() => setEventFx(fxKind), 0) : undefined; const showTimer = window.setTimeout(() => { if (kind === "trade" && (/성사됐어요|거래를 취소했어요/.test(text))) { lastLiveTradeRef.current = undefined; setSelectedTradeKey(undefined); setSelectedTarget(undefined); setSelectedGive([]); setDraftOfferId(undefined); } setNotice(text); }, 0); const fxTimer = window.setTimeout(() => setEventFx(undefined), kind === "harvest" ? 620 : 430); const hideTimer = window.setTimeout(() => setNotice(""), 3200); return () => { if (fxStartTimer !== undefined) window.clearTimeout(fxStartTimer); window.clearTimeout(showTimer); window.clearTimeout(fxTimer); window.clearTimeout(hideTimer); }; }, [state.lastEvent?.id, state.lastEvent?.kind, state.lastEvent?.text, playSound]);
   useEffect(() => () => { if (pressRef.current) window.clearTimeout(pressRef.current.timer); dragCleanupRef.current?.(); }, []);
   const updateHandOverflow = useCallback(() => { const hand = handScrollRef.current; if (!hand) return; setHandMoreLeft(hand.scrollLeft > 3); setHandMoreRight(hand.scrollLeft + hand.clientWidth < hand.scrollWidth - 3); }, []);
   useEffect(() => {
@@ -220,7 +220,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     };
   }, [me?.hand.length, state.phase, tradeOpen, updateHandOverflow]);
 
-  const act = async (payload: Record<string, unknown>) => { if (working || busy) return false; setWorking(true); try { await onAction(payload); return true; } catch (error) { setNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); playSound("error"); return false; } finally { setWorking(false); } };
+  const act = async (payload: Record<string, unknown>) => { if (working || busy) return false; setWorking(true); try { await onAction(payload); return true; } catch (error) { setNotice(error instanceof Error ? error.message : "다시 시도해 주세요."); navigator.vibrate?.([10, 24, 10]); return false; } finally { setWorking(false); } };
   const clearTradeUi = () => { setSelectedTradeKey(undefined); setSelectedTarget(undefined); setSelectedGive([]); setDraftOfferId(undefined); };
   useEffect(() => {
     if (liveTrade) { lastLiveTradeRef.current = liveTrade.id; return; }
@@ -233,22 +233,23 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   }, [liveTrade]);
   const closeTrade = async () => { if (tradeClosing) return; setTradeClosing(true); playSound("trade_close"); await new Promise((resolve) => window.setTimeout(resolve, 180)); if (liveTrade) await act({ action: "frontier-beans-cancel", offerId: liveTrade.id }); clearTradeUi(); setTradeClosing(false); };
   const openTrade = async (targetId: string) => {
-    setSelectedTradeKey(currentTradeKey); setSelectedTarget(targetId); setSelectedGive([]); setDraftOfferId(undefined); playSound("trade_open");
+    setSelectedTradeKey(currentTradeKey); setSelectedTarget(targetId); setSelectedGive([]); setDraftOfferId(undefined);
     const opened = await act({ action: "frontier-beans-offer", targetId, giveCardIds: [], wants: [] });
-    if (!opened) clearTradeUi();
+    if (opened) playSound("trade_open");
+    else clearTradeUi();
   };
   const updateTradeSelection = (next: string[]) => {
     setSelectedGive(next);
     if (!liveTrade) return;
     setDraftOfferId(liveTrade.id);
-    tradeSyncRef.current = tradeSyncRef.current.then(() => onAction({ action: "frontier-beans-update-trade", offerId: liveTrade.id, cardIds: next })).catch((error) => { setNotice(error instanceof Error ? error.message : "거래 카드를 다시 선택해 주세요."); playSound("error"); });
+    tradeSyncRef.current = tradeSyncRef.current.then(() => onAction({ action: "frontier-beans-update-trade", offerId: liveTrade.id, cardIds: next })).catch((error) => { setNotice(error instanceof Error ? error.message : "거래 카드를 다시 선택해 주세요."); navigator.vibrate?.([10, 24, 10]); });
   };
   const toggleGive = (cardId: string) => { const next = selectedTradeIds.includes(cardId) ? selectedTradeIds.filter((id) => id !== cardId) : [...selectedTradeIds, cardId]; updateTradeSelection(next); };
   const canPlantIndex = (fieldIndex: number, type: FrontierBeanType) => { const field = me?.fields[fieldIndex]; return Boolean(field && (field.cards.length === 0 || field.cards[0].type === type)); };
-  const plantCard = async (fieldIndex: number, card: FrontierBeanCard, source: DragSource) => { if (!meId) return false; if (!canPlantIndex(fieldIndex, card.type)) { setSelectedHarvestField(fieldIndex); setNotice("다른 종류의 콩이 자라고 있어요. 밭을 먼저 수확한 뒤 심어 주세요."); playSound("error"); return false; } let success = false; if (source === "hand" && state.phase === "plant_hand" && active?.id === meId && me?.hand[0]?.id === card.id) success = await act({ action: "frontier-beans-plant-hand", fieldIndex }); if (source === "received" && state.phase === "plant_received") success = await act({ action: "frontier-beans-plant-received", cardId: card.id, fieldIndex }); if (success) { navigator.vibrate?.(20); setPlantFlash(fieldIndex); window.setTimeout(() => setPlantFlash(undefined), 420); setSelectedPlantCard(undefined); setSelectedHarvestField(undefined); if (source === "received") setSelectedPending(undefined); } return success; };
+  const plantCard = async (fieldIndex: number, card: FrontierBeanCard, source: DragSource) => { if (!meId) return false; if (!canPlantIndex(fieldIndex, card.type)) { setSelectedHarvestField(fieldIndex); setNotice("다른 종류의 콩이 자라고 있어요. 밭을 먼저 수확한 뒤 심어 주세요."); navigator.vibrate?.([10, 24, 10]); return false; } let success = false; if (source === "hand" && state.phase === "plant_hand" && active?.id === meId && me?.hand[0]?.id === card.id) success = await act({ action: "frontier-beans-plant-hand", fieldIndex }); if (source === "received" && state.phase === "plant_received") success = await act({ action: "frontier-beans-plant-received", cardId: card.id, fieldIndex }); if (success) { navigator.vibrate?.(20); setPlantFlash(fieldIndex); window.setTimeout(() => setPlantFlash(undefined), 420); setSelectedPlantCard(undefined); setSelectedHarvestField(undefined); if (source === "received") setSelectedPending(undefined); } return success; };
   const tapField = (fieldIndex: number) => { const front = me?.hand[0]; if (state.phase === "plant_hand" && myPublic?.isActive && front && selectedPlantCard === front.id) void plantCard(fieldIndex, front, "hand"); else if (state.phase === "plant_received" && pendingCard) void plantCard(fieldIndex, pendingCard, "received"); else { setSelectedHarvestField((current) => { const next = current === fieldIndex ? undefined : fieldIndex; if (next !== fieldIndex) setSelectedHarvestInfoField(undefined); return next; }); } };
   const canDrag = (card: FrontierBeanCard, source: DragSource) => { if (working || busy) return false; if (source === "hand" && state.phase === "plant_hand") return active?.id === meId && me?.hand[0]?.id === card.id; if (source === "hand") return state.phase === "trade" && tradeOpen && !myTradeReady; if (source === "revealed") return state.phase === "trade" && tradeOpen && active?.id === meId && !myTradeReady; if (source === "received") return state.phase === "plant_received"; if (source === "trade") return state.phase === "trade" && tradeOpen && !myTradeReady; return false; };
-  const finishDrag = async (current: DragState, x: number, y: number) => { const elements = document.elementsFromPoint(x, y); const field = elements.map((element) => element.closest<HTMLElement>("[data-fb-field]")).find(Boolean); const tradeDrop = elements.some((element) => Boolean(element.closest("[data-fb-trade-give]"))); const handDrop = elements.some((element) => Boolean(element.closest("[data-fb-hand]"))); let success = false; if (field && ["hand", "received"].includes(current.source)) success = await plantCard(Number(field.dataset.fbField), current.card, current.source); else if (tradeDrop && ["hand", "revealed"].includes(current.source)) { if (!selectedTradeIds.includes(current.card.id)) toggleGive(current.card.id); success = true; } else if (handDrop && current.source === "trade") { updateTradeSelection(selectedTradeIds.filter((id) => !current.cardIds.includes(id))); success = true; } if (success) navigator.vibrate?.(16); else { navigator.vibrate?.([10, 24, 10]); playSound("error"); } setDragOverField(undefined); };
+  const finishDrag = async (current: DragState, x: number, y: number) => { const elements = document.elementsFromPoint(x, y); const field = elements.map((element) => element.closest<HTMLElement>("[data-fb-field]")).find(Boolean); const tradeDrop = elements.some((element) => Boolean(element.closest("[data-fb-trade-give]"))); const handDrop = elements.some((element) => Boolean(element.closest("[data-fb-hand]"))); let success = false; if (field && ["hand", "received"].includes(current.source)) success = await plantCard(Number(field.dataset.fbField), current.card, current.source); else if (tradeDrop && ["hand", "revealed"].includes(current.source)) { if (!selectedTradeIds.includes(current.card.id)) toggleGive(current.card.id); success = true; } else if (handDrop && current.source === "trade") { updateTradeSelection(selectedTradeIds.filter((id) => !current.cardIds.includes(id))); success = true; } if (success) navigator.vibrate?.(16); else navigator.vibrate?.([10, 24, 10]); setDragOverField(undefined); };
   const beginDrag = (press: PressState) => {
     if (dragRef.current) return;
     window.clearTimeout(press.timer);
@@ -317,7 +318,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
   });
   if (!meId || !me || !myPublic) return <main className="fb3-game"><div className="fb3-loading">농장에 입장하는 중…</div>{overlays}</main>;
   const plantType = drag?.card.type ?? (state.phase === "plant_hand" ? me.hand[0]?.type : pendingCard?.type);
-  return <main className={`fb3-game players-${state.players.length} phase-${state.phase} ${tradeOpen ? "trade-open" : ""} ${tradeClosing ? "trade-closing" : ""} ${eventFx ? `event-${eventFx}` : ""} ${drag ? "dragging" : ""}`} onPointerDownCapture={(event) => { unlockSound(); const target = event.target; if (!(target instanceof Element)) return; const button = target.closest("button"); const specialized = target.closest(".fb3-player.tradeable, .fb3-trade-modal > header, .fb3-trade-modal .reject, .fb3-card.flippable"); if (button && !specialized) playSound("tap"); }} onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
+  return <main className={`fb3-game players-${state.players.length} phase-${state.phase} ${tradeOpen ? "trade-open" : ""} ${tradeClosing ? "trade-closing" : ""} ${eventFx ? `event-${eventFx}` : ""} ${drag ? "dragging" : ""}`} onPointerDownCapture={() => { unlockSound(); }} onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
     <img className="fb3-world" src="/frontier-beans/ui-v3/farm-day.png" alt="밝은 농장 마을" draggable={false}/>
     <header className="fb3-hud"><button type="button" className="fb3-room" onClick={() => navigator.clipboard?.writeText(code)}>방 {code}</button><div className="fb3-phase"><b>{PHASE_LABEL[state.phase]}</b><small>{active?.name} 차례</small></div><div><button type="button" onClick={() => setHelp(true)} aria-label="게임 설명"><span>?</span></button><button type="button" onClick={() => setSettingsOpen((value) => !value)} aria-label="옵션"><span>⚙</span></button></div></header>
     <section className="fb3-opponents">{opponents.map((player, index) => { const tradeable = state.phase === "trade" && !liveTrade && meId === active?.id; return <PlayerPanel key={player.id} player={player} index={index + 1} active={player.isActive} tradeable={tradeable} onTrade={tradeable ? () => void openTrade(player.id) : undefined}/>; })}</section>
@@ -325,7 +326,7 @@ export function FrontierBeansGame({ code, meId, state, isHost, busy, onAction, o
     <section className="fb3-self-zone"><div className={`fb3-self-card ${myPublic.isActive ? "active" : ""}`}><img src={farmerImage(0)} alt="내 농부"/><b>{myPublic.name}{isHost ? " ♛" : ""}</b><small><i>●</i>{myPublic.coins}　▤ {myPublic.handCount}</small></div><div className={`fb3-own-fields fields-${me.fields.length}`}>{me.fields.map((field, index) => { const publicField = myPublic.fields[index]; const available = Boolean(plantType && canPlantIndex(index, plantType)); const planting = Boolean(drag || selectedPlantCard || state.phase === "plant_received"); const protectedField = publicField.count === 1 && !me.legalHarvests.includes(index); const fieldOpen = selectedHarvestField === index && publicField.count > 0; const bean = publicField.type ? frontierBeanDefinition(publicField.type) : undefined; const infoOpen = fieldOpen && selectedHarvestInfoField === index; return <div key={index} className={`fb3-own-field ${planting ? (available ? "available" : "blocked") : ""} ${fieldOpen ? "harvest-open" : ""} ${infoOpen ? "info-open" : ""} ${protectedField ? "protected" : ""} ${dragOverField === index ? "near" : ""} ${plantFlash === index ? "planted" : ""}`} data-fb-field={index}><button type="button" disabled={working} onClick={() => tapField(index)}><CropTree type={publicField.type} count={publicField.count}/><b>{publicField.type ? `${frontierBeanDefinition(publicField.type).name} ×${publicField.count}개` : `밭 ${index + 1}`}</b></button>{protectedField && !fieldOpen && <span className="fb3-protected">1장 밭 보호</span>}{fieldOpen && bean && <div className="fb3-field-actions"><button type="button" className="fb3-harvest" disabled={working || protectedField} onClick={async () => { if (protectedField) return; const harvested = await act({ action: "frontier-beans-harvest", fieldIndex: index }); if (harvested) { setSelectedHarvestField(undefined); setSelectedHarvestInfoField(undefined); } }}>{protectedField ? "1장 밭 보호" : "수확하기"}</button><button type="button" className="fb3-harvest-info-toggle" aria-expanded={infoOpen} onClick={() => setSelectedHarvestInfoField((current) => current === index ? undefined : index)}>정보</button>{infoOpen && <div className="fb3-field-harvest-table"><b>{bean.name} 수확표</b>{bean.harvest.map((count, payoutIndex) => <span key={count}><strong>{count}개</strong><i>{payoutIndex + 1}코인</i></span>)}</div>}</div>}</div>; })}</div></section>
     {state.phase === "plant_received" && me.received.length > 0 && <section className="fb3-received"><b>받은 콩 · 모두 심기</b>{me.received.map((card) => <HandCard key={card.id} card={card} compact selected={pendingCard?.id === card.id} draggable onClick={() => setSelectedPending(card.id)} {...dragHandlers(card, "received")}/>)}</section>}
     {tradeOpen && <TradeModal state={state} meId={meId} selectedTarget={effectiveSelectedTarget} selectedGive={selectedTradeIds} room={liveTrade} busy={working || busy} onClose={() => void closeTrade()} onGiveRemove={(ids) => updateTradeSelection(selectedTradeIds.filter((id) => !ids.includes(id)))} onTrade={async () => { if (!liveTrade) return; await tradeSyncRef.current; const otherReady = liveTrade.fromId === meId ? liveTrade.toReady : liveTrade.fromReady; const confirmed = await act({ action: "frontier-beans-confirm-trade", offerId: liveTrade.id }); if (confirmed && otherReady) clearTradeUi(); }} dragHandlers={dragHandlers}/>}
-    <section className={`fb3-hand ${state.phase === "plant_received" ? "locked" : ""}`} data-fb-hand="true"><header><span className="fb3-hand-heading"><b><span>내 카드 · {myPublic.name}</span><span className="fb3-hand-metrics"><span className="fb3-metric coin"><i aria-hidden="true"/>{myPublic.coins}</span><span className="fb3-metric cards"><i aria-hidden="true"/>{myPublic.handCount}</span></span></b></span>{state.phase === "plant_hand" && myPublic.isActive && state.handPlantsThisTurn > 0 && <button type="button" onClick={() => void act({ action: "frontier-beans-finish-plant" })}>두 번째 안 심기</button>}{state.phase === "trade" && myPublic.isActive && <button type="button" className="fb3-end-trade" onClick={() => void act({ action: "frontier-beans-end-trade" })}>거래 마치기</button>}</header>{handMoreLeft && <button type="button" className="fb3-hand-arrow left" aria-label="왼쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })}>◀</button>}<div className="fb3-hand-scroll" ref={handScrollRef} onScroll={updateHandOverflow}>{me.hand.map((card, index) => <HandCard key={card.id} card={card} flippable onFlip={() => playSound("card_flip")} mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedTradeIds.includes(card.id) || selectedPlantCard === card.id} draggable={canDrag(card, "hand")} onClick={() => { if (suppressClick.current || state.phase === "plant_received") return; if (state.phase === "plant_hand" && myPublic.isActive && index === 0) setSelectedPlantCard((id) => id === card.id ? undefined : card.id); if (state.phase === "trade" && tradeOpen && !myTradeReady) toggleGive(card.id); }} {...dragHandlers(card, "hand")}/>)}</div>{(handMoreRight || (!handMoreLeft && me.hand.length > 5)) && <button type="button" className="fb3-hand-arrow right" aria-label="오른쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })}>▶</button>}</section>
+    <section className={`fb3-hand ${state.phase === "plant_received" ? "locked" : ""}`} data-fb-hand="true"><header><span className="fb3-hand-heading"><b><span>내 카드 · {myPublic.name}</span><span className="fb3-hand-metrics"><span className="fb3-metric coin"><i aria-hidden="true"/>{myPublic.coins}</span><span className="fb3-metric cards"><i aria-hidden="true"/>{myPublic.handCount}</span></span></b></span>{state.phase === "plant_hand" && myPublic.isActive && state.handPlantsThisTurn > 0 && <button type="button" onClick={() => void act({ action: "frontier-beans-finish-plant" })}>두 번째 안 심기</button>}{state.phase === "trade" && myPublic.isActive && <button type="button" className="fb3-end-trade" onClick={() => void act({ action: "frontier-beans-end-trade" })}>거래 마치기</button>}</header>{handMoreLeft && <button type="button" className="fb3-hand-arrow left" aria-label="왼쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: -180, behavior: "smooth" })}>◀</button>}<div className="fb3-hand-scroll" ref={handScrollRef} onScroll={updateHandOverflow}>{me.hand.map((card, index) => <HandCard key={card.id} card={card} flippable mandatory={state.phase === "plant_hand" && myPublic.isActive && index === 0} selected={selectedTradeIds.includes(card.id) || selectedPlantCard === card.id} draggable={canDrag(card, "hand")} onClick={() => { if (suppressClick.current || state.phase === "plant_received") return; if (state.phase === "plant_hand" && myPublic.isActive && index === 0) setSelectedPlantCard((id) => id === card.id ? undefined : card.id); if (state.phase === "trade" && tradeOpen && !myTradeReady) toggleGive(card.id); }} {...dragHandlers(card, "hand")}/>)}</div>{(handMoreRight || (!handMoreLeft && me.hand.length > 5)) && <button type="button" className="fb3-hand-arrow right" aria-label="오른쪽 카드 더 보기" onClick={() => handScrollRef.current?.scrollBy({ left: 180, behavior: "smooth" })}>▶</button>}</section>
     {eventFx === "harvest" && <span className="fb3-coin-fly" aria-hidden="true">●</span>}
     {drag && <div className="fb3-drag-ghost" style={{ transform: `translate3d(${drag.x - 34}px, ${drag.y - 116}px, 0)` }}><HandCard card={drag.card}/></div>}
     {notice && <div className="fb3-toast" role="status" aria-live="polite" onPointerDown={(event) => { noticeSwipeRef.current = { pointerId: event.pointerId, startY: event.clientY }; event.currentTarget.setPointerCapture?.(event.pointerId); }} onPointerMove={(event) => { const swipe = noticeSwipeRef.current; if (swipe?.pointerId === event.pointerId && event.clientY - swipe.startY < -18) { noticeSwipeRef.current = undefined; setNotice(""); } }} onPointerUp={() => { noticeSwipeRef.current = undefined; }} onPointerCancel={() => { noticeSwipeRef.current = undefined; }}><span>{notice}</span><small>위로 밀어 닫기</small></div>}
