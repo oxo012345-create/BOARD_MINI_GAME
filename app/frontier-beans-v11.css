@@ -164,7 +164,7 @@
 .fb3-game .fb3-own-field > button:first-of-type { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; color: #fff1c7; background: transparent; box-shadow: none; overflow: hidden; }
 .fb3-game .fb3-own-field > button:first-of-type > b { position: absolute; z-index: 3; top: 0; right: 8%; left: 8%; min-height: 15%; display: grid; place-items: center; overflow: hidden; padding: 0 2%; color: #fff2ca; background: transparent; font-size: calc(11 * var(--u)); font-weight: 950; line-height: 1; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .fb3-game .fb3-tree { position: absolute; top: 16%; right: 5%; bottom: 3%; left: 5%; display: grid; place-items: center; width: auto; }
-.fb3-game .fb3-tree img { width: 88%; height: 95%; object-fit: contain; filter: drop-shadow(0 calc(3 * var(--u)) calc(2 * var(--u)) rgba(41, 20, 4, .42)); }
+.fb3-game .fb3-tree img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 calc(3 * var(--u)) calc(2 * var(--u)) rgba(41, 20, 4, .42)); }
 .fb3-game .fb3-empty-field { position: absolute; top: 48%; right: 0; left: 0; color: rgba(255, 232, 184, .64); font-size: calc(10 * var(--u)); font-weight: 900; text-align: center; }
 .fb3-game .fb3-protected { position: absolute; z-index: 4; top: 17%; right: 14%; left: 14%; display: grid; place-items: center; min-height: calc(17 * var(--u)); border-radius: calc(8 * var(--u)); color: #4a2a09; background: #ffe7a0; font-size: calc(8 * var(--u)); font-weight: 950; line-height: 1; }
 .fb3-game .fb3-own-field.available { filter: drop-shadow(0 0 calc(7 * var(--u)) #ffe75c); }
@@ -261,4 +261,176 @@ html:has(.fb3-game), body:has(.fb3-game) { overflow: hidden; background: #79bd43
 
 @media (prefers-reduced-motion: reduce) {
   .fb3-game *, .fb3-game *::before, .fb3-game *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/*
+ * Runtime isolation
+ * -----------------
+ * The legacy stylesheet is intentionally no longer imported. Everything used
+ * by Frontier Beans is defined in this file so a viewport or player-count
+ * media query cannot silently restore an older coordinate system.
+ */
+html.fb3-no-pull,
+html.fb3-no-pull body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.fb3-no-pull body { position: fixed; inset: 0; }
+
+.fb3-game,
+.fb3-game *,
+.fb3-briefing,
+.fb3-briefing * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+.fb3-game img,
+.fb3-briefing img { pointer-events: none; -webkit-user-drag: none; }
+.fb3-game button,
+.fb3-briefing button { min-width: 0; cursor: pointer; }
+.fb3-game button:disabled,
+.fb3-briefing button:disabled { cursor: default; opacity: .48; }
+.fb3-game .fb3-player:disabled,
+.fb3-game .fb3-own-field > button:disabled { opacity: 1; }
+
+/* Crop artwork and the profile are separate siblings. The crop viewport is
+ * inset from the illustrated field frame, while the image itself is never
+ * clipped by a legacy button rule. */
+.fb3-game .fb3-own-field > button:first-of-type { overflow: visible; }
+.fb3-game .fb3-tree { overflow: visible; }
+.fb3-game .fb3-tree img { max-width: 100%; max-height: 100%; object-position: 50% 54%; }
+.fb3-game .fb3-self-card { left: .4%; width: 8.1%; clip-path: inset(0 round calc(5 * var(--u))); }
+
+.fb3-game .fb3-card.selected { filter: drop-shadow(0 0 calc(5 * var(--u)) #fff16e); transform: translateY(calc(-3 * var(--u))); }
+.fb3-game .fb3-card.mandatory { filter: drop-shadow(0 0 calc(4 * var(--u)) #ffbe32); }
+.fb3-game .fb3-card.draggable { touch-action: none; }
+.fb3-game .fb3-card.flippable { perspective: calc(500 * var(--u)); }
+.fb3-game .fb3-card.locked { filter: grayscale(.65) brightness(.66); }
+.fb3-game .fb3-own-field.planted { animation: fb11-plant .42s ease-out; }
+.fb3-game .fb3-toast { animation: fb11-toast .18s ease-out; touch-action: none; }
+
+@keyframes fb11-plant {
+  45% { transform: scale(1.055); filter: brightness(1.25); }
+}
+@keyframes fb11-toast {
+  from { opacity: 0; transform: translate(-50%, calc(-8 * var(--u))); }
+}
+
+/* Loading, help and result overlays share the board coordinate system. */
+.fb3-game .fb3-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff1c8;
+  background: #61320f;
+  font-size: calc(15 * var(--u));
+  font-weight: 900;
+}
+.fb3-game .fb3-help,
+.fb3-game .fb3-result {
+  position: absolute;
+  z-index: 110;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(18 * var(--u));
+  background: rgba(34, 18, 6, .66);
+}
+.fb3-game .fb3-help > section,
+.fb3-game .fb3-result > section {
+  position: relative;
+  width: 100%;
+  max-height: 92%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: calc(18 * var(--u));
+  border: calc(2 * var(--u)) solid #d99a38;
+  border-radius: calc(10 * var(--u));
+  color: #4a2b0d;
+  background: #fff0c6;
+  box-shadow: 0 calc(8 * var(--u)) calc(22 * var(--u)) rgba(35, 15, 2, .45);
+}
+.fb3-game .fb3-help > section > button {
+  position: absolute;
+  top: calc(7 * var(--u));
+  right: calc(7 * var(--u));
+  width: calc(30 * var(--u));
+  height: calc(30 * var(--u));
+  border: 0;
+  color: #472509;
+  background: #ffd56d;
+  border-radius: 50%;
+  font-size: calc(20 * var(--u));
+  font-weight: 900;
+}
+.fb3-game .fb3-help h2,
+.fb3-game .fb3-result h2 { margin: 0 0 calc(12 * var(--u)); font-size: calc(18 * var(--u)); text-align: center; }
+.fb3-game .fb3-help p { margin: calc(7 * var(--u)) 0; font-size: calc(10 * var(--u)); line-height: 1.45; }
+.fb3-game .fb3-harvest-guide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(5 * var(--u)); margin-top: calc(10 * var(--u)); }
+.fb3-game .fb3-harvest-guide span { display: grid; grid-template-columns: calc(30 * var(--u)) 1fr; align-items: center; gap: calc(5 * var(--u)); padding: calc(5 * var(--u)); border-radius: calc(5 * var(--u)); background: rgba(118, 70, 21, .1); }
+.fb3-game .fb3-harvest-guide img { grid-row: 1 / 3; width: calc(30 * var(--u)); height: calc(30 * var(--u)); object-fit: contain; }
+.fb3-game .fb3-harvest-guide b { font-size: calc(9 * var(--u)); }
+.fb3-game .fb3-harvest-guide small { font-size: calc(7 * var(--u)); color: #7a5527; }
+.fb3-game .fb3-result > section > div { display: grid; grid-template-columns: calc(40 * var(--u)) 1fr auto; gap: calc(8 * var(--u)); align-items: center; min-height: calc(34 * var(--u)); padding: calc(6 * var(--u)); border-bottom: calc(1 * var(--u)) solid rgba(89, 49, 12, .16); font-size: calc(10 * var(--u)); }
+.fb3-game .fb3-result .winner { color: #8c5400; font-weight: 900; }
+.fb3-game .fb3-result footer { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(8 * var(--u)); margin-top: calc(12 * var(--u)); }
+.fb3-game .fb3-result footer button { min-height: calc(36 * var(--u)); border: 0; border-radius: calc(6 * var(--u)); color: #3b2309; background: #ffd360; font-size: calc(10 * var(--u)); font-weight: 900; }
+
+/* Briefing is outside the board but remains fully self-contained now that the
+ * accumulated legacy file is quarantined. */
+.fb3-briefing {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #fff1c7;
+  background: #172310;
+  isolation: isolate;
+}
+.fb3-briefing > img { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.45) saturate(.85); }
+.fb3-briefing::after { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(180deg, rgba(20,12,4,.25), rgba(35,18,5,.78)); }
+.fb3-briefing > section {
+  position: absolute;
+  top: 17%;
+  right: 6%;
+  left: 6%;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 2px solid #ba7927;
+  border-radius: 16px;
+  background: rgba(63, 31, 9, .91);
+  box-shadow: 0 10px 26px rgba(20, 8, 1, .38);
+}
+.fb3-briefing > section > small { color: #f4cd79; font-size: 11px; font-weight: 900; }
+.fb3-briefing h1 { margin: 0; font-size: clamp(28px, 9vw, 40px); line-height: 1.05; }
+.fb3-briefing p { margin: 0; color: #eedab1; font-size: 13px; line-height: 1.45; }
+.fb3-briefing > section > div:not(.fb3-debug-setup) { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.fb3-briefing > section > div:not(.fb3-debug-setup) span { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px; border-radius: 7px; color: #f8e6bd; background: rgba(255,255,255,.075); font-size: 10px; font-weight: 850; }
+.fb3-briefing > section > div:not(.fb3-debug-setup) b { display: grid; flex: 0 0 19px; width: 19px; height: 19px; place-items: center; border-radius: 50%; color: #3f2609; background: #ffd55b; }
+.fb3-briefing > section > strong { color: #ffd66b; font-size: 11px; }
+.fb3-briefing .fb3-debug-setup { display: grid; gap: 7px; padding-top: 9px; border-top: 1px solid rgba(255, 232, 179, .24); }
+.fb3-briefing .fb3-debug-setup > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fb3-briefing .fb3-debug-setup > div > span { display: grid; gap: 2px; }
+.fb3-briefing .fb3-debug-setup b { font-size: 11px; }
+.fb3-briefing .fb3-debug-setup small { color: #dcc18d; font-size: 9px; }
+.fb3-briefing .fb3-debug-setup button { min-height: 30px; border: 0; border-radius: 6px; color: #fff0c6; background: #784319; font-size: 10px; font-weight: 900; }
+.fb3-briefing .fb3-debug-toggle { min-width: 58px; padding: 6px 10px; }
+.fb3-briefing .fb3-debug-toggle.active,
+.fb3-briefing .fb3-debug-setup nav button.active { color: #2d240b; background: #a9dc4b; }
+.fb3-briefing .fb3-debug-setup nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fb3-briefing > footer { position: absolute; right: 6%; bottom: max(18px, env(safe-area-inset-bottom)); left: 6%; }
+.fb3-briefing > footer button,
+.fb3-briefing > footer span { width: 100%; min-height: 52px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #342307; background: #b9e64e; font-size: 15px; font-weight: 950; }
+
+@media (max-height: 680px) {
+  .fb3-briefing > section { top: 13%; gap: 7px; padding: 14px 18px; }
+  .fb3-briefing h1 { font-size: 27px; }
+  .fb3-briefing > footer button,
+  .fb3-briefing > footer span { min-height: 46px; }
 }

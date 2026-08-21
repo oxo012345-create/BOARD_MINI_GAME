@@ -12,7 +12,7 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "test:gem-logic": "tsx scripts/gem-two-suspect-audit.ts",
     "test:place-mafia": "tsx scripts/place-mafia-audit.ts",
-    "test:frontier-beans": "tsx scripts/frontier-beans-audit.ts",
+    "test:frontier-beans": "tsx scripts/frontier-beans-audit.ts && node --test tests/frontier-beans-layout.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "sync:catalog": "node scripts/sync-catalog-data.mjs"
