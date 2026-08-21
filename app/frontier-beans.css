@@ -570,6 +570,181 @@ html.fb3-no-pull body { position: fixed; inset: 0; }
   .fb3-own-field > button:first-of-type > b { right: 5px; left: 5px; font-size: 10px; }
 }
 
+/* UI V10 — 모든 에셋의 실제 글자 슬롯을 기준으로 한 최종 모바일 정렬 */
+.fb3-game,
+.fb3-game *,
+.fb3-briefing,
+.fb3-briefing * {
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+.fb3-game img,
+.fb3-briefing img { -webkit-user-drag: none; user-drag: none; }
+.fb3-game button,
+.fb3-briefing button {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  -webkit-touch-callout: none;
+}
+
+/* 상단 HUD: 방 번호, 단계, 도움말/설정을 각 에셋 홈에 정확히 중앙 배치 */
+.fb3-hud {
+  height: 46px;
+  grid-template-columns: 92px minmax(0, 1fr) 74px;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 9px 7px;
+}
+.fb3-hud button,
+.fb3-hud .fb3-phase { height: 31px; min-height: 31px; padding: 0 4px; }
+.fb3-room { place-items: center; font-size: 12px; line-height: 15px; }
+.fb3-phase { display: grid; grid-template-rows: 16px 10px; place-content: center; place-items: center; }
+.fb3-phase b { font-size: 13px; line-height: 16px; }
+.fb3-phase small { max-width: 100%; margin: 0; overflow: hidden; font-size: 8px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-hud > div:last-child { height: 31px; align-items: center; }
+.fb3-hud > div:last-child button { display: grid; height: 31px; place-items: center; padding: 0; font-size: 20px; line-height: 1; }
+
+/* 상대 플레이어 패널: 두 개의 긴 명패와 밭 하단 명패에만 문자가 놓인다. */
+.fb3-player { grid-template-rows: 40px minmax(0, 1fr); padding: 6px 8px 8px; }
+.fb3-player-head { grid-template-columns: 38px minmax(0, 1fr) 34px; gap: 3px; min-height: 0; padding: 0; }
+.fb3-player-head > img { width: 36px; height: 36px; }
+.fb3-player-head > span:nth-child(2) { height: 36px; display: grid; grid-template-rows: 18px 15px; align-content: center; padding: 1px 4px; }
+.fb3-player-head b { align-self: end; font-size: 12px; line-height: 15px; }
+.fb3-player-head small { align-self: start; margin: 0; font-size: 8px; line-height: 12px; }
+.fb3-player-status { width: 34px; height: 36px; justify-content: center; gap: 1px; }
+.fb3-player-status em { min-height: 16px; padding: 2px; font-size: 7px; line-height: 9px; }
+.fb3-opponent-fields { gap: 7px; padding: 3px 6px 1px; }
+.fb3-opponent-field > b { right: 4px; bottom: 0; left: 4px; height: 17px; min-height: 17px; display: grid; place-items: center; padding: 1px 2px; font-size: 9px; line-height: 11px; }
+.fb3-mini-crop { inset: 0 6px 18px; }
+.fb3-mini-crop img { width: 66%; }
+
+/* 장터의 빈 상단 명패를 실제 제목으로 사용하고 카드/더미 글씨를 받침 안에 고정 */
+.fb3-market { padding: 18px 17px 10px; overflow: visible; }
+.fb3-market::before {
+  content: attr(data-label);
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  z-index: 4;
+  width: 38%;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #ffe9b1;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 12px;
+  text-shadow: 0 1px #3a210c;
+  transform: translateX(-50%);
+}
+.fb3-pile { overflow: visible; }
+.fb3-pile b { top: -3px; right: -1px; min-width: 18px; min-height: 18px; display: grid; place-items: center; padding: 2px; font-size: 8px; line-height: 10px; }
+.fb3-pile small { right: -2px; bottom: -1px; left: -2px; height: 12px; display: grid; place-items: center; font-size: 9px; line-height: 11px; }
+.fb3-public-cards > span { height: 67px; color: rgba(86, 53, 22, .72); font-size: 9px; font-weight: 900; line-height: 12px; text-shadow: 0 1px rgba(255,246,202,.8); }
+
+/* 내 프로필과 밭 명패 */
+.fb3-self-card > b { right: 5px; bottom: 20px; left: 5px; height: 15px; display: grid; place-items: center; font-size: 11px; line-height: 13px; }
+.fb3-self-card > small { right: 5px; bottom: 6px; left: 5px; height: 13px; display: grid; place-items: center; font-size: 8px; line-height: 11px; }
+.fb3-own-field > button:first-of-type > b {
+  top: 6px;
+  right: 12px;
+  left: 12px;
+  height: 20px;
+  min-height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 2px 4px;
+  color: #fff2c8;
+  background: transparent;
+  box-shadow: none;
+  font-size: 10px;
+  line-height: 12px;
+  text-shadow: 0 1px 1px #321707;
+}
+.fb3-tree { top: 29px; bottom: 8px; }
+.fb3-protected { top: 29px; height: 18px; display: grid; place-items: center; padding: 2px; font-size: 8px; line-height: 10px; }
+.fb3-field-actions { top: 48px; }
+.fb3-field-actions .fb3-harvest,
+.fb3-harvest-info-toggle { min-height: 30px; display: grid; place-items: center; padding: 5px 4px; font-size: 10px; line-height: 12px; }
+.fb3-field-harvest-table > b,
+.fb3-field-harvest-table span { line-height: 11px; }
+
+/* 손패 명패와 모든 액션 버튼 */
+.fb3-hand { overflow: visible; padding-top: 32px; }
+.fb3-hand > header { top: 5px; right: 18px; left: 18px; height: 27px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 0 10px; overflow: visible; }
+.fb3-hand > header b { font-size: 12px; line-height: 14px; }
+.fb3-hand > header span { overflow: hidden; font-size: 8px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-hand > header button { min-width: 84px; min-height: 25px; display: grid; place-items: center; margin: 0; padding: 4px 8px; font-size: 9px; line-height: 11px; }
+.fb3-hand-scroll { height: 119px; padding: 1px 34px 2px; overflow-x: auto; overflow-y: visible; }
+.fb3-hand-arrow {
+  top: auto;
+  bottom: calc(27px + env(safe-area-inset-bottom));
+  width: 32px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  overflow: visible !important;
+  padding: 0;
+  border: 0;
+  color: #3c230d;
+  background: url("/frontier-beans/ui-v6/button-normal.png") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(52,29,8,.5));
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 1px rgba(255,244,190,.8);
+}
+.fb3-hand-arrow.left { left: 7px; }
+.fb3-hand-arrow.right { right: 7px; }
+
+/* 받은 콩과 거래 화면: 제목/상태/버튼을 정해진 홈 안에 배치 */
+.fb3-received > b { top: 4px; right: 8px; left: 8px; height: 15px; display: grid; place-items: center; font-size: 10px; line-height: 12px; }
+.fb3-trade-modal > header { grid-template-columns: 32px minmax(0, 1fr) 72px; align-items: center; padding: 1px 5px 5px; }
+.fb3-trade-modal > header button { display: grid; width: 28px; height: 28px; place-items: center; padding: 0; font-size: 20px; line-height: 1; }
+.fb3-trade-modal > header b { overflow: hidden; font-size: 13px; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-trade-modal > header span { overflow: hidden; font-size: 8px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-side-name { top: 5px; right: 8px; left: 8px; height: 18px; display: flex; align-items: center; font-size: 10px; line-height: 12px; }
+.fb3-side-name small { display: grid; min-width: 66px; min-height: 16px; place-items: center; padding: 2px 5px; font-size: 8px; line-height: 10px; }
+.fb3-trade-grid { padding-top: 20px; }
+.fb3-trade-empty { font-size: 10px; line-height: 15px; }
+.fb3-trade-modal > footer { align-items: center; padding: 5px 3px 1px; }
+.fb3-trade-modal > footer button { height: 42px; min-height: 42px; display: grid; place-items: center; padding: 7px 8px; font-size: 12px; line-height: 15px; }
+.fb3-trade-modal > footer button:disabled { color: #6c5d3c; opacity: .82; text-shadow: 0 1px rgba(255,245,203,.6); }
+
+/* 보조 버튼도 동일한 중앙 정렬 규칙 적용 */
+.fb3-settings button,
+.fb3-debug,
+.fb3-debug-menu button,
+.fb3-help button,
+.fb3-result button { display: grid; place-items: center; line-height: 1.15; }
+.fb3-debug { min-width: 50px; min-height: 28px; padding: 4px 6px; font-size: 8px; }
+
+@media (max-width: 365px) {
+  .fb3-hud { grid-template-columns: 80px minmax(0, 1fr) 68px; padding-right: 7px; padding-left: 7px; }
+  .fb3-player { padding-right: 6px; padding-left: 6px; }
+  .fb3-player-head { grid-template-columns: 32px minmax(0, 1fr) 30px; }
+  .fb3-player-head > img { width: 31px; height: 34px; }
+  .fb3-player-head b { font-size: 10px; }
+  .fb3-player-status { width: 30px; }
+  .fb3-opponent-field > b { right: 2px; left: 2px; font-size: 8px; }
+  .fb3-own-field > button:first-of-type > b { right: 6px; left: 6px; font-size: 9px; }
+  .fb3-hand > header { right: 14px; left: 14px; padding-right: 7px; padding-left: 7px; }
+  .fb3-hand > header button { min-width: 76px; font-size: 8px; }
+  .fb3-trade-modal { right: 5px; left: 5px; }
+}
+
+@media (min-width: 414px) {
+  .fb3-player-head b { font-size: 13px; }
+  .fb3-opponent-field > b { font-size: 10px; }
+  .fb3-own-field > button:first-of-type > b { font-size: 11px; }
+}
+
 @media (max-height: 610px) {
   .fb3-opponents { height: 147px; }
   .fb3-market { top: calc(max(5px, env(safe-area-inset-top)) + 199px); height: 78px; }
