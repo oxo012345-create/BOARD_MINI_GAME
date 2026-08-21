@@ -74,8 +74,7 @@
 .fb3-game.players-5 .fb3-opponents { top: 0; right: auto; bottom: auto; left: 0; width: 100%; height: 100%; }
 .fb3-game .fb3-player {
   position: absolute;
-  display: grid;
-  grid-template-rows: 45% 55%;
+  display: block;
   margin: 0;
   padding: 0;
   border: 0;
@@ -100,27 +99,26 @@
 .fb3-game.players-5 .fb3-player:nth-child(4) { top: 27.1%; left: 51.5%; }
 
 .fb3-game .fb3-player-head {
-  display: grid;
-  grid-template-columns: 27% minmax(0, 1fr) 22%;
-  align-items: stretch;
-  gap: 0;
+  position: absolute;
+  inset: 0;
+  display: block;
   min-width: 0;
-  padding: 3% 3% 1%;
+  padding: 0;
 }
-.fb3-game .fb3-player-head > img { align-self: center; justify-self: center; width: 78%; height: 88%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 calc(1 * var(--u)) calc(1 * var(--u)) #2d1305); }
-.fb3-game .fb3-player-head > span:nth-child(2) { display: grid; align-content: center; min-width: 0; height: auto; padding: 0 4%; border: 0; background: transparent; }
-.fb3-game .fb3-player-head b { overflow: hidden; font-size: calc(11 * var(--u)); line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
-.fb3-game .fb3-player-head small { margin: calc(2 * var(--u)) 0 0; color: #ffe69d; font-size: calc(8.7 * var(--u)); font-weight: 850; line-height: 1; white-space: nowrap; }
+.fb3-game .fb3-player-head > img { position: absolute; top: 5.5%; left: 4%; width: 18.5%; height: 27%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 calc(1 * var(--u)) calc(1 * var(--u)) #2d1305); }
+.fb3-game .fb3-player-head > span:nth-child(2) { position: absolute; top: 5.5%; left: 26.3%; width: 51%; height: 29%; display: grid; grid-template-rows: 48% 52%; align-items: center; min-width: 0; padding: 0 2%; border: 0; background: transparent; text-align: center; }
+.fb3-game .fb3-player-head b { align-self: center; overflow: hidden; font-size: calc(10.5 * var(--u)); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-game .fb3-player-head small { align-self: center; margin: 0; color: #ffe69d; font-size: calc(8.5 * var(--u)); font-weight: 850; line-height: 1; white-space: nowrap; }
 .fb3-game .fb3-player-head small i { color: #ffd13d; }
-.fb3-game .fb3-player-status { display: grid; align-content: center; justify-content: stretch; gap: calc(1 * var(--u)); width: auto; max-width: none; padding: 0 5%; }
-.fb3-game .fb3-player-status em { display: grid; min-height: calc(14 * var(--u)); place-items: center; padding: calc(2 * var(--u)); border-radius: calc(4 * var(--u)); color: #3b2207; background: #ffd55a; font-size: calc(7 * var(--u)); font-style: normal; font-weight: 950; line-height: 1; }
+.fb3-game .fb3-player-status { position: absolute; top: 5.5%; right: 3%; width: 17.5%; height: 29%; display: grid; align-content: center; justify-content: stretch; gap: calc(1 * var(--u)); padding: 2%; }
+.fb3-game .fb3-player-status em { display: grid; min-height: calc(12 * var(--u)); place-items: center; padding: calc(1 * var(--u)); border-radius: calc(3 * var(--u)); color: #3b2207; background: #ffd55a; font-size: calc(6.2 * var(--u)); font-style: normal; font-weight: 950; line-height: 1; }
 .fb3-game .fb3-player-status .pending { color: #eefbdc; background: #4d922f; }
-.fb3-game .fb3-opponent-fields { display: grid; grid-template-columns: repeat(var(--field-count, 2), minmax(0, 1fr)); gap: 1.5%; min-height: 0; padding: 2% 4% 3%; background: transparent; }
+.fb3-game .fb3-opponent-fields { position: absolute; top: 39%; right: 2.8%; bottom: 4.5%; left: 2.8%; display: grid; grid-template-columns: repeat(var(--field-count, 2), minmax(0, 1fr)); gap: 1.5%; min-height: 0; padding: 0; background: transparent; }
 .fb3-game .fb3-opponent-fields.fields-3 { --field-count: 3; }
 .fb3-game .fb3-opponent-field { position: relative; min-width: 0; overflow: hidden; border: 0; background: transparent; }
-.fb3-game .fb3-mini-crop { position: absolute; inset: 0 5% 31%; display: grid; place-items: center; }
-.fb3-game .fb3-mini-crop img { width: 70%; height: 96%; object-fit: contain; }
-.fb3-game .fb3-opponent-field > b { position: absolute; right: 3%; bottom: 1%; left: 3%; min-height: 28%; display: grid; place-items: center; overflow: hidden; padding: 0 2%; color: #fff2c9; background: transparent; font-size: calc(8.5 * var(--u)); font-weight: 900; line-height: 1; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-game .fb3-mini-crop { position: absolute; inset: 0 4% 27%; display: grid; place-items: center; }
+.fb3-game .fb3-mini-crop img { width: 66%; height: 91%; object-fit: contain; }
+.fb3-game .fb3-opponent-field > b { position: absolute; right: 2%; bottom: 0; left: 2%; height: 25%; display: grid; place-items: center; overflow: hidden; padding: 0 2%; color: #fff2c9; background: transparent; font-size: calc(8.2 * var(--u)); font-weight: 900; line-height: 1; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .fb3-game .fb3-player.active { filter: drop-shadow(0 0 calc(4 * var(--u)) #ffe36b); }
 
 /* Market: live cards are the only cards drawn on the clean wooden shelf. */
@@ -152,11 +150,11 @@
 
 /* Own profile and fields. Fields never change their aspect ratio independently. */
 .fb3-game .fb3-self-zone { position: absolute; z-index: 7; top: 59.55%; right: auto; bottom: auto; left: 0; width: 100%; height: 20.2%; display: block; opacity: 1; transform: none; pointer-events: auto; }
-.fb3-game .fb3-self-card { position: absolute; z-index: 3; top: 22%; left: 0.8%; width: 9.2%; height: 70%; display: grid; grid-template-rows: 58% 20% 22%; place-items: center; padding: 0; border: 0; color: #fff2c8; background: rgba(77, 39, 12, .88); border-radius: calc(5 * var(--u)); box-shadow: 0 0 0 calc(1 * var(--u)) #d4922b; overflow: hidden; }
+.fb3-game .fb3-self-card { display: none; }
 .fb3-game .fb3-self-card img { grid-row: 1 / -1; width: 96%; height: 96%; object-fit: contain; object-position: 50% 100%; }
 .fb3-game .fb3-self-card b,
 .fb3-game .fb3-self-card small { display: none; }
-.fb3-game .fb3-own-fields { position: absolute; inset: 0 8.4% 0 8.7%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4.2%; }
+.fb3-game .fb3-own-fields { position: absolute; inset: 0 3.8%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4.2%; }
 .fb3-game .fb3-own-fields.fields-3 { right: 9%; left: 9%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3%; }
 .fb3-game .fb3-own-field { position: relative; min-width: 0; overflow: visible; border: 0; background: transparent; }
 .fb3-game .fb3-own-field::before,
@@ -171,8 +169,8 @@
 .fb3-game .fb3-own-field.blocked { filter: brightness(.55) saturate(.65); }
 .fb3-game .fb3-own-field.near { transform: scale(1.035); }
 
-.fb3-game .fb3-field-actions { position: absolute; z-index: 12; top: 17%; right: 7%; left: 7%; display: grid; grid-template-columns: 1fr .62fr; gap: calc(3 * var(--u)); padding: calc(3 * var(--u)); border-radius: calc(5 * var(--u)); background: rgba(72, 35, 10, .94); box-shadow: 0 0 0 calc(1 * var(--u)) #e1a842; }
-.fb3-game .fb3-field-actions button { min-width: 0; min-height: calc(24 * var(--u)); display: grid; place-items: center; padding: calc(3 * var(--u)); border: 0; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(9 * var(--u)); font-weight: 950; line-height: 1; text-shadow: none; }
+.fb3-game .fb3-field-actions { position: absolute; z-index: 12; top: 17%; right: 7%; left: 7%; display: grid; grid-template-columns: 1fr .62fr; gap: calc(3 * var(--u)); padding: 0; border: 0; background: transparent; box-shadow: none; }
+.fb3-game .fb3-field-actions button { min-width: 0; min-height: calc(24 * var(--u)); display: grid; place-items: center; padding: calc(3 * var(--u)); border: 0; background-color: transparent; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(9 * var(--u)); font-weight: 950; line-height: 1; text-shadow: none; appearance: none; }
 .fb3-game .fb3-field-actions .fb3-harvest { background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
 .fb3-game .fb3-field-actions .fb3-harvest { color: #29400b; }
 .fb3-game .fb3-field-actions .fb3-harvest-info-toggle { color: #fff0c4; background-image: url("/frontier-beans/ui-v6/button-normal.png"); text-shadow: 0 calc(1 * var(--u)) #2d1606; }
@@ -197,20 +195,19 @@
 /* Hand shelf */
 .fb3-game .fb3-hand { position: absolute; z-index: 15; top: 79.2%; right: auto; bottom: auto; left: 0; width: 100%; height: 20.8%; padding: 5.3% 4.2% 1.5%; border: 0; background: transparent; box-shadow: none; overflow: hidden; }
 .fb3-game .fb3-hand.locked { opacity: 1; }
-.fb3-game .fb3-hand > header { position: absolute; z-index: 24; top: 0; right: 2.2%; left: 2.2%; height: 15%; display: grid; grid-template-columns: 24% 52% 24%; align-items: center; padding: 0; border: 0; background: transparent; pointer-events: none; }
-.fb3-game .fb3-hand-owner { display: grid; align-content: center; min-width: 0; padding: 0 calc(5 * var(--u)); color: #4d2709; text-shadow: 0 calc(1 * var(--u)) rgba(255, 226, 153, .5); }
-.fb3-game .fb3-hand-owner b { overflow: hidden; font-size: calc(8.5 * var(--u)); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
-.fb3-game .fb3-hand-owner small { margin-top: calc(2 * var(--u)); color: #6d3d12; font-size: calc(6.8 * var(--u)); font-weight: 900; line-height: 1; white-space: nowrap; }
-.fb3-game .fb3-hand-owner i { color: #d79b16; font-style: normal; }
-.fb3-game .fb3-hand-heading { grid-column: 2; display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-width: 0; color: #fff1c8; }
-.fb3-game .fb3-hand-heading b { font-size: calc(11 * var(--u)); line-height: 1; }
-.fb3-game .fb3-hand-heading small { color: #ffd875; font-size: calc(7.5 * var(--u)); line-height: 1; }
-.fb3-game .fb3-hand > header > button { grid-column: 3; width: 90%; min-height: calc(24 * var(--u)); justify-self: end; display: grid; place-items: center; padding: calc(4 * var(--u)); border: 0; color: #3a2108; background: url("/frontier-beans/ui-v6/button-positive.png") center / 100% 100% no-repeat; font-size: calc(8 * var(--u)); font-weight: 950; line-height: 1; pointer-events: auto; }
+.fb3-game .fb3-hand > header { position: absolute; z-index: 24; top: 0; left: 19%; width: 62%; height: 22%; display: grid; place-items: center; padding: 1% 4%; border: 0; background: transparent; pointer-events: none; }
+.fb3-game .fb3-hand-heading { display: grid; place-items: center; align-content: center; gap: calc(1 * var(--u)); min-width: 0; color: #fff1c8; text-align: center; }
+.fb3-game .fb3-hand-heading b { font-size: calc(10.5 * var(--u)); line-height: 1; }
+.fb3-game .fb3-hand-heading small { color: #ffd875; font-size: calc(6.2 * var(--u)); line-height: 1; white-space: nowrap; }
+.fb3-game .fb3-hand-heading i { color: #ffd13d; font-style: normal; }
+.fb3-game .fb3-hand > header > button { position: absolute; left: 103%; width: 38%; min-height: calc(24 * var(--u)); display: grid; place-items: center; padding: 0; border: 0; color: #2f1d08; background: transparent url("/frontier-beans/ui-v6/button-positive.png") center / 100% 100% no-repeat; font-size: calc(7.4 * var(--u)); font-weight: 950; line-height: 1; pointer-events: auto; }
 .fb3-game .fb3-hand-scroll { width: 100%; height: 100%; display: flex; align-items: flex-end; gap: calc(2 * var(--u)); padding: 0 calc(12 * var(--u)) calc(2 * var(--u)); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; scrollbar-width: none; touch-action: pan-x; }
 .fb3-game .fb3-hand-scroll::-webkit-scrollbar { display: none; }
-.fb3-game .fb3-hand-arrow { position: absolute; z-index: 22; bottom: 2%; width: calc(24 * var(--u)); height: 72%; display: grid; place-items: center; border: 0; color: #fff2bd; background: rgba(76, 36, 9, .87); font-size: calc(10 * var(--u)); font-weight: 950; }
-.fb3-game .fb3-hand-arrow.left { left: 0; border-radius: 0 calc(6 * var(--u)) calc(6 * var(--u)) 0; }
-.fb3-game .fb3-hand-arrow.right { right: 0; border-radius: calc(6 * var(--u)) 0 0 calc(6 * var(--u)); }
+.fb3-game .fb3-hand-arrow { position: absolute; z-index: 22; bottom: 3%; width: calc(30 * var(--u)); height: 68%; display: grid; place-items: center; border: 0; color: #ffd84a; background: transparent; opacity: .72; font-size: calc(18 * var(--u)); font-weight: 950; line-height: 1; text-shadow: 0 0 calc(3 * var(--u)) #fff4a0, 0 0 calc(7 * var(--u)) #f2a900; }
+.fb3-game .fb3-hand-arrow.left { left: 0; }
+.fb3-game .fb3-hand-arrow.right { right: 0; }
+.fb3-game .fb3-hand-arrow:hover,
+.fb3-game .fb3-hand-arrow:active { opacity: 1; }
 
 /* Cards preserve one ratio everywhere. */
 .fb3-game .fb3-card { position: relative; flex: 0 0 calc(64 * var(--u)); width: calc(64 * var(--u)); height: calc(96 * var(--u)); margin: 0; padding: 0; border: 0; color: #352006; background: transparent; box-shadow: none; transform: none; overflow: visible; }
@@ -241,15 +238,13 @@
 .fb3-game .fb3-trade-divider span { width: calc(26 * var(--u)); height: calc(20 * var(--u)); display: grid; place-items: center; border-radius: 50%; color: #4b2908; background: #ffd96d; font-size: calc(12 * var(--u)); }
 .fb3-game .fb3-trade-empty { position: absolute; top: 50%; left: 50%; width: 85%; margin: 0; color: #ffe6ad; font-size: calc(9 * var(--u)); font-weight: 850; line-height: 1.45; text-align: center; transform: translate(-50%, -35%); }
 .fb3-game .fb3-trade-modal > footer { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 4%; padding: 2% 1% 0; }
-.fb3-game .fb3-trade-modal > footer button { min-height: 0; display: grid; place-items: center; padding: 0; border: 0; color: #fff4d3; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(12 * var(--u)); font-weight: 950; line-height: 1; }
+.fb3-game .fb3-trade-modal > footer button { min-height: 0; display: grid; place-items: center; padding: 0; border: 0; color: #fff4d3; background-color: transparent; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(12 * var(--u)); font-weight: 950; line-height: 1; appearance: none; }
 .fb3-game .fb3-trade-modal > footer .reject { background-image: url("/frontier-beans/ui-v6/button-negative.png"); }
 .fb3-game .fb3-trade-modal > footer .accept { color: #2f1d08; background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
 .fb3-game.trade-open .fb3-market { z-index: 51; top: 78.5%; bottom: auto; height: 9.5%; grid-template-columns: 12% 12% 1fr; padding: 2% 5%; }
 .fb3-game.trade-open .fb3-market::before { display: none; }
 .fb3-game.trade-open .fb3-hand { z-index: 51; top: 88%; height: 12%; padding-top: 3%; }
-.fb3-game.trade-open .fb3-hand > header { top: 0; height: 20%; }
-.fb3-game.trade-open .fb3-hand-owner { display: none; }
-.fb3-game.trade-open .fb3-hand-heading { grid-column: 1 / 3; }
+.fb3-game.trade-open .fb3-hand > header { top: 0; height: 28%; }
 .fb3-game.trade-open .fb3-hand .fb3-card { flex-basis: calc(50 * var(--u)); width: calc(50 * var(--u)); height: calc(75 * var(--u)); }
 .fb3-game.trade-open .fb3-self-zone { opacity: .18; transform: none; pointer-events: none; }
 
@@ -312,7 +307,7 @@ html.fb3-no-pull body { position: fixed; inset: 0; }
 .fb3-game .fb3-own-field > button:first-of-type { overflow: visible; }
 .fb3-game .fb3-tree { overflow: visible; }
 .fb3-game .fb3-tree img { max-width: 100%; max-height: 100%; object-position: 50% 54%; }
-.fb3-game .fb3-self-card { left: .4%; width: 8.1%; clip-path: inset(0 round calc(5 * var(--u))); }
+.fb3-game .fb3-self-card { display: none; }
 
 .fb3-game .fb3-card.selected { filter: drop-shadow(0 0 calc(5 * var(--u)) #fff16e); transform: translateY(calc(-3 * var(--u))); }
 .fb3-game .fb3-card.mandatory { filter: drop-shadow(0 0 calc(4 * var(--u)) #ffbe32); }
