@@ -327,8 +327,12 @@ root.add(shadowMesh);
 
 /** Health bars exist only while a unit is hurt — a full-HP army shows none. */
 const barGeometry = new THREE.PlaneGeometry(1, 1);
-const barBack = new THREE.InstancedMesh(barGeometry, new THREE.MeshBasicMaterial({ color: 0x120c08, transparent: true, opacity: 0.72, depthWrite: false, depthTest: false }), MAX_INSTANCES * 2);
-const barFill = new THREE.InstancedMesh(barGeometry, new THREE.MeshBasicMaterial({ color: 0x5ce06a, depthWrite: false, depthTest: false }), MAX_INSTANCES * 2);
+const barBack = new THREE.InstancedMesh(barGeometry, new THREE.MeshBasicMaterial({ color: 0x120c08, transparent: true, opacity: 0.78, depthWrite: false, depthTest: false }), MAX_INSTANCES * 2);
+const barFill = new THREE.InstancedMesh(barGeometry, new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false, depthTest: false }), MAX_INSTANCES * 2);
+/** At this size the bar is only a few pixels long, so colour carries more of the
+ *  reading than length does. */
+const HEALTH_COLOURS = [new THREE.Color(0xff4d4d), new THREE.Color(0xffc23d), new THREE.Color(0x5ce06a)];
+const healthColour = new THREE.Color();
 for (const bar of [barBack, barFill]) {
   bar.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   bar.frustumCulled = false;
@@ -744,21 +748,27 @@ function sampleUnits(now) {
     shadowMesh.setMatrixAt(shadowCount++, dummy.matrix);
 
     // Full-HP units deliberately carry no bar: an army of bars is unreadable.
+    // Sized so a hurt unit is noticeable at the fixed camera distance — roughly
+    // 25x5 device pixels — without a wounded army turning into a wall of bars.
     const maxHp = UNIT_MAX_HP[type];
     if (hp > 0 && hp < maxHp) {
-      const width = type === UNIT_RAM ? 1.5 : 0.9;
-      const height = 0.14;
-      const top = (type === UNIT_RAM ? 1.6 : 1.5) + 0.2;
+      const width = type === UNIT_RAM ? 2.4 : 1.7;
+      const height = 0.42;
+      const top = (type === UNIT_RAM ? 1.7 : 1.9) + 0.35;
       dummy.rotation.set(-Math.PI / 3.1, 0, 0);
       dummy.position.set(x, top, z);
       dummy.scale.set(width, height, 1);
       dummy.updateMatrix();
       barBack.setMatrixAt(barCount, dummy.matrix);
-      const ratio = Math.max(0.02, hp / maxHp);
-      dummy.position.set(x - (width * (1 - ratio)) / 2, top + 0.001, z - 0.01);
-      dummy.scale.set(width * ratio, height * 0.66, 1);
+      const ratio = Math.max(0.04, hp / maxHp);
+      dummy.position.set(x - (width * (1 - ratio)) / 2, top + 0.002, z - 0.02);
+      dummy.scale.set(width * ratio, height * 0.62, 1);
       dummy.updateMatrix();
       barFill.setMatrixAt(barCount, dummy.matrix);
+      const band = ratio * 2;
+      healthColour.copy(HEALTH_COLOURS[Math.min(1, Math.floor(band))])
+        .lerp(HEALTH_COLOURS[Math.min(2, Math.floor(band) + 1)], band - Math.floor(band));
+      barFill.setColorAt(barCount, healthColour);
       barCount += 1;
     }
   }
@@ -793,6 +803,7 @@ function sampleUnits(now) {
   barFill.count = barCount;
   barBack.instanceMatrix.needsUpdate = true;
   barFill.instanceMatrix.needsUpdate = true;
+  if (barFill.instanceColor) barFill.instanceColor.needsUpdate = true;
 
   return newer;
 }

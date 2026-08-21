@@ -3,15 +3,12 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 export { MazeRoom } from "./maze-room";
 export { SiegeRoom } from "./siege-room";
-// Milestone 0 spike for the 공성전 tick loop. Remove with worker/spike-room.ts.
-export { SpikeRoom } from "./spike-room";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   MAZE_ROOMS: DurableObjectNamespace;
   SIEGE_ROOMS: DurableObjectNamespace;
-  SPIKE_ROOMS: DurableObjectNamespace;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -171,12 +168,6 @@ const worker = {
         console.error("siege socket failed:", detail, error instanceof Error ? error.stack : "");
         return Response.json({ error: "SIEGE_SOCKET_FAILED", detail }, { status: 500 });
       }
-    }
-
-    // Milestone 0 spike for the 공성전 tick loop. Remove with worker/spike-room.ts.
-    if (url.pathname.startsWith("/api/spike/") && env.SPIKE_ROOMS) {
-      const stub = env.SPIKE_ROOMS.get(env.SPIKE_ROOMS.idFromName("m0"));
-      return stub.fetch(new Request(`https://spike${url.pathname.replace("/api/spike", "")}${url.search}`, request));
     }
 
     if (url.pathname === "/_vinext/image") {

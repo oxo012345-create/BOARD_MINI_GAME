@@ -1,5 +1,15 @@
 /**
- * MILESTONE 0 SPIKE — throwaway measurement harness. Not a game feature.
+ * MILESTONE 0 SPIKE — measurement harness. Not a game feature, and deliberately
+ * NOT wired into the worker: it is a public endpoint that starts a CPU-burning
+ * loop, so it stays disconnected until someone is actually taking a measurement.
+ *
+ * To run it, temporarily add back to `vite.config.ts`:
+ *   durable_objects.bindings += { name: "SPIKE_ROOMS", class_name: "SpikeRoom" }
+ *   migrations             += { tag: "spike-room-v1", new_sqlite_classes: ["SpikeRoom"] }
+ * and to `worker/index.ts` an export plus a route forwarding `/api/spike/*` to
+ * `env.SPIKE_ROOMS.get(idFromName("m0"))`. Then `GET /api/spike/start?secs=200&load=3`,
+ * attach a few sockets to `/api/spike/connect`, and read `/api/spike/stats`.
+ * Remove the wiring again when finished.
  *
  * The 2대2 3라인 공성전 design depends on one unverified platform assumption:
  * that a `setInterval` inside a Durable Object with hibernatable WebSockets
