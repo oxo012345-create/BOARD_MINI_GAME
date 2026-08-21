@@ -9,8 +9,8 @@
 
 ## 효과음
 
-- 이 폴더의 `.ogg` 효과음
-- 원본 묶음: **Interface Sounds** — Kenney
+- 게임에서 사용하는 효과음: `bean-plant.ogg`, `trade-open.ogg`, `trade-close.ogg`, `trade-success.ogg`, `bean-harvest.ogg`, `turn-ready.ogg`, `game-finish.ogg`
+- 위 파일은 **Interface Sounds** — Kenney 묶음에서 농장·카드게임에 어울리는 짧고 부드러운 샘플로 교체한 버전
 - 출처: https://kenney.nl/assets/interface-sounds
 - 라이선스: CC0 1.0
 
