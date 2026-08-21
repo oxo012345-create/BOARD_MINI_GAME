@@ -6,6 +6,7 @@ import { placeMafiaClientState } from "./place-mafia";
 import { cashNGunsClientState } from "./cash-n-guns";
 import { mafiaClientState } from "./mafia";
 import { frontierBeanClientState } from "./frontier-beans";
+import { siegeWarClientState } from "./siege-war";
 
 export type Player = {
   id: string;
@@ -66,6 +67,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     const cashNGuns = internal.cashNGuns;
     const mafia = internal.mafia;
     const frontierBeans = internal.frontierBeans;
+    const siegeWar = internal.siegeWar;
 
     delete game.answer;
     delete game.liarId;
@@ -96,7 +98,11 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.cashNGuns;
     delete game.mafia;
     delete game.frontierBeans;
+    delete game.siegeWar;
 
+    if (internal.id === "siege-war" && siegeWar) {
+      game.siegeWar = siegeWarClientState(siegeWar, viewerId);
+    }
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
     }

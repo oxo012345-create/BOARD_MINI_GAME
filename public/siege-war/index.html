@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>2대2 3라인 공성전</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root {
+    --blue: #3f7fe0;
+    --red: #d64848;
+    --ink: #f4ead6;
+    --panel: rgba(12, 22, 38, .82);
+    --hud-top: max(6px, env(safe-area-inset-top));
+    --hud-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #0b1a12;
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  #stage { position: fixed; inset: 0; }
+  #stage > canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---- top bar: team wall totals + clock ---- */
+  #top {
+    position: fixed;
+    top: var(--hud-top);
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .team-hp {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, .12);
+    backdrop-filter: blur(6px);
+  }
+  .team-hp.right { flex-direction: row-reverse; }
+  .team-hp .crest { width: 20px; height: 20px; border-radius: 5px; flex: 0 0 auto; }
+  .team-hp.blue .crest { background: linear-gradient(160deg, #6ea6ff, var(--blue)); }
+  .team-hp.red .crest { background: linear-gradient(160deg, #ff8080, var(--red)); }
+  .team-hp .meta { display: grid; gap: 2px; min-width: 0; }
+  .team-hp .name { font-size: 10px; letter-spacing: .04em; opacity: .8; white-space: nowrap; }
+  .team-hp .value { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  #clock {
+    padding: 5px 14px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, .14);
+    font-size: 21px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .04em;
+  }
+  #clock.urgent { color: #ffd34d; }
+  #clock.sudden { color: #ff7a7a; }
+
+  /* ---- gate labels, positioned by projecting the 3D gates ---- */
+  #gates { position: fixed; inset: 0; pointer-events: none; z-index: 15; }
+  .gate-tag {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: grid;
+    gap: 2px;
+    justify-items: center;
+    width: 72px;
+  }
+  .gate-tag .bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, .55);
+    border: 1px solid rgba(0, 0, 0, .5);
+    overflow: hidden;
+  }
+  .gate-tag .bar i { display: block; height: 100%; transition: width .12s linear; }
+  .gate-tag.blue .bar i { background: linear-gradient(90deg, #7fb2ff, var(--blue)); }
+  .gate-tag.red .bar i { background: linear-gradient(90deg, #ff9a9a, var(--red)); }
+  .gate-tag .num {
+    font-size: 11px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+  }
+  .gate-tag.broken { opacity: .45; }
+
+  /* ---- banners ---- */
+  #banner {
+    position: fixed;
+    top: 34%;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 30;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, .8);
+  }
+  #banner.show { animation: banner 1.5s ease-out; }
+  @keyframes banner {
+    0% { opacity: 0; transform: scale(.7); }
+    18% { opacity: 1; transform: scale(1.06); }
+    72% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.02); }
+  }
+
+  #status {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 14px 20px;
+    border-radius: 14px;
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, .14);
+    font-size: 14px;
+    z-index: 40;
+    text-align: center;
+    line-height: 1.5;
+  }
+  #status.hidden { display: none; }
+
+  /* ---- bottom summon deck ---- */
+  #deck {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--hud-bottom);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 0 8px;
+    z-index: 25;
+  }
+  .card {
+    position: relative;
+    border: 0;
+    border-radius: 16px;
+    padding: 8px 6px 9px;
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    color: var(--ink);
+    font-family: inherit;
+    background: linear-gradient(170deg, rgba(28, 46, 74, .95), rgba(12, 22, 38, .95));
+    border: 1.5px solid rgba(255, 255, 255, .16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+    transition: transform .07s ease, box-shadow .12s ease;
+  }
+  .card:active { transform: translateY(2px) scale(.98); }
+  .card.ready { border-color: rgba(120, 200, 255, .8); box-shadow: 0 0 14px rgba(90, 180, 255, .35), 0 6px 18px rgba(0, 0, 0, .45); }
+  .card .art { width: 42px; height: 42px; }
+  .card .label { font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+  .card .sub {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(255, 216, 92, .92);
+    color: #3a2a05;
+  }
+  .card .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: rgba(6, 12, 22, .74);
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .ring.hidden { display: none; }
+  .card.blocked { animation: shake .22s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+</style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="gates"></div>
+  <div id="top">
+    <div class="team-hp blue" id="hp-left"><span class="crest"></span><span class="meta"><span class="name">파란팀 성벽</span><span class="value">3000</span></span></div>
+    <div id="clock">02:00</div>
+    <div class="team-hp red right" id="hp-right"><span class="crest"></span><span class="meta"><span class="name">빨간팀 성벽</span><span class="value">3000</span></span></div>
+  </div>
+  <div id="banner"></div>
+  <div id="status">전장에 입장하는 중…</div>
+  <div id="deck"></div>
+  <script type="module" src="./game.js?v=20260821-1"></script>
+</body>
+</html>

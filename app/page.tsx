@@ -12,6 +12,7 @@ import { CashNGunsGame } from "./cash-n-guns";
 import type { CashNGunsClientState } from "./cash-n-guns";
 import { FrontierBeansBriefing, FrontierBeansGame } from "./frontier-beans";
 import type { FrontierBeanClientState } from "./frontier-beans";
+import type { SiegeWarClientState } from "./api/_lib/siege-war";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -99,6 +100,7 @@ type GameRound = {
   mafia?: MafiaClientState;
   cashNGuns?: CashNGunsClientState;
   frontierBeans?: FrontierBeanClientState;
+  siegeWar?: SiegeWarClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -138,6 +140,7 @@ const BOARD_GAMES: GameMeta[] = [
 ];
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 BOARD_GAMES.push({ id: "frontier-beans", title: "황혼의 콩시장", icon: "♨", description: "3~5인 · 손패 순서와 협상이 핵심인 서부 농장 거래게임", category: "board" });
+BOARD_GAMES.push({ id: "siege-war", title: "2대2 3라인 공성전", icon: "⚔", description: "4인 · 세 라인에 병력을 쏟아붓는 실시간 물량 공성전", category: "board" });
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 // 랜덤게임은 개인전·모두 협동 탭의 게임만 대상으로 한다.
 // 팀전 이어말하기는 기존 규칙대로 랜덤 대상에서 제외한다.
@@ -635,6 +638,13 @@ export default function Home() {
     const count = Number(params.get("players"));
     return params.get("debug") === "1" && [3, 4, 5].includes(count) ? count : undefined;
   });
+  // `?debug=1&bots=3` fills the empty seats so one person can test a full 2v2.
+  const [siegeDebugBots, setSiegeDebugBots] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const params = new URLSearchParams(window.location.search);
+    const count = Number(params.get("bots"));
+    return params.get("debug") === "1" && count >= 1 && count <= 3 ? Math.floor(count) : 0;
+  });
   const [confirmType, setConfirmType] = useState<"leave" | "finish" | "lobby" | "fail" | null>(null);
   const [surpriseCollapsed, setSurpriseCollapsed] = useState(false);
   const [surprisePosition, setSurprisePosition] = useState<SurprisePosition>({ side: "right", y: 220 });
@@ -1039,6 +1049,7 @@ export default function Home() {
     if (currentGame.id === "place-mafia" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("장소 마피아는 4~8명이 필요해요.");
     if (currentGame.id === "cash-n-guns" && room && (room.players.length < 4 || room.players.length > 8)) return showNotice("캐시 앤 건즈는 4~8명이 필요해요.");
     if (currentGame.id === "frontier-beans" && !frontierDebugPlayers && room && (room.players.length < 3 || room.players.length > 5)) return showNotice("황혼의 콩시장은 3~5명이 필요해요.");
+    if (currentGame.id === "siege-war" && room && room.players.length + siegeDebugBots !== 4) return showNotice("2대2 3라인 공성전은 정확히 4명이 필요해요.");
     await withHostLock(async () => {
       try {
         await applyAction({
@@ -1051,6 +1062,7 @@ export default function Home() {
           balance: currentGame.id === "place-mafia" ? setup?.balance ?? placeMafiaBalance : undefined,
           mafiaCount: currentGame.id === "place-mafia" ? setup?.mafiaCount ?? placeMafiaCount : undefined,
           debugPlayers: currentGame.id === "frontier-beans" ? frontierDebugPlayers : undefined,
+          debugBots: currentGame.id === "siege-war" && siegeDebugBots ? siegeDebugBots : undefined,
         });
       } catch (error) { showNotice(error instanceof Error ? error.message : "게임을 시작하지 못했어요."); }
     });
@@ -1171,6 +1183,12 @@ export default function Home() {
     const gemPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
+    const siegePlayerCountValid = room.players.length + siegeDebugBots === 4;
+    // Shown until the server has assigned sides, so the briefing never renders empty.
+    const siegeDefaultTeams = {
+      A: room.players.slice(0, 2).map((player) => player.id),
+      B: room.players.slice(2, 4).map((player) => player.id),
+    };
     const cashNGunsPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     if (currentGame.id === "frontier-beans") return <FrontierBeansBriefing
       playerCount={room.players.length}
@@ -1265,8 +1283,26 @@ export default function Home() {
           </div>
           <div className={`gem-player-rule ${dealerPlayerCountValid ? "ready" : "warning"}`}><span>{dealerPlayerCountValid ? "✓" : "!"}</span><div><strong>휴대폰 전용 · 3~8명</strong><small>현재 {room.players.length}명 · {dealerPlayerCountValid ? "음성채팅 없이 같은 자리에서 대화해요" : room.players.length < 3 ? `${3 - room.players.length}명 더 필요해요` : "8명 이하로 참가자를 조정해 주세요"}</small></div></div>
         </>}
+        {currentGame.id === "siege-war" && <>
+          <div className="maze-briefing-steps">
+            <span><b>1</b><strong>라인 선택</strong><small>전장을 눌러 왼쪽·중앙·오른쪽</small></span>
+            <span><b>2</b><strong>병력 소환</strong><small>한 번 누르면 한 기</small></span>
+            <span><b>3</b><strong>성문 격파</strong><small>세 개 중 하나만 뚫으면 승리</small></span>
+          </div>
+          <div className="siege-teams">
+            {(["A", "B"] as const).map((team) => {
+              const ids = currentGame.siegeWar?.teams?.[team] ?? siegeDefaultTeams[team];
+              return <div key={team} className={`siege-team ${team === "A" ? "blue" : "red"}`}>
+                <strong>{team === "A" ? "파란팀" : "빨간팀"}</strong>
+                <span>{ids.map((id) => room.players.find((player) => player.id === id)?.name ?? "BOT").join(" · ") || "-"}</span>
+              </div>;
+            })}
+          </div>
+          {isHost && siegePlayerCountValid && <button className="button ghost" disabled={hostActionLocked} onClick={() => void applyAction({ action: "siege-war-shuffle-teams" })}>팀 바꾸기</button>}
+          <div className={`gem-player-rule ${siegePlayerCountValid ? "ready" : "warning"}`}><span>{siegePlayerCountValid ? "✓" : "!"}</span><div><strong>2대2 전용 · 정확히 4명</strong><small>{siegeDebugBots ? `디버그: 나 + BOT ${siegeDebugBots}명` : `현재 ${room.players.length}명 · ${siegePlayerCountValid ? "서버가 모든 전투를 판정해요" : room.players.length < 4 ? `${4 - room.players.length}명 더 필요해요` : "4명까지만 참가할 수 있어요"}`}</small></div></div>
+        </>}
       </section>
-      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid) || (currentGame.id === "double-dealers" && !dealerPlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : currentGame.id === "double-dealers" ? "경매장 입장" : currentGame.id === "cash-n-guns" ? "CASH AND GUNS 시작" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
+      <div className="sticky-action">{isHost ? <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "gem-heist" && !gemPlayerCountValid) || (currentGame.id === "maze-courier" && !mazePlayerCountValid) || (currentGame.id === "double-dealers" && !dealerPlayerCountValid) || (currentGame.id === "siege-war" && !siegePlayerCountValid)} onClick={() => void startGame()}>{currentGame.id === "gem-heist" ? "사건 시작" : currentGame.id === "maze-courier" ? "배달 대결 시작" : currentGame.id === "double-dealers" ? "경매장 입장" : currentGame.id === "cash-n-guns" ? "CASH AND GUNS 시작" : currentGame.id === "siege-war" ? "출정" : "게임 시작"}</button> : <div className="waiting"><span className="pulse" />방장이 게임을 시작하기를 기다리는 중</div>}</div>
       {commonOverlays}
     </main>;
   }
@@ -1296,6 +1332,27 @@ export default function Home() {
           {currentGame.id === "taste" && <div className="history-results taste-results"><h3>각자 고른 취향</h3>{room.players.map((player) => <div key={player.id}><span>{player.name}</span><strong>{currentGame.selections?.[player.id] ?? "미선택"}</strong></div>)}</div>}
           {currentGame.id === "ten-seconds" && <TimerResults room={room} results={currentGame.timerResults ?? []} />}
           {currentGame.id === "maze-courier" && <div className="maze-result-list"><h3>배달 점수</h3>{[...(currentGame.mazeResults ?? [])].sort((a, b) => b.score - a.score).map((result, index) => <div key={result.playerId}><span>{index + 1}위 · {playerName(room, result.playerId)}</span><strong>{result.score}점</strong></div>)}</div>}
+          {currentGame.id === "siege-war" && currentGame.siegeWar?.result && (() => {
+            const result = currentGame.siegeWar.result;
+            const teams = currentGame.siegeWar.teams;
+            const mine = currentGame.siegeWar.myTeam;
+            const label = result.winner === "draw" ? "무승부" : result.winner === "A" ? "파란팀 승리" : "빨간팀 승리";
+            const nameOf = (id: string) => room.players.find((player) => player.id === id)?.name ?? "BOT";
+            return <div className="siege-result">
+              <div className={`team-result ${result.winner === "draw" ? "" : result.winner === mine ? "passed" : "failed"}`}>
+                <strong>{label}</strong>
+                <span>{result.reason === "gate" ? `${["왼쪽", "중앙", "오른쪽"][result.brokenLane] ?? ""} 성문 격파` : "성문이 모두 버텨 무승부"} · {Math.round(result.durationMs / 1000)}초</span>
+              </div>
+              <div className="siege-result-gates">
+                {(["A", "B"] as const).map((team) => <div key={team} className={team === "A" ? "blue" : "red"}>
+                  <span>{team === "A" ? "파란팀" : "빨간팀"}</span>
+                  <small>{teams[team].map(nameOf).join(" · ")}</small>
+                  <b>{result.gateHp[team].join(" / ")}</b>
+                </div>)}
+              </div>
+              <div className="history-results"><h3>투입한 병력</h3>{Object.entries(result.unitsSpawned).sort((a, b) => b[1] - a[1]).map(([id, count]) => <div key={id}><span>{nameOf(id)}</span><strong>{count}기</strong></div>)}</div>
+            </div>;
+          })()}
           {currentGame.telestrationResults && <><div className={`team-result ${(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "passed" : "failed"}`}><strong>{(currentGame.telestrationCorrectCount ?? 0) >= 2 ? "통과!" : "아쉽게 실패"}</strong><span>정답 {currentGame.telestrationCorrectCount ?? 0}명 · 2명 이상이면 통과</span></div><TelestrationResults room={room} chains={currentGame.telestrationResults} isHost={isHost} automaticIds={currentGame.telestrationAutoCorrectChainIds ?? []} acceptedIds={currentGame.telestrationAcceptedChainIds ?? []} busy={hostActionLocked} onAccept={(chainId) => void acceptTelestrationAnswer(chainId)} /></>}
           {currentGame.teamOutcome && <div className={`team-result ${currentGame.teamOutcome}`}><strong>{currentGame.teamOutcome === "passed" ? "전원 성공 · 통과!" : "이번 도전 실패"}</strong>{currentGame.failedPlayerId && <span>{playerName(room, currentGame.failedPlayerId)}에서 도전 종료</span>}</div>}
           {currentGame.imageSource && <p><a href={currentGame.imageSource} target="_blank" rel="noreferrer">사진 출처 보기</a></p>}
@@ -1312,6 +1369,15 @@ export default function Home() {
     <div className="round-label">ROUND {room.roundNumber}</div>
     <ApartmentBuilding maxFloor={currentGame.apartmentMaxFloor ?? room.players.length + 2} selectedFloor={currentGame.apartmentMyChoice} onSelect={currentGame.apartmentSubmitted?.includes(room.meId ?? "") ? undefined : (floor) => void selectApartmentFloor(floor)} submittedIds={currentGame.apartmentSubmitted ?? []} players={room.players} />
     {currentGame.apartmentSubmitted?.includes(room.meId ?? "") ? <div className="apartment-waiting-note"><span className="status-dot" />선택 완료 · 다른 플레이어를 기다리는 중</div> : <div className="apartment-waiting-note">층을 고르면 선택이 잠겨요. 모두 고르면 바로 결과가 공개돼요.</div>}
+    {commonOverlays}
+  </main>;
+  if (currentGame.id === "siege-war") return <main className="siege-war-shell">
+    <iframe
+      key={`${room.code}-${currentGame.siegeWar?.startedAt ?? 0}`}
+      src={`/siege-war/index.html?room=${room.code}&startedAt=${currentGame.siegeWar?.startedAt ?? 0}`}
+      title="2대2 3라인 공성전"
+      allow="autoplay; fullscreen"
+    />
     {commonOverlays}
   </main>;
   if (currentGame.id === "maze-courier") return <main className="maze-courier-shell">

@@ -9,6 +9,7 @@ import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocati
 import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 import { advanceMafiaIfDue, createMafiaState, handleMafiaAction, removeMafiaPlayer } from "../../_lib/mafia";
 import { advanceFrontierBeanBots, createFrontierBeanState, handleFrontierBeanAction, replaceFrontierBeanPlayerWithBot } from "../../_lib/frontier-beans";
+import { assignSiegeTeams, createSiegeWarState, shuffleSiegeTeams, SIEGE_REQUIRED_PLAYERS } from "../../_lib/siege-war";
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -348,6 +349,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (gameId === "frontier-beans" && !frontierDebugCount && (room.players.length < 3 || room.players.length > 5)) {
         return Response.json({ error: "황혼의 콩시장은 3~5명이 필요해요." }, { status: 409 });
       }
+      // Debug play fills the empty seats with bots so one person can test a full 2v2.
+      const siegeBots = Number(payload.debugBots) >= 1 && Number(payload.debugBots) <= 3 ? Math.floor(Number(payload.debugBots)) : 0;
+      if (gameId === "siege-war" && room.players.length + siegeBots !== SIEGE_REQUIRED_PLAYERS) {
+        return Response.json({ error: "2대2 3라인 공성전은 정확히 4명이 필요해요." }, { status: 409 });
+      }
       room.players.forEach((player) => { player.status = "active"; });
       const previousContentKey = pendingGame?.id === gameId
         ? pendingGame.previousContentKey ?? (room.view === "briefing" ? undefined : roundContentKey(pendingGame))
@@ -402,9 +408,32 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         game.frontierBeans = createFrontierBeanState([...humanParticipants, ...bots], { debug: Boolean(frontierDebugCount) });
         advanceFrontierBeanBots(game.frontierBeans);
       }
+      if (gameId === "siege-war") {
+        game.siegeWar = createSiegeWarState(room.players.map((player) => player.id), {
+          teams: pendingGame?.id === "siege-war" ? pendingGame.siegeWar?.teams : undefined,
+          bots: siegeBots,
+        });
+      }
       room.view = "game";
       room.roundNumber += 1;
       room.game = game as unknown as Record<string, unknown>;
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "siege-war-shuffle-teams") {
+      if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
+      const pending = room.game as GameRound | undefined;
+      if (room.view !== "briefing" || pending?.id !== "siege-war") {
+        return Response.json({ error: "지금은 팀을 바꿀 수 없어요." }, { status: 409 });
+      }
+      const current = pending.siegeWar?.teams ?? assignSiegeTeams(room.players.map((player) => player.id));
+      pending.siegeWar = {
+        version: 1,
+        startedAt: 0,
+        teams: shuffleSiegeTeams(current),
+        bots: 0,
+        botIds: [],
+      };
       return persistAndRespond(room, viewer.id);
     }
 

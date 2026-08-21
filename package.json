@@ -16,7 +16,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "sync:catalog": "node scripts/sync-catalog-data.mjs",
-    "test:siege-war": "tsx scripts/siege-war-audit.ts"
+    "test:siege-war": "tsx scripts/siege-war-audit.ts && tsx --test tests/siege-war-codec.test.mjs"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.5",

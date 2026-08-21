@@ -35,6 +35,18 @@ export const MM = 1000;
 export const LANE_LENGTH_MM = 60 * MM;
 export const LANE_LENGTH = 60;
 export const SPAWN_OFFSET_MM = 1_500;
+/**
+ * Cosmetic lateral scatter within a lane. Never used in any distance test —
+ * combat is resolved purely along the lane axis — it exists so an army reads as
+ * a crowd rather than a queue.
+ */
+export const LANE_HALF_SPREAD_MM = 1_800;
+/**
+ * Depth added to the spawn line so simultaneous spawns do not share one point.
+ * Small enough that it cannot decide an engagement — a soldier covers this in
+ * well under a tick.
+ */
+export const SPAWN_STAGGER_MM = 2_600;
 
 export const MAX_UNITS = 256;
 export const MAX_UNITS_PER_TEAM = 100;
@@ -154,6 +166,7 @@ export type SimState = {
 
   gateHp: Int32Array;
   events: SimEvent[];
+  /** Retained so a match can be seeded reproducibly; scatter no longer draws from it. */
   rngState: number;
 };
 
@@ -162,13 +175,21 @@ export const gateY = (team: number) => (team === 0 ? 0 : LANE_LENGTH_MM);
 export const advanceDir = (team: number) => (team === 0 ? 1 : -1);
 const bucketIndex = (team: number, lane: number) => team * LANE_COUNT + lane;
 
-/** xorshift32 — deterministic lateral jitter without touching Math.random. */
-function nextRandom(state: SimState) {
-  let x = state.rngState;
-  x ^= x << 13; x >>>= 0;
-  x ^= x >> 17;
-  x ^= x << 5; x >>>= 0;
-  state.rngState = x || 1;
+/**
+ * Scatter derived from a unit's per-team spawn ordinal rather than a shared
+ * random stream.
+ *
+ * A shared stream is advanced by whichever team happens to spawn next, so the
+ * two armies draw different values — and because the spawn stagger feeds into
+ * `y`, which decides engagements, that difference is a real advantage rather
+ * than a cosmetic one. Keying off the ordinal makes team 0's n-th unit and team
+ * 1's n-th unit identical in their own frames.
+ */
+function scatter(ordinal: number, salt: number) {
+  let x = (ordinal + 1) * 0x9e3779b1 ^ salt;
+  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
+  x = (x ^ (x >>> 16)) >>> 0;
   return x / 0x1_0000_0000;
 }
 
@@ -233,9 +254,16 @@ export function spawnUnit(state: SimState, team: number, lane: number, type: Uni
   const unitId = state.nextUnitId;
   state.nextUnitId = state.nextUnitId >= 65_535 ? 1 : state.nextUnitId + 1;
 
+  const ordinal = state.teamSeq[team];
   state.id[slot] = unitId;
-  state.y[slot] = gateY(team) + advanceDir(team) * SPAWN_OFFSET_MM;
-  state.xoff[slot] = (nextRandom(state) - 0.5) * 2.4;
+  // Stagger the start line slightly. Two teammates can pour into the same lane on
+  // the same tick, and without this they occupy the exact same point for their
+  // whole life and the army renders as a solid slab instead of a crowd.
+  const stagger = Math.floor(scatter(ordinal, 0x51e6e) * SPAWN_STAGGER_MM);
+  state.y[slot] = gateY(team) + advanceDir(team) * (SPAWN_OFFSET_MM + stagger);
+  // Millimetres, like `y` — the wire format reads it as mm, and writing metres
+  // here collapsed every unit onto the lane centre line in a single file.
+  state.xoff[slot] = (scatter(ordinal, 0xfa11) - 0.5) * 2 * LANE_HALF_SPREAD_MM;
   // Sudden death spawns join the 1 HP world rather than being born tougher than
   // everything already on the field.
   state.hp[slot] = state.phase === PHASE_SUDDEN_DEATH ? 1 : stats.hp;
@@ -246,7 +274,7 @@ export function spawnUnit(state: SimState, team: number, lane: number, type: Uni
   state.state[slot] = STATE_MOVE;
   state.alive[slot] = 1;
   state.pendingDamage[slot] = 0;
-  state.seq[slot] = state.teamSeq[team];
+  state.seq[slot] = ordinal;
   state.teamSeq[team] += 1;
 
   const bucket = bucketIndex(team, lane);

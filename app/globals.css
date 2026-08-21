@@ -1981,6 +1981,52 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .maze-briefing-steps b { color: var(--primary); font-size: 10px; }
 .maze-briefing-steps strong { color: #f4f6f8; font-size: 11px; }
 .maze-briefing-steps small { color: var(--muted); font-size: 8px; line-height: 1.35; }
+/* 2대2 3라인 공성전 — the battle itself is an iframe, so the shell only has to
+   pin it and stay out of the way. */
+.siege-war-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0b1a12;
+}
+.siege-war-shell > iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.siege-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.siege-team {
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+.siege-team.blue { background: linear-gradient(160deg, rgba(56, 122, 224, .28), rgba(56, 122, 224, .1)); }
+.siege-team.red { background: linear-gradient(160deg, rgba(214, 68, 68, .28), rgba(214, 68, 68, .1)); }
+.siege-team strong { font-size: 13px; letter-spacing: .02em; }
+.siege-team span { font-size: 12px; opacity: .82; line-height: 1.4; }
+.siege-result { display: grid; gap: 12px; }
+.siege-result-gates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.siege-result-gates > div {
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+.siege-result-gates > div.blue { background: rgba(56, 122, 224, .18); }
+.siege-result-gates > div.red { background: rgba(214, 68, 68, .18); }
+.siege-result-gates span { font-size: 12px; font-weight: 700; }
+.siege-result-gates small { font-size: 11px; opacity: .75; }
+.siege-result-gates b { font-size: 13px; font-variant-numeric: tabular-nums; }
+
 .maze-courier-shell {
   position: fixed;
   inset: 0;
