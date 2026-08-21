@@ -61,9 +61,9 @@
   text-shadow: 0 calc(1 * var(--u)) calc(1 * var(--u)) #321604;
 }
 .fb3-game .fb3-room { display: grid; place-items: center; overflow: hidden; padding: 0 4%; font-size: calc(9.4 * var(--u)); font-weight: 900; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
-.fb3-game .fb3-phase { display: grid; place-content: center; gap: calc(1 * var(--u)); text-align: center; }
-.fb3-game .fb3-phase b { font-size: calc(13 * var(--u)); line-height: 1; }
-.fb3-game .fb3-phase small { font-size: calc(8 * var(--u)); font-weight: 800; line-height: 1; color: #ffda78; }
+.fb3-game .fb3-phase { display: grid; grid-template-rows: 55% 45%; place-items: center; gap: 0; overflow: hidden; padding: 1% 3%; text-align: center; }
+.fb3-game .fb3-phase b { overflow: hidden; max-width: 100%; font-size: calc(10.8 * var(--u)); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-game .fb3-phase small { overflow: hidden; max-width: 100%; color: #ffda78; font-size: calc(6.8 * var(--u)); font-weight: 800; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .fb3-game .fb3-hud > div:last-child { display: grid; grid-template-columns: 1fr 1fr; width: auto; height: 100%; }
 .fb3-game .fb3-hud > div:last-child button { display: grid; place-items: center; width: 100%; font-size: calc(18 * var(--u)); line-height: 1; }
 
@@ -109,8 +109,11 @@
 .fb3-game .fb3-player-head > span:nth-child(2) { display: contents; }
 .fb3-game .fb3-player-head b { position: absolute; top: 4.3%; left: 26.3%; width: 50.5%; height: 17.5%; display: grid; place-items: center; overflow: hidden; padding: 0 2%; font-size: calc(10.2 * var(--u)); line-height: 1; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .fb3-game .fb3-player-head:not(:has(.fb3-player-status em)) b { width: 69%; }
-.fb3-game .fb3-player-head small { position: absolute; top: 22.1%; left: 26.3%; width: 69%; height: 16.7%; display: grid; place-items: center; margin: 0; color: #ffe69d; font-size: calc(8.3 * var(--u)); font-weight: 850; line-height: 1; text-align: center; white-space: nowrap; }
-.fb3-game .fb3-player-head small i { color: #ffd13d; }
+.fb3-game .fb3-player-head small { position: absolute; top: 22.1%; left: 26.3%; width: 69%; height: 16.7%; display: flex; align-items: center; justify-content: center; gap: calc(10 * var(--u)); margin: 0; color: #ffe69d; font-size: calc(8.3 * var(--u)); font-weight: 850; line-height: 1; text-align: center; white-space: nowrap; }
+.fb3-game .fb3-metric { display: inline-flex; align-items: center; justify-content: center; gap: calc(2.5 * var(--u)); min-width: calc(20 * var(--u)); }
+.fb3-game .fb3-metric i { position: relative; display: inline-block; flex: 0 0 auto; width: calc(7 * var(--u)); height: calc(7 * var(--u)); }
+.fb3-game .fb3-metric.coin i { border-radius: 50%; background: #ffd83d; box-shadow: inset 0 0 0 calc(1 * var(--u)) #f7b31f, 0 0 calc(1 * var(--u)) #5a2b08; }
+.fb3-game .fb3-metric.cards i { width: calc(6 * var(--u)); height: calc(8 * var(--u)); border: calc(1 * var(--u)) solid #f0d79c; border-radius: calc(1 * var(--u)); box-shadow: calc(2 * var(--u)) calc(-1 * var(--u)) 0 calc(-1 * var(--u)) #f0d79c; }
 .fb3-game .fb3-player-status { position: absolute; top: 4.8%; right: 3.3%; width: 17%; height: 16.5%; display: grid; align-content: center; justify-content: stretch; gap: calc(1 * var(--u)); padding: 1%; }
 .fb3-game .fb3-player-status em { display: grid; min-height: calc(10 * var(--u)); place-items: center; padding: calc(1 * var(--u)); border-radius: calc(3 * var(--u)); color: #3b2207; background: #ffd55a; font-size: calc(5.8 * var(--u)); font-style: normal; font-weight: 950; line-height: 1; }
 .fb3-game .fb3-player-status .pending { color: #eefbdc; background: #4d922f; }
@@ -136,16 +139,16 @@
   grid-template-columns: 14.5% 14.5% minmax(0, 1fr);
   align-items: center;
   gap: 2%;
-  padding: 9% 5% 5%;
+  padding: calc(25 * var(--u)) calc(18 * var(--u)) calc(7 * var(--u));
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 .fb3-game .fb3-market::before { content: attr(data-label); position: absolute; top: 1%; left: 34%; width: 32%; display: grid; place-items: center; color: #fff0c4; font-size: calc(11 * var(--u)); font-weight: 900; line-height: 1; text-shadow: 0 calc(1 * var(--u)) calc(1 * var(--u)) #281205; }
-.fb3-game .fb3-pile { position: relative; display: grid; place-items: center; height: 100%; padding-bottom: 15%; }
-.fb3-game .fb3-pile img, .fb3-game .fb3-pile > span { width: 76%; height: 78%; object-fit: contain; }
+.fb3-game .fb3-pile { position: relative; display: grid; place-items: center; height: 100%; padding: 0 0 calc(12 * var(--u)); }
+.fb3-game .fb3-pile img, .fb3-game .fb3-pile > span { width: 74%; height: 76%; object-fit: contain; }
 .fb3-game .fb3-pile b { position: absolute; top: 0; right: 0; min-width: calc(16 * var(--u)); height: calc(16 * var(--u)); display: grid; place-items: center; border-radius: 50%; color: #fff6db; background: #81501d; font-size: calc(8 * var(--u)); line-height: 1; }
-.fb3-game .fb3-pile small { position: absolute; right: 0; bottom: 0; left: 0; color: #4b2609; font-size: calc(8 * var(--u)); font-weight: 900; line-height: 1; text-align: center; }
+.fb3-game .fb3-pile small { position: absolute; right: 0; bottom: calc(1 * var(--u)); left: 0; color: #4b2609; font-size: calc(7.4 * var(--u)); font-weight: 900; line-height: 1; text-align: center; white-space: nowrap; }
 .fb3-game .fb3-public-cards { display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-width: 0; height: 100%; overflow: hidden; }
 .fb3-game .fb3-public-cards > span { width: 42%; color: rgba(83, 44, 13, .52); font-size: calc(9 * var(--u)); font-weight: 900; text-align: center; }
 
@@ -187,7 +190,7 @@
 .fb3-game.phase-plant_received .fb3-market { opacity: 0; pointer-events: none; }
 
 /* Higher-specificity reset for legacy 3-player rules. */
-.fb3-game.players-3 .fb3-market { top: 43.15%; right: auto; bottom: auto; left: 4.7%; width: 90.6%; height: 14.6%; padding: 9% 5% 5%; }
+.fb3-game.players-3 .fb3-market { top: 43.15%; right: auto; bottom: auto; left: 4.7%; width: 90.6%; height: 14.6%; padding: calc(25 * var(--u)) calc(18 * var(--u)) calc(7 * var(--u)); }
 .fb3-game.players-3 .fb3-self-zone { top: 59.55%; right: auto; bottom: auto; left: 0; width: 100%; height: 20.2%; }
 .fb3-game.players-3 .fb3-own-field { background: transparent; }
 .fb3-game.players-3 .fb3-tree { top: 16%; bottom: 3%; width: auto; }
@@ -198,12 +201,13 @@
 .fb3-game .fb3-hand.locked { opacity: 1; }
 .fb3-game .fb3-hand > header { position: absolute; z-index: 24; top: 0; left: 24.1%; width: 51.9%; height: 20%; display: grid; place-items: center; padding: 0 4%; border: 0; background: transparent; pointer-events: none; }
 .fb3-game .fb3-hand-heading { display: grid; place-items: center; align-content: center; min-width: 0; color: #fff1c8; text-align: center; }
-.fb3-game .fb3-hand-heading b { overflow: hidden; max-width: 100%; font-size: calc(9.4 * var(--u)); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
-.fb3-game .fb3-hand-heading i { color: #ffd13d; font-style: normal; }
+.fb3-game .fb3-hand-heading b { display: flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); overflow: hidden; max-width: 100%; font-size: calc(8.7 * var(--u)); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-game .fb3-hand-heading b > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb3-game .fb3-hand-metrics { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); flex: 0 0 auto; }
 .fb3-game .fb3-hand > header > button { position: absolute; left: 102%; width: 36%; min-height: calc(22 * var(--u)); display: grid; place-items: center; padding: 0; border: 0; color: #2f1d08; background: transparent url("/frontier-beans/ui-v6/button-positive.png") center / 100% 100% no-repeat; font-size: calc(7.1 * var(--u)); font-weight: 950; line-height: 1; pointer-events: auto; }
 .fb3-game .fb3-hand-scroll { width: 100%; height: 100%; display: flex; align-items: flex-end; gap: calc(2 * var(--u)); padding: 0 calc(12 * var(--u)) calc(2 * var(--u)); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; scrollbar-width: none; touch-action: pan-x; }
 .fb3-game .fb3-hand-scroll::-webkit-scrollbar { display: none; }
-.fb3-game .fb3-hand-arrow { position: absolute; z-index: 22; bottom: 3%; width: calc(30 * var(--u)); height: 68%; display: grid; place-items: center; border: 0; color: #ffd84a; background: transparent; opacity: .72; font-size: calc(18 * var(--u)); font-weight: 950; line-height: 1; text-shadow: 0 0 calc(3 * var(--u)) #fff4a0, 0 0 calc(7 * var(--u)) #f2a900; }
+.fb3-game .fb3-hand-arrow { position: absolute; z-index: 28; bottom: 3%; width: calc(26 * var(--u)); height: 68%; display: grid; place-items: center; border: 0; color: #ffe34f; background: transparent; opacity: .96; font-size: calc(15 * var(--u)); font-weight: 950; line-height: 1; filter: drop-shadow(0 0 calc(3 * var(--u)) #fff4a0) drop-shadow(0 0 calc(6 * var(--u)) #e89b00); }
 .fb3-game .fb3-hand-arrow.left { left: 0; }
 .fb3-game .fb3-hand-arrow.right { right: 0; }
 .fb3-game .fb3-hand-arrow:hover,
@@ -218,19 +222,20 @@
 .fb3-game .fb3-card > em { position: absolute; top: calc(-3 * var(--u)); right: calc(-3 * var(--u)); width: calc(18 * var(--u)); height: calc(18 * var(--u)); display: grid; place-items: center; border-radius: 50%; color: #fff; background: #54a934; font-size: calc(12 * var(--u)); font-style: normal; font-weight: 950; }
 .fb3-game .fb3-card.compact { flex-basis: calc(42 * var(--u)); width: calc(42 * var(--u)); height: calc(63 * var(--u)); }
 .fb3-game .fb3-card.compact > b { font-size: calc(6.7 * var(--u)); }
-.fb3-game .fb3-card-value { position: absolute; inset: 3%; display: grid; align-content: center; gap: calc(2 * var(--u)); padding: calc(4 * var(--u)); border-radius: calc(4 * var(--u)); color: #4a2c0b; background: #fff0c5; font-size: calc(6.8 * var(--u)); }
-.fb3-game .fb3-card-value > strong { font-size: calc(8.8 * var(--u)); text-align: center; }
-.fb3-game .fb3-card-value > span { display: flex; justify-content: space-between; }
+.fb3-game .fb3-card-value { position: absolute; inset: 3%; display: grid; grid-template-rows: auto repeat(4, 1fr); align-content: center; gap: 0; padding: calc(3 * var(--u)); border-radius: calc(4 * var(--u)); color: #4a2c0b; background: #fff0c5; font-size: calc(5.5 * var(--u)); }
+.fb3-game .fb3-card-value > strong { font-size: calc(7.2 * var(--u)); line-height: 1.1; text-align: center; white-space: nowrap; }
+.fb3-game .fb3-card-value > span { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: calc(1 * var(--u)); line-height: 1; white-space: nowrap; }
 .fb3-game .fb3-card-value i { font-style: normal; }
+.fb3-game .fb3-card.flipped > b { display: none; }
 
 /* Trade board is a fixed-ratio overlay; underlying market and hand remain visible. */
 .fb3-game .fb3-trade-modal { position: absolute; z-index: 50; top: .8%; left: 3%; width: 94%; height: 75.4%; display: grid; grid-template-rows: 8% minmax(0, 1fr) 4% minmax(0, 1fr) 10%; padding: 3.2% 5% 3.5%; border: 0; color: #fff1c7; background: #6a320f url("/frontier-beans/ui-v6/trade-board-v2.png") center / 100% 100% no-repeat; box-shadow: 0 calc(4 * var(--u)) calc(12 * var(--u)) rgba(35, 14, 2, .55); overflow: hidden; }
 .fb3-game .fb3-trade-modal > header { display: grid; grid-template-columns: 12% 1fr 24%; align-items: center; padding: 0 2%; }
-.fb3-game .fb3-trade-modal > header button { width: 100%; height: 70%; display: grid; place-items: center; border: 0; color: #fff0bf; background: transparent; font-size: calc(20 * var(--u)); }
+.fb3-game .fb3-trade-modal > header button { width: 100%; height: 70%; display: grid; place-items: center; overflow: hidden; border: 0; color: #fff0bf; background: transparent; font-size: calc(17 * var(--u)); line-height: 1; }
 .fb3-game .fb3-trade-modal > header b { font-size: calc(13 * var(--u)); text-align: center; }
-.fb3-game .fb3-trade-modal > header span { font-size: calc(8 * var(--u)); text-align: right; }
+.fb3-game .fb3-trade-modal > header span { overflow: hidden; font-size: calc(7 * var(--u)); line-height: 1; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .fb3-game .fb3-trade-side { position: relative; min-height: 0; padding: calc(23 * var(--u)) calc(9 * var(--u)) calc(5 * var(--u)); overflow: hidden; }
-.fb3-game .fb3-side-name { position: absolute; top: calc(5 * var(--u)); right: calc(8 * var(--u)); left: calc(8 * var(--u)); display: flex; justify-content: space-between; color: #fff0c4; font-size: calc(10 * var(--u)); line-height: 1; }
+.fb3-game .fb3-side-name { position: absolute; top: calc(5 * var(--u)); right: calc(8 * var(--u)); left: calc(8 * var(--u)); display: flex; align-items: center; justify-content: space-between; overflow: hidden; color: #fff0c4; font-size: calc(10 * var(--u)); line-height: 1; white-space: nowrap; }
 .fb3-game .fb3-side-name small { padding: calc(2 * var(--u)) calc(5 * var(--u)); border-radius: calc(6 * var(--u)); font-size: calc(7 * var(--u)); }
 .fb3-game .fb3-trade-grid { height: 100%; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); align-items: center; justify-items: center; gap: calc(3 * var(--u)); padding: 0; }
 .fb3-game .fb3-trade-slot { width: 78%; height: 84%; border: calc(1 * var(--u)) dashed rgba(255, 231, 177, .58); border-radius: calc(5 * var(--u)); color: #fff1c0; background: rgba(255, 224, 159, .035); box-shadow: inset 0 0 calc(5 * var(--u)) rgba(255, 214, 116, .08); }
@@ -238,14 +243,18 @@
 .fb3-game .fb3-trade-divider span { width: calc(26 * var(--u)); height: calc(20 * var(--u)); display: grid; place-items: center; border-radius: 50%; color: #4b2908; background: #ffd96d; font-size: calc(12 * var(--u)); }
 .fb3-game .fb3-trade-empty { position: absolute; top: 50%; left: 50%; width: 85%; margin: 0; color: #ffe6ad; font-size: calc(9 * var(--u)); font-weight: 850; line-height: 1.45; text-align: center; transform: translate(-50%, -35%); }
 .fb3-game .fb3-trade-modal > footer { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 4%; padding: 2% 1% 0; }
-.fb3-game .fb3-trade-modal > footer button { min-height: 0; display: grid; place-items: center; padding: 0; border: 0; color: #fff4d3; background-color: transparent; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(12 * var(--u)); font-weight: 950; line-height: 1; appearance: none; }
+.fb3-game .fb3-trade-modal > footer button { min-height: 0; display: grid; place-items: center; overflow: hidden; padding: 0 6%; border: 0; color: #fff4d3; background-color: transparent; background-position: center; background-size: 100% 100%; background-repeat: no-repeat; font-size: calc(11 * var(--u)); font-weight: 950; line-height: 1; text-overflow: ellipsis; white-space: nowrap; appearance: none; }
 .fb3-game .fb3-trade-modal > footer .reject { background-image: url("/frontier-beans/ui-v6/button-negative.png"); }
 .fb3-game .fb3-trade-modal > footer .accept { color: #2f1d08; background-image: url("/frontier-beans/ui-v6/button-positive.png"); }
-.fb3-game.trade-open .fb3-market { z-index: 51; top: 76.3%; bottom: auto; height: 9.8%; grid-template-columns: 12% 12% 1fr; padding: 2% 5%; }
+.fb3-game.trade-open .fb3-market { z-index: 51; top: 76.3%; bottom: auto; height: 9.8%; grid-template-columns: 12% 12% 1fr; padding: calc(2 * var(--u)) calc(20 * var(--u)); }
 .fb3-game.trade-open .fb3-market::before { display: none; }
+.fb3-game.trade-open .fb3-market .fb3-card.compact { flex-basis: calc(38 * var(--u)); width: calc(38 * var(--u)); height: calc(57 * var(--u)); }
+.fb3-game.trade-open .fb3-market .fb3-card.selected { transform: none; }
+.fb3-game.trade-open .fb3-market .fb3-card > em { top: 0; right: 0; width: calc(14 * var(--u)); height: calc(14 * var(--u)); font-size: calc(9 * var(--u)); }
 .fb3-game.trade-open .fb3-hand { z-index: 51; top: 86.1%; height: 13.9%; padding: 4.8% 4.2% 1.2%; }
 .fb3-game.trade-open .fb3-hand > header { top: 0; height: 24%; }
 .fb3-game.trade-open .fb3-hand .fb3-card { flex-basis: calc(44 * var(--u)); width: calc(44 * var(--u)); height: calc(66 * var(--u)); }
+.fb3-game.trade-open .fb3-hand .fb3-card > b { min-height: 12%; font-size: calc(6.4 * var(--u)); }
 .fb3-game.trade-open .fb3-self-zone { opacity: .18; transform: none; pointer-events: none; }
 
 /* Floating controls and overlays */
