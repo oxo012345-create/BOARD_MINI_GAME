@@ -356,12 +356,12 @@ export function frontierUpdateTradeCards(state: FrontierBeanState, playerId: str
   if (playerId === offer.fromId) {
     offer.giveCardIds = uniqueIds;
     offer.giveTypes = locatedCards.map((located) => located!.card.type);
-    offer.fromReady = false;
   } else {
     offer.returnCardIds = uniqueIds;
     offer.returnTypes = locatedCards.map((located) => located!.card.type);
-    offer.toReady = false;
   }
+  offer.fromReady = false;
+  offer.toReady = false;
   state.revision += 1;
   return offer;
 }
@@ -720,6 +720,9 @@ export function advanceFrontierBeanBots(state: FrontierBeanState, maxSteps = 500
           const returnCard = available[0];
           if (returnCard) frontierUpdateTradeCards(state, bot.id, incomingForBot.id, [returnCard.id]);
           frontierConfirmTrade(state, bot.id, incomingForBot.id);
+          // 카드를 올리면 양쪽 확인이 모두 풀린다. 제안자도 봇이면(자동 진행 게임,
+          // 이탈자 대체 등) 대신 재확인해 이어가고, 사람이면 실제 재확인을 기다린다.
+          if (requirePlayer(state, incomingForBot.fromId).bot) frontierConfirmTrade(state, incomingForBot.fromId, incomingForBot.id);
           continue;
         }
         const selected: string[] = [];

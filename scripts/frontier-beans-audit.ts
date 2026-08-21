@@ -239,7 +239,12 @@ test("TRADE UI — debug bot keeps the live room open until the human confirms",
 
   frontierConfirmTrade(state, human.id, room.id);
   advanceFrontierBeanBots(state);
-  assert.equal(room.status, "accepted", "the bot responds after the human confirms");
+  assert.equal(room.status, "pending", "changing the offer (the bot filling its side) clears both readies, so the human must review the real deal");
+  assert.equal(room.toReady, true, "the bot has already committed its side");
+  assert.equal(room.fromReady, false, "the human's earlier confirmation no longer applies to the updated offer");
+
+  frontierConfirmTrade(state, human.id, room.id);
+  assert.equal(room.status, "accepted", "the trade completes once the human re-confirms the bot's actual counter-offer");
   assert.equal(human.received.length, 1);
   assert.equal(bot.received.length, 1);
 });
