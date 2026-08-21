@@ -510,3 +510,117 @@ html.fb3-no-pull body { position: fixed; inset: 0; }
   .fb3-game .fb3-hand > header > .fb3-end-trade { left: 94%; width: 46%; min-height: calc(29 * var(--u)); font-size: calc(8.8 * var(--u)); }
   .fb3-game .fb3-mini-crop { right: 7%; left: 7%; }
 }
+
+/* V13 — 명패 중앙 정렬과 짧고 절제된 게임 피드백 */
+.fb3-game .fb3-phase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(7 * var(--u));
+  padding: 0 3%;
+  text-align: center;
+}
+.fb3-game .fb3-phase b,
+.fb3-game .fb3-phase small {
+  max-width: 48%;
+  margin: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+.fb3-game .fb3-phase b { font-size: calc(11.8 * var(--u)); }
+.fb3-game .fb3-phase small { color: #ffd96d; font-size: calc(9.1 * var(--u)); font-weight: 900; }
+
+.fb3-game .fb3-hud > div:last-child button { padding: 0; place-items: center; }
+.fb3-game .fb3-hud > div:last-child button > span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-family: Arial, sans-serif;
+  font-size: calc(17 * var(--u));
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(calc(-.4 * var(--u)));
+}
+
+.fb3-game .fb3-market::before {
+  top: 0;
+  height: 17%;
+  line-height: 1;
+  text-align: center;
+}
+.fb3-game .fb3-pile { align-items: center; justify-items: center; }
+.fb3-game .fb3-public-cards { align-content: center; }
+
+.fb3-game .fb3-hand > header { align-content: center; justify-items: center; }
+.fb3-game .fb3-hand-heading { width: 100%; height: 100%; }
+.fb3-game .fb3-hand-heading b {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--u));
+  padding: 0 3%;
+  font-size: calc(10.5 * var(--u));
+  line-height: 1;
+}
+.fb3-game .fb3-hand-heading b > span:first-child { justify-self: end; }
+.fb3-game .fb3-hand-metrics { justify-self: start; gap: calc(6 * var(--u)); font-size: calc(10.1 * var(--u)); }
+.fb3-game .fb3-hand-metrics .fb3-metric { min-height: calc(15 * var(--u)); align-items: center; }
+
+.fb3-game .fb3-trade-modal { transform-origin: 50% 48%; animation: fb13-trade-open .2s cubic-bezier(.2,.8,.2,1) both; }
+.fb3-game.trade-closing .fb3-trade-modal { pointer-events: none; animation: fb13-trade-close .18s ease-in both; }
+.fb3-game.event-plant .fb3-own-fields { animation: fb13-soft-pulse .32s ease-out; }
+.fb3-game.event-trade .fb3-market { animation: fb13-soft-pulse .34s ease-out; }
+.fb3-game.event-harvest .fb3-hand-metrics .coin { animation: fb13-coin-count .56s ease-out; }
+.fb3-game .fb3-coin-fly {
+  position: absolute;
+  z-index: 70;
+  top: 69%;
+  left: 50%;
+  width: calc(17 * var(--u));
+  height: calc(17 * var(--u));
+  display: grid;
+  place-items: center;
+  border: calc(2 * var(--u)) solid #fff0a3;
+  border-radius: 50%;
+  color: #ffd344;
+  background: #bc7710;
+  box-shadow: 0 0 calc(7 * var(--u)) rgba(255, 218, 74, .9);
+  font-size: calc(7 * var(--u));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: fb13-coin-fly .55s cubic-bezier(.2,.7,.2,1) forwards;
+}
+
+@keyframes fb13-trade-open {
+  from { opacity: 0; transform: translateY(calc(8 * var(--u))) scale(.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fb13-trade-close {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: translateY(calc(6 * var(--u))) scale(.985); }
+}
+@keyframes fb13-soft-pulse {
+  45% { filter: brightness(1.16); transform: scale(1.008); }
+}
+@keyframes fb13-coin-fly {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.65); }
+  15% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translate(48%, calc(73 * var(--u))) scale(.8); }
+}
+@keyframes fb13-coin-count {
+  0%, 100% { color: inherit; transform: scale(1); filter: none; }
+  55% { color: #fff05e; transform: scale(1.32); filter: drop-shadow(0 0 calc(4 * var(--u)) #ffcf31); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb3-game .fb3-trade-modal,
+  .fb3-game.trade-closing .fb3-trade-modal,
+  .fb3-game.event-plant .fb3-own-fields,
+  .fb3-game.event-trade .fb3-market,
+  .fb3-game.event-harvest .fb3-hand-metrics .coin,
+  .fb3-game .fb3-coin-fly { animation: none; }
+}
