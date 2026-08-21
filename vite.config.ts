@@ -48,12 +48,21 @@ const localBindingConfig = {
         name: "MAZE_ROOMS",
         class_name: "MazeRoom",
       },
+      // Milestone 0 spike for the 공성전 tick loop. Remove with worker/spike-room.ts.
+      {
+        name: "SPIKE_ROOMS",
+        class_name: "SpikeRoom",
+      },
     ],
   },
   migrations: [
     {
       tag: "maze-room-v1",
       new_sqlite_classes: ["MazeRoom"],
+    },
+    {
+      tag: "spike-room-v1",
+      new_sqlite_classes: ["SpikeRoom"],
     },
   ],
 };
