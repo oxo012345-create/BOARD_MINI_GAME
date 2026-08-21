@@ -82,7 +82,17 @@ const clampLane = (value: unknown) => {
 
 export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
   private roomCode = "";
+  /**
+   * Origin the tick scheduler aims at. Debug commands that move the clock move
+   * this, so it is *not* the match's identity.
+   */
   private startedAt = 0;
+  /**
+   * The match's identity, exactly as stored in D1. Kept separate from
+   * `startedAt` because the result write is guarded on it: letting a debug clock
+   * change shift this made the guard match no rows and silently drop the result.
+   */
+  private matchStartedAt = 0;
   /** True only for rooms started with bot seats; gates every debug command. */
   private debug = false;
   private botsEnabled = true;
@@ -98,10 +108,11 @@ export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
   constructor(ctx: DurableObjectState, env: SiegeRoomEnv) {
     super(ctx, env);
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      const stored = await ctx.storage.get<{ roomCode: string; startedAt: number; seats: Seat[] }>("match");
+      const stored = await ctx.storage.get<{ roomCode: string; startedAt: number; matchStartedAt?: number; seats: Seat[] }>("match");
       if (!stored) return;
       this.roomCode = stored.roomCode;
       this.startedAt = stored.startedAt;
+      this.matchStartedAt = stored.matchStartedAt ?? stored.startedAt;
       for (const seat of stored.seats) this.seats.set(seat.id, seat);
     });
   }
@@ -117,7 +128,7 @@ export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
       }
       // A reconnect can carry the bootstrap for a match already in progress.
       // Only a genuinely newer match may reset the battlefield.
-      if (payload.startedAt > this.startedAt) await this.beginMatch(payload);
+      if (payload.startedAt > this.matchStartedAt) await this.beginMatch(payload);
       return Response.json({ ok: true, startedAt: this.startedAt, running: this.running });
     }
 
@@ -222,6 +233,7 @@ export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
     this.stopLoop();
     this.roomCode = payload.roomCode;
     this.startedAt = payload.startedAt;
+    this.matchStartedAt = payload.startedAt;
     this.debug = payload.botIds.length > 0;
     this.resultWritten = false;
     this.sim = createSimState(payload.startedAt >>> 0);
@@ -248,6 +260,7 @@ export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
       await this.ctx.storage.put("match", {
         roomCode: this.roomCode,
         startedAt: this.startedAt,
+        matchStartedAt: this.matchStartedAt,
         seats: [...this.seats.values()],
       });
     } catch (error) {
@@ -564,7 +577,7 @@ export class SiegeRoom extends DurableObject<SiegeRoomEnv> {
           updated_at = CURRENT_TIMESTAMP
           WHERE code = ? AND json_extract(state, '$.game.id') = 'siege-war'
             AND json_extract(state, '$.game.siegeWar.startedAt') = ?`)
-          .bind(result, this.roomCode, this.startedAt)
+          .bind(result, this.roomCode, this.matchStartedAt)
           .run();
         await this.ctx.storage.deleteAlarm().catch(() => undefined);
         return;

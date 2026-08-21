@@ -162,22 +162,23 @@ function archerGeometry() {
 }
 
 function ramGeometry() {
-  // Timber is kept light. The team tint is a multiply, so dark browns turn to
-  // near-black and the siege ram stops reading as belonging to either side.
+  // The team tint is a multiply, so anything warm and brown comes out a muddy
+  // grey and the ram stops reading as belonging to either side. Every large
+  // surface is therefore near-neutral, letting the tint carry the colour, with
+  // timber left only on the small trim.
   return mergeGeometries([
-    part(1.10, 0.28, 1.70, 0, 0.22, 0, 0xc9a074),
-    part(1.34, 0.44, 0.30, 0, 0.60, -0.62, 0xb08a5e),
-    part(1.34, 0.44, 0.30, 0, 0.60, 0.62, 0xb08a5e),
-    part(0.72, 0.72, 1.36, 0, 0.86, 0, 0xd8b48a),
-    // Team banner draped over the frame — the ram's most visible surface.
-    part(0.98, 0.62, 1.02, 0, 1.16, 0, 0xf4f4fa),
-    part(0.80, 0.16, 1.44, 0, 1.44, 0, 0xa8865c),
-    part(0.34, 0.34, 0.52, 0, 0.80, 1.02, 0xb8c0cc),
-    part(0.30, 0.30, 0.30, 0, 0.80, 1.34, 0x8d949f),
-    part(0.16, 0.60, 0.60, -0.62, 0.32, -0.42, 0x7a5a38),
-    part(0.16, 0.60, 0.60, 0.62, 0.32, -0.42, 0x7a5a38),
-    part(0.16, 0.60, 0.60, -0.62, 0.32, 0.42, 0x7a5a38),
-    part(0.16, 0.60, 0.60, 0.62, 0.32, 0.42, 0x7a5a38),
+    part(1.16, 0.30, 1.78, 0, 0.22, 0, 0xe8e8f0),
+    part(1.40, 0.46, 0.32, 0, 0.62, -0.64, 0xf2f2f8),
+    part(1.40, 0.46, 0.32, 0, 0.62, 0.64, 0xf2f2f8),
+    part(0.84, 0.80, 1.44, 0, 0.92, 0, 0xf6f6fb),
+    part(0.92, 0.20, 1.52, 0, 1.40, 0, 0xd6d6e0),
+    // Ironwork and the ram's head stay metallic so the silhouette still reads.
+    part(0.38, 0.38, 0.56, 0, 0.86, 1.08, 0x9aa2ae),
+    part(0.34, 0.34, 0.34, 0, 0.86, 1.42, 0x6d747f),
+    part(0.20, 0.66, 0.66, -0.66, 0.34, -0.44, 0x8a6a44),
+    part(0.20, 0.66, 0.66, 0.66, 0.34, -0.44, 0x8a6a44),
+    part(0.20, 0.66, 0.66, -0.66, 0.34, 0.44, 0x8a6a44),
+    part(0.20, 0.66, 0.66, 0.66, 0.34, 0.44, 0x8a6a44),
   ]);
 }
 
@@ -389,6 +390,12 @@ const showBanner = (text, color) => {
   void bannerBox.offsetWidth;
   bannerBox.classList.add("show");
 };
+// The animation ends at opacity 0, so a finished banner is invisible but still
+// sitting in the DOM. Clear it so nothing downstream mistakes it for live state.
+bannerBox.addEventListener("animationend", () => {
+  bannerBox.classList.remove("show");
+  bannerBox.textContent = "";
+});
 
 // ---------------------------------------------------------------- deck UI
 const ART = [
@@ -548,10 +555,28 @@ function connect() {
   socket.addEventListener("close", () => {
     if (matchEnded) return;
     showStatus("재접속 중…");
+    // A refresh that lands after the last gate fell would otherwise retry
+    // forever: the socket is refused because the match is over, which looks
+    // identical to a network problem. Ask the room what actually happened.
+    if (reconnectDelay >= 1000) void checkMatchOver();
     setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(4000, Math.round(reconnectDelay * 1.7));
   });
   socket.addEventListener("error", () => { try { socket.close(); } catch { /* already closing */ } });
+}
+
+async function checkMatchOver() {
+  try {
+    const response = await fetch(`/api/rooms/${roomCode}`, { credentials: "include" });
+    if (!response.ok) return;
+    const body = await response.json();
+    if (body?.room?.view !== "result") return;
+    matchEnded = true;
+    const result = body.room.game?.siegeWar?.result;
+    const mine = body.room.game?.siegeWar?.myTeam;
+    const label = !result || result.winner === "draw" ? "무승부" : result.winner === mine ? "승리!" : "패배";
+    showStatus(`<b style="font-size:20px">${label}</b><br><span style="opacity:.8">경기가 끝났어요</span>`);
+  } catch { /* keep retrying the socket */ }
 }
 
 function onWelcome(message) {

@@ -58,8 +58,32 @@
 | 사라진 보석 | `app/api/_lib/gem-heist-data.ts`, `app/api/_lib/rounds.ts`, `app/gem-heist-assets.ts` | `public/gem-heist/` |
 | CASH AND GUNS | `app/cash-n-guns.tsx`, `app/cash-n-guns.css`, `app/api/_lib/cash-n-guns.ts` | `public/cash-n-guns/` |
 | 황혼의 콩시장 | `app/frontier-beans.tsx`, `app/frontier-beans.css`, `app/api/_lib/frontier-beans.ts` | `public/frontier-beans/` |
+| 2대2 3라인 공성전 | `app/api/_lib/siege-war.ts`, `app/api/_lib/siege-war-sim.ts`, `worker/siege-room.ts` | `public/siege-war/` |
 
 사라진 보석의 코드와 에셋은 보존되어 있지만 현재 미니(보드)게임 선택 목록에서는 제외되어 있다. 황혼의 콩시장은 3~5인 서버 권위 거래게임이며 `docs/BOHNANZA_3_5P_CODEX_RULE_REFERENCE.md`가 규칙의 단일 기준이다.
+
+### 2대2 3라인 공성전에서 특히 주의할 점
+
+이 저장소에서 **서버가 직접 시뮬레이션을 돌리는 유일한 게임**이다. 다른 게임처럼
+행동을 받아 상태를 고치는 구조가 아니라, Durable Object가 10Hz로 전투를 계산해
+바이너리 스냅샷을 뿌린다. 손대기 전에 알아야 할 것:
+
+- **좌표는 정수 밀리미터다.** 두 팀은 라인의 양 끝에서 반대 방향으로 위치를 누적하므로,
+  부동소수점으로 두면 사거리 경계에 정확히 선 유닛이 한쪽에서만 공격 판정을 받는다.
+  모든 속도·사거리가 정확히 나누어떨어지는 정수라 `unitStat()`이 이를 강제한다.
+- **판단과 이동, 데미지 적용은 분리되어 있다.** 한 패스에서 처리하면 먼저 순회되는 팀이
+  체계적 우위를 갖는다. 실제로 승률 73%까지 벌어졌다.
+- **무작위성은 팀별 소환 순번에서 파생한다** (`scatter()`). 공유 RNG를 쓰면 두 팀이 다른
+  값을 뽑아 편향이 생긴다.
+- 위 세 가지는 전부 `npm run test:siege-war`의 **FAIRNESS** 검사가 지킨다. 미러 경기
+  400전이 전부 무승부여야 한다. 이 검사가 깨지면 전투 로직 어딘가에 한쪽 편향이 생긴 것이다.
+- 와이어 포맷은 `public/siege-war/codec.js` **한 파일**이 서버·브라우저 양쪽의 단일 기준이다.
+  필드 단위를 한쪽만 바꾸면 오류 없이 화면만 잘못 그려진다.
+- 결과는 Durable Object가 D1에 직접 기록한다. 클라이언트가 점수를 보고하지 않는다.
+  기록은 `siegeWar.startedAt`으로 가드되므로 이 값을 경기 도중 바꾸면 안 된다
+  (틱 루프 기준점은 별도 필드다).
+- `?debug=1&bots=3`으로 혼자 4자리를 채워 실제 경기를 테스트할 수 있고, BOT 좌석이 있는
+  방에서만 전장 연출 명령이 열린다. 촬영·검증 방법은 `docs/qa/siege-war/README.md` 참고.
 
 ## 개발 명령
 
@@ -78,6 +102,7 @@ npm run test:gem-logic
 npm run test:place-mafia
 npx tsx scripts/cash-n-guns-audit.ts
 npm run test:frontier-beans
+npm run test:siege-war
 ```
 
 콘텐츠 변경 후 동기화:
