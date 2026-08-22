@@ -1,5 +1,5 @@
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
-import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, resolveApartmentPenalty, roundContentKey, type GameRound, type GemDifficulty, type Stroke } from "../../_lib/rounds";
+import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, resolveApartmentPenalty, roundContentKey, cleanStrokes, type GameRound, type GemDifficulty } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
 import { tickSurprise, waitingSurpriseState } from "../../_lib/surprise";
 import { createMazeState } from "../../_lib/maze";
@@ -24,18 +24,6 @@ async function getRoom(context: { params: Promise<{ code: string }> }) {
   const { code: rawCode } = await context.params;
   const code = normalizeCode(rawCode);
   return code.length === 4 ? readRoom(code) : null;
-}
-
-function cleanStrokes(value: unknown): Stroke[] {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, 180).map((raw) => {
-    const item = raw && typeof raw === "object" ? raw as { eraser?: unknown; points?: unknown } : {};
-    const points = Array.isArray(item.points) ? item.points.slice(0, 500).map((point) => {
-      const p = point && typeof point === "object" ? point as { x?: unknown; y?: unknown } : {};
-      return { x: Math.max(0, Math.min(1, Number(p.x) || 0)), y: Math.max(0, Math.min(1, Number(p.y) || 0)) };
-    }) : [];
-    return { eraser: Boolean(item.eraser), points };
-  }).filter((stroke) => stroke.points.length > 0);
 }
 
 function finishTelestrationRound(game: GameRound, players: Player[]) {

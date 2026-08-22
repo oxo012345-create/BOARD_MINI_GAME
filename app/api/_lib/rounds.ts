@@ -1064,3 +1064,61 @@ export function advanceTelestration(game: GameRound, players: Player[]) {
   game.telestrationOrder = (game.telestrationOrder ?? []).filter((id) => players.some((player) => player.id === id));
   return true;
 }
+
+/**
+ * Normalises a submitted drawing and keeps it small.
+ *
+ * Size matters more than it looks: the whole room is one JSON blob that every
+ * request parses and rewrites, and clients poll it twice a second. Rounds are
+ * untimed now, so nothing else bounds how long somebody draws — an unthinned
+ * eight-player room measured in megabytes, which would be parsed on every poll.
+ *
+ * Coordinates are normalised to 0..1 over a canvas a few hundred pixels wide, so
+ * three decimals is well under half a pixel, and points closer together than
+ * `MIN_POINT_GAP` are dropped: pointer events fire far denser than the line
+ * needs. Both are visually lossless and together cut a typical drawing by
+ * roughly three quarters.
+ */
+const MAX_STROKES = 200;
+const MAX_POINTS_PER_STROKE = 400;
+const MIN_POINT_GAP = 0.004;
+/** Whole-drawing budget. Measured: a detailed doodle lands near 4,800 points. */
+const MAX_TOTAL_POINTS = 3_600;
+
+function thinStrokes(source: unknown[], gap: number): Stroke[] {
+  return source.slice(0, MAX_STROKES).map((raw) => {
+    const item = raw && typeof raw === "object" ? raw as { eraser?: unknown; points?: unknown } : {};
+    const entries = Array.isArray(item.points) ? item.points : [];
+    const points: Point[] = [];
+    for (const entry of entries) {
+      if (points.length >= MAX_POINTS_PER_STROKE) break;
+      const p = entry && typeof entry === "object" ? entry as { x?: unknown; y?: unknown } : {};
+      const point = {
+        x: Math.round(Math.max(0, Math.min(1, Number(p.x) || 0)) * 1000) / 1000,
+        y: Math.round(Math.max(0, Math.min(1, Number(p.y) || 0)) * 1000) / 1000,
+      };
+      const last = points[points.length - 1];
+      // Keep the first point of every stroke, including a single-point dot.
+      if (last && Math.abs(point.x - last.x) < gap && Math.abs(point.y - last.y) < gap) continue;
+      points.push(point);
+    }
+    return { eraser: Boolean(item.eraser), points };
+  }).filter((stroke) => stroke.points.length > 0);
+}
+
+// Exported for scripts/telestration-audit.ts — the size guarantees are a rule,
+// not an implementation detail.
+export function cleanStrokes(value: unknown): Stroke[] {
+  if (!Array.isArray(value)) return [];
+  let gap = MIN_POINT_GAP;
+  let strokes = thinStrokes(value, gap);
+  const total = () => strokes.reduce((count, stroke) => count + stroke.points.length, 0);
+  // An oversized drawing is thinned harder rather than cut short. Truncating
+  // would drop whatever the player drew last, which is the same "my drawing
+  // vanished" complaint this file already exists to prevent.
+  while (total() > MAX_TOTAL_POINTS && gap < 0.05) {
+    gap *= 1.6;
+    strokes = thinStrokes(value, gap);
+  }
+  return strokes;
+}

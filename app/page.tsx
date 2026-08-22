@@ -340,31 +340,38 @@ function drawCanvas(canvas: HTMLCanvasElement | null, strokes: Stroke[], current
   }
 }
 
-function DrawingBoard({ task, onSubmit }: { task: NonNullable<GameRound["telestrationTask"]>; onSubmit: (payload: { strokes?: Stroke[]; guess?: string }) => void }) {
+function DrawingBoard({ task, onSubmit }: { task: NonNullable<GameRound["telestrationTask"]>; onSubmit: (payload: { strokes?: Stroke[]; guess?: string }) => Promise<unknown> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const strokesRef = useRef<Stroke[]>([]);
   const working = useRef<Stroke | null>(null);
   const [eraser, setEraser] = useState(false);
   const [guess, setGuess] = useState("");
-  const sent = useRef(false);
+  const [sending, setSending] = useState(false);
   useEffect(() => { strokesRef.current = strokes; drawCanvas(canvasRef.current, strokes); }, [strokes]);
   // No countdown and no auto-submit: a drawing is only ever sent because the
   // player asked for it. The old timer fired at the same moment the server
   // force-submitted an empty drawing, and the empty one usually won.
-  const submit = useCallback(() => {
-    if (sent.current || task.submitted) return;
-    sent.current = true;
-    onSubmit(task.action === "guess" ? { guess } : { strokes: strokesRef.current });
-  }, [guess, onSubmit, task.action, task.submitted]);
+  const submit = useCallback(async () => {
+    if (sending || task.submitted) return;
+    setSending(true);
+    try {
+      await onSubmit(task.action === "guess" ? { guess } : { strokes: strokesRef.current });
+    } catch {
+      // A failed request must leave the board editable. Locking it would strand
+      // the player with a finished drawing they can no longer send, and with no
+      // round timer the whole round would then wait on them.
+      setSending(false);
+    }
+  }, [guess, onSubmit, sending, task.action, task.submitted]);
   if (task.submitted) return <div className="waiting-card"><span className="big-emoji">✅</span><h2>제출 완료</h2><p>다른 참가자의 제출을 기다리고 있어요.</p></div>;
-  if (task.action === "guess") return <section className="drawing-stage"><div className="drawing-round">텔레그레이션 {task.round} / 4</div><div className="drawing-timer unlimited">제한시간 없음</div><h2>마지막 그림의 정답은?</h2><StrokePreview strokes={task.previousStrokes ?? []} /><input className="text-field" maxLength={30} placeholder="정답 입력" value={guess} onChange={(event) => setGuess(event.target.value)} /><button className="button primary xl" onClick={submit}>정답 제출</button></section>;
+  if (task.action === "guess") return <section className="drawing-stage"><div className="drawing-round">텔레그레이션 {task.round} / 4</div><div className="drawing-timer unlimited">제한시간 없음</div><h2>마지막 그림의 정답은?</h2><StrokePreview strokes={task.previousStrokes ?? []} /><input className="text-field" maxLength={30} placeholder="정답 입력" value={guess} onChange={(event) => setGuess(event.target.value)} /><button className="button primary xl" disabled={sending} onClick={() => void submit()}>{sending ? "제출 중…" : "정답 제출"}</button></section>;
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => { const rect = event.currentTarget.getBoundingClientRect(); return { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }; };
   return <section className="drawing-stage"><div className="drawing-round">텔레그레이션 {task.round} / 4</div><div className="drawing-timer unlimited">제한시간 없음</div>{task.round === 1 ? <><div className="eyebrow">내 제시어</div><h2>{task.prompt}</h2></> : <><h2>이 그림을 보고 다시 그리세요</h2><StrokePreview strokes={task.previousStrokes ?? []} /></>}<canvas className="drawing-canvas" ref={canvasRef}
     onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); working.current = { eraser, points: [point(event)] }; drawCanvas(canvasRef.current, strokesRef.current, working.current); }}
     onPointerMove={(event) => { if (!working.current) return; working.current.points.push(point(event)); drawCanvas(canvasRef.current, strokesRef.current, working.current); }}
     onPointerUp={() => { if (!working.current) return; const next = [...strokesRef.current, working.current]; working.current = null; strokesRef.current = next; setStrokes(next); }} />
-    <div className="drawing-tools"><button className={!eraser ? "active" : ""} onClick={() => setEraser(false)}>검은 펜</button><button className={eraser ? "active" : ""} onClick={() => setEraser(true)}>지우개</button><button onClick={() => setStrokes((items) => items.slice(0, -1))}>되돌리기</button><button onClick={() => setStrokes([])}>전체 지우기</button></div><button className="button primary xl" onClick={submit}>그림 제출</button></section>;
+    <div className="drawing-tools"><button className={!eraser ? "active" : ""} onClick={() => setEraser(false)}>검은 펜</button><button className={eraser ? "active" : ""} onClick={() => setEraser(true)}>지우개</button><button onClick={() => setStrokes((items) => items.slice(0, -1))}>되돌리기</button><button onClick={() => setStrokes([])}>전체 지우기</button></div><button className="button primary xl" disabled={sending} onClick={() => void submit()}>{sending ? "제출 중…" : "그림 제출"}</button></section>;
 }
 
 async function compressPhoto(file: File) {
@@ -1502,7 +1509,7 @@ export default function Home() {
       {isHost && <div className="host-game-controls"><button className="button secondary fail-button" disabled={hostActionLocked} onClick={() => setConfirmType("fail")}>실패</button><button className="button primary" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button></div>}
     </section></>}
     {currentGame.id === "syllable" && <section className="prompt-card"><div className="coop-eyebrow">팀전 · 직접 판정</div><h2 className="prompt-big">{currentGame.prompt}</h2><p>두 팀으로 나눠 한 글자씩 이어서 단어를 완성하세요.</p>{isHost && <button className="button primary xl" disabled={hostActionLocked} onClick={() => void nextCoopQuestion()}>다음 문제</button>}</section>}
-    {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} onSubmit={(payload) => void applyAction({ action: "submit-telestration", ...payload })} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} />{isHost && (currentGame.telestrationSubmitted?.length ?? 0) < room.players.length && <button className="button secondary" disabled={hostActionLocked} onClick={() => void applyAction({ action: "force-telestration-round" })}>기다리지 않고 넘어가기</button>}</>}
+    {currentGame.id === "telestration" && currentGame.telestrationTask && <><DrawingBoard key={`${room.roundNumber}-${currentGame.telestrationTask.round}`} task={currentGame.telestrationTask} onSubmit={async (payload) => { try { return await applyAction({ action: "submit-telestration", ...payload }); } catch (error) { showNotice(error instanceof Error ? error.message : "제출하지 못했어요. 다시 시도해 주세요."); throw error; } }} /><ParticipantProgress room={room} completedIds={currentGame.telestrationSubmitted ?? []} completeLabel="제출 완료" pendingLabel={currentGame.telestrationTask.action === "guess" ? "정답 입력 중" : "그리는 중"} />{isHost && (currentGame.telestrationSubmitted?.length ?? 0) < room.players.length && <button className="button secondary" disabled={hostActionLocked} onClick={() => void applyAction({ action: "force-telestration-round" })}>기다리지 않고 넘어가기</button>}</>}
     {!["initial", "hunmin", "trivia", "memory", "taste", "ten-seconds", "color", "object-initial", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id) && <section className="prompt-card">{currentGame.imageId && <QuizImage imageId={currentGame.imageId} />}<div className={gameMeta?.category === "coop" ? "coop-eyebrow" : "eyebrow"}>{privateRole ? "역할을 확인했다면" : gameMeta?.category === "coop" ? "다 같이 도전" : "이번 제시어"}</div><h2 className={!privateRole && currentGame.prompt.length <= 8 ? "prompt-big" : ""}>{privateRole ? currentGame.id === "body-liar" ? "차례대로 몸으로 표현하세요" : currentGame.id === "face-liar" ? "차례대로 표정만 보여주세요" : currentGame.id === "unknown" ? "차례대로 질문에 답하세요" : "내 단어를 라이어가 모르게 설명하세요." : currentGame.prompt}</h2></section>}
     {currentGame.answer && !privateRole && !["trivia", "initial", "people", "ten-seconds"].includes(currentGame.id) && <details className="answer-reveal"><summary>정답 확인</summary><strong>{currentGame.answer}</strong></details>}
     {currentGame.id !== "gem-heist" && <div className="sticky-action">{isHost ? inlineManagedGame ? <div className="waiting"><span className="pulse" />진행중</div> : <button className="button primary xl" disabled={hostActionLocked || (currentGame.id === "memory" && !currentGame.memoryReady)} onClick={() => setConfirmType("finish")}>{currentGame.id === "memory" && !currentGame.memoryReady ? "추억 작성 대기 중" : "결과 보기"}</button> : <div className="waiting"><span className="pulse" />진행중</div>}</div>}{commonOverlays}</main>;

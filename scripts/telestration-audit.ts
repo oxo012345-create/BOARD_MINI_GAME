@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { advanceTelestration, assignedTelestrationChain, getTelestrationCorrectCount, makeRound, type GameRound } from "../app/api/_lib/rounds";
+import { advanceTelestration, assignedTelestrationChain, cleanStrokes, getTelestrationCorrectCount, makeRound, type GameRound } from "../app/api/_lib/rounds";
 import { type Player } from "../app/api/_lib/rooms";
 
 const test = (name: string, run: () => void) => {
@@ -90,6 +90,59 @@ test("a player who leaves stops blocking the round", () => {
   advanceTelestration(game, remaining);
   assert.equal(game.telestrationOrder?.includes("p4"), false, "the leaver must drop out of the order");
   assert.equal(game.telestrationOrder?.length, 3);
+});
+
+/**
+ * Drawing size is a correctness concern, not just tidiness: the room is a single
+ * JSON blob that every request parses and every client polls twice a second.
+ * Rounds are untimed, so nothing but this bounds how much a player can send.
+ */
+const denseStroke = (samples: number, seed: number) => ({
+  eraser: false,
+  points: Array.from({ length: samples }, (_, index) => ({
+    x: 0.1 + (seed % 7) * 0.1 + (index / samples) * 0.3,
+    y: 0.1 + (seed % 5) * 0.15 + Math.sin(index / 9) * 0.05,
+  })),
+});
+const totalPoints = (strokes: ReturnType<typeof cleanStrokes>) =>
+  strokes.reduce((count, stroke) => count + stroke.points.length, 0);
+
+test("a drawing is thinned and rounded instead of being stored raw", () => {
+  const raw = Array.from({ length: 60 }, (_, index) => denseStroke(120, index));
+  const clean = cleanStrokes(raw);
+  assert.equal(clean.length, raw.length, "no stroke may be dropped");
+  assert.ok(totalPoints(clean) < totalPoints(raw as never) / 2, "dense pointer samples should collapse");
+  for (const stroke of clean) {
+    for (const point of stroke.points) {
+      assert.equal(point.x, Math.round(point.x * 1000) / 1000, "coordinates are rounded to three decimals");
+      assert.ok(point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1, "coordinates stay normalised");
+    }
+  }
+});
+
+test("an oversized drawing keeps all its strokes rather than being cut short", () => {
+  // Far past the budget: every stroke must survive, only the detail thins out.
+  const raw = Array.from({ length: 180 }, (_, index) => denseStroke(400, index));
+  const clean = cleanStrokes(raw);
+  assert.equal(clean.length, 180, "an over-budget drawing must not lose whole strokes");
+  assert.ok(totalPoints(clean) <= 3_600 * 1.05, `budget exceeded: ${totalPoints(clean)} points`);
+  const bytes = Buffer.byteLength(JSON.stringify(clean), "utf8");
+  assert.ok(bytes < 120_000, `a single drawing serialised to ${bytes} bytes`);
+});
+
+test("a single tap still records a dot", () => {
+  const clean = cleanStrokes([{ eraser: false, points: [{ x: 0.5, y: 0.5 }] }]);
+  assert.equal(clean.length, 1);
+  assert.deepEqual(clean[0].points, [{ x: 0.5, y: 0.5 }]);
+});
+
+test("junk input is rejected without throwing", () => {
+  assert.deepEqual(cleanStrokes(undefined), []);
+  assert.deepEqual(cleanStrokes("not strokes"), []);
+  assert.deepEqual(cleanStrokes([{ points: [] }]), [], "an empty stroke is dropped");
+  assert.deepEqual(cleanStrokes([{ points: [{ x: "x", y: null }] }]), [{ eraser: false, points: [{ x: 0, y: 0 }] }]);
+  const clamped = cleanStrokes([{ points: [{ x: 99, y: -99 }] }]);
+  assert.deepEqual(clamped[0].points, [{ x: 1, y: 0 }], "out-of-range coordinates are clamped, not dropped");
 });
 
 console.log("\n텔레그레이션 규칙 검증 완료");
