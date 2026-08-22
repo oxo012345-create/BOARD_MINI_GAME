@@ -49,19 +49,41 @@ function finishTelestrationRound(game: GameRound, players: Player[]) {
   return advanceTelestration(game, players);
 }
 
-function handleTelestrationTimeout(room: RoomState) {
+/**
+ * Ends the current round for anyone still drawing. Only the host can trigger it,
+ * and it is the escape hatch for a backgrounded phone now that rounds have no
+ * timer.
+ *
+ * This used to run automatically off the round deadline, on the polling path.
+ * That made it race the player's own auto-submit: with four to eight clients
+ * polling every 500ms, somebody's GET almost always landed first, stored an
+ * empty drawing, and the real submission was then silently discarded as a
+ * duplicate. Hence no clock, and a deliberate action instead.
+ */
+function forceTelestrationRound(room: RoomState) {
   const game = room.game as GameRound | undefined;
-  if (!game?.telestrationDeadline || Date.now() < game.telestrationDeadline || (game.telestrationRound ?? 0) > 4) return false;
+  if (!game || game.id !== "telestration" || (game.telestrationRound ?? 0) > 4) return false;
   const submitted = new Set(game.telestrationSubmitted ?? []);
+  let changed = false;
   for (const player of room.players) {
     if (submitted.has(player.id)) continue;
     const chain = assignedTelestrationChain(game, player.id);
     if (!chain) continue;
-    chain.steps.push({ playerId: player.id, strokes: [] });
+    // Round 4 asks for a word, not a drawing.
+    chain.steps.push((game.telestrationRound ?? 1) >= 4
+      ? { playerId: player.id, guess: "정답 없음" }
+      : { playerId: player.id, strokes: [] });
     submitted.add(player.id);
+    changed = true;
   }
+  if (!changed) return false;
   game.telestrationSubmitted = [...submitted];
-  if ((game.telestrationRound ?? 1) < 4) advanceTelestration(game, room.players);
+  if ((game.telestrationRound ?? 1) >= 4) {
+    game.telestrationComplete = true;
+    game.telestrationCorrectCount = getTelestrationCorrectCount(game);
+  } else {
+    advanceTelestration(game, room.players);
+  }
   return true;
 }
 
@@ -172,7 +194,6 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
       ? reconcileDealerPresence(room, activeDealerGame.dealer)
       : false;
     const surpriseChanged = tickSurprise(room);
-    const telestrationChanged = handleTelestrationTimeout(room);
     const gemChanged = handleGemInvestigationTimeout(room);
     const dealerChanged = handleDealerTimeout(room);
     const activePlaceMafia = (room.game as GameRound | undefined)?.placeMafia;
@@ -181,7 +202,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const cashNGunsChanged = activeCashNGuns ? advanceCashNGunsIfDue(activeCashNGuns) : false;
     const activeMafia = (room.game as GameRound | undefined)?.mafia;
     const mafiaChanged = activeMafia ? advanceMafiaIfDue(activeMafia) : false;
-    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || telestrationChanged || gemChanged || dealerChanged || placeMafiaChanged || cashNGunsChanged || mafiaChanged;
+    const changed = playersChanged || dealerPresenceChanged || surpriseChanged || gemChanged || dealerChanged || placeMafiaChanged || cashNGunsChanged || mafiaChanged;
     if (!room.players.length) {
       await deleteRoom(room.code);
       return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
@@ -622,6 +643,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         game.gemCaught = leaders.length === 1 && leaders[0] === game.gemThiefId;
         room.view = "result";
       }
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "force-telestration-round") {
+      if (!isHost || game.id !== "telestration" || room.view !== "game") {
+        return Response.json({ error: "게임 화면에서 방장만 넘길 수 있어요." }, { status: 403 });
+      }
+      if (!forceTelestrationRound(room)) {
+        return Response.json({ error: "이미 모두 제출했어요." }, { status: 409 });
+      }
+      if (game.telestrationComplete) room.view = "result";
       return persistAndRespond(room, viewer.id);
     }
 

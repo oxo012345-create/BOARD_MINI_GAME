@@ -78,6 +78,7 @@ npm run test:gem-logic
 npm run test:place-mafia
 npx tsx scripts/cash-n-guns-audit.ts
 npm run test:frontier-beans
+npm run test:telestration
 ```
 
 콘텐츠 변경 후 동기화:

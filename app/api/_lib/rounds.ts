@@ -145,7 +145,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
   apartment: { title: "아파트 게임", briefing: "3명 이상이 각자 한 층을 고릅니다. 가장 많이 겹친 층이 벌칙 층이고, 동률이면 더 낮은 층이 선택됩니다. 아무도 겹치지 않으면 가장 낮은 층입니다.", category: "solo" },
   "place-mafia": { title: "장소 마피아", briefing: "밤마다 장소를 이동하고 목격·광장 기록·경찰 수사를 조합해 거짓 동선을 찾아내세요. 밤 행동은 항상 20초 동안 비공개로 진행됩니다.", category: "solo" },
   mafia: { title: "오리지널 마피아", briefing: "모든 플레이어가 같은 밤 행동 화면을 사용합니다. 마피아·경찰·의사는 비밀 행동을 하고, 낮에는 토론과 익명투표로 범인을 찾아보세요. 처형된 역할은 공개되지 않습니다.", category: "solo" },
-  telestration: { title: "텔레그레이션", briefing: "45초·40초·35초 동안 그림을 이어 그립니다. 마지막 그림의 정답 입력에는 제한시간이 없고, 두 명 이상 맞히면 통과입니다.", category: "coop" },
+  telestration: { title: "텔레그레이션", briefing: "제한시간 없이 그림을 이어 그립니다. 모두 제출하면 다음 차례로 넘어가고, 마지막에 두 명 이상 정답을 맞히면 통과입니다.", category: "coop" },
   people: { title: "인물 퀴즈", briefing: "한 사람씩 5초 안에 사진 속 인물을 맞힙니다. 전원이 성공하면 통과하고, 방장이 다음 문제 또는 실패를 선택합니다.", category: "coop" },
   chain: { title: "줄줄이 말해요", briefing: "같은 주제로 한 사람씩 5초 안에 답합니다. 전원이 성공하면 통과하고, 주제는 도중에 바뀌지 않습니다.", category: "coop" },
   four: { title: "네 글자 이어말하기", briefing: "한 사람씩 5초 안에 앞 두 글자에 이어지는 네 글자 단어를 맞힙니다. 전원이 성공하면 통과합니다.", category: "coop" },
@@ -881,7 +881,7 @@ function makeRoundCandidate(id: string, players: Player[], liarMode: "normal" | 
     const order = shuffle(players.map((player) => player.id));
     const words = shuffle(getList<string>("telestrationWords", ["도깨비", "등대", "우주선", "팝콘"]));
     const chains = order.map((playerId, index) => ({ id: crypto.randomUUID(), prompt: words[index % words.length], steps: [] as TelestrationStep[] }));
-    return { ...base, prompt: "그림 릴레이", telestrationRound: 1, telestrationDeadline: Date.now() + 45_000, telestrationOrder: order, telestrationChains: chains, telestrationSubmitted: [], telestrationComplete: false, telestrationAutoCorrectChainIds: [], telestrationAcceptedChainIds: [] };
+    return { ...base, prompt: "그림 릴레이", telestrationRound: 1, telestrationDeadline: undefined, telestrationOrder: order, telestrationChains: chains, telestrationSubmitted: [], telestrationComplete: false, telestrationAutoCorrectChainIds: [], telestrationAcceptedChainIds: [] };
   }
   if (id === "chain") return { ...base, ...teamTimedBase(players), prompt: pick(getList("chainPrompts", ["탕으로 끝나는 음식"])), history: [] };
   if (id === "four") {
@@ -1056,8 +1056,11 @@ export function advanceTelestration(game: GameRound, players: Player[]) {
   if (round >= 4) return false;
   game.telestrationRound = round + 1;
   game.telestrationSubmitted = [];
-  const nextRound = round + 1;
-  game.telestrationDeadline = nextRound === 4 ? undefined : Date.now() + [0, 45, 40, 35][nextRound] * 1000;
+  // No round timer. The clock used to force-submit an empty drawing for anyone
+  // who had not finished, which raced the player's own auto-submit and threw
+  // real drawings away. Rounds now end when everyone submits, or when the host
+  // moves them on.
+  game.telestrationDeadline = undefined;
   game.telestrationOrder = (game.telestrationOrder ?? []).filter((id) => players.some((player) => player.id === id));
   return true;
 }

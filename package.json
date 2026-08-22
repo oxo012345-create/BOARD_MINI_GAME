@@ -15,7 +15,8 @@
     "test:frontier-beans": "tsx scripts/frontier-beans-audit.ts && node --test tests/frontier-beans-layout.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "sync:catalog": "node scripts/sync-catalog-data.mjs"
+    "sync:catalog": "node scripts/sync-catalog-data.mjs",
+    "test:telestration": "tsx scripts/telestration-audit.ts"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.5",
