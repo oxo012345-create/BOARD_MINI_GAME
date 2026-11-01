@@ -8,6 +8,8 @@ import { PlaceMafiaBriefing, PlaceMafiaGame } from "./place-mafia";
 import type { PlaceMafiaBalance, PlaceMafiaClientState, PlaceMafiaSetup } from "./place-mafia-shared";
 import { MafiaGame } from "./mafia";
 import type { MafiaClientState } from "./api/_lib/mafia";
+import { ClubBriefing, ClubGame } from "./club-games";
+import { isClub, type ClubSetup, type ClubView } from "./api/_lib/club";
 import { CashNGunsGame } from "./cash-n-guns";
 import type { CashNGunsClientState } from "./cash-n-guns";
 import { FrontierBeansBriefing, FrontierBeansGame } from "./frontier-beans";
@@ -98,6 +100,8 @@ type GameRound = {
   placeMafiaSetup?: PlaceMafiaSetup;
   mafia?: MafiaClientState;
   cashNGuns?: CashNGunsClientState;
+  clubSetup?: ClubSetup;
+  club?: ClubView;
   frontierBeans?: FrontierBeanClientState;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
@@ -138,6 +142,11 @@ const BOARD_GAMES: GameMeta[] = [
 ];
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 BOARD_GAMES.push({ id: "frontier-beans", title: "황혼의 콩시장", icon: "♨", description: "3~5인 · 손패 순서와 협상이 핵심인 서부 농장 거래게임", category: "board" });
+BOARD_GAMES.push(
+  { id: "gomoku", title: "오목", icon: "●", description: "4인 토너먼트 · 2대2 팀전", category: "board" },
+  { id: "alkkagi", title: "알까기", icon: "◉", description: "4인 토너먼트 · 2대2 팀전", category: "board" },
+  { id: "number-baseball", title: "숫자야구", icon: "123", description: "4인 개인전 · 2대2 팀전", category: "board" },
+);
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 // 랜덤게임은 개인전·모두 협동 탭의 게임만 대상으로 한다.
 // 팀전 이어말하기는 기존 규칙대로 랜덤 대상에서 제외한다.
@@ -1107,7 +1116,7 @@ export default function Home() {
   const myTimerResult = currentGame?.timerResults?.find((item) => item.playerId === room?.meId);
   const gameMeta = useMemo(() => ALL_GAMES.find((item) => item.id === currentGame?.id), [currentGame?.id]);
   const inlineManagedGame = Boolean(currentGame && ["initial", "hunmin", "trivia", "people", "chain", "four", "character", "syllable", "group-initial", "telestration", "gem-heist"].includes(currentGame.id));
-  const activeSurprise = room?.view !== "game" && room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
+  const activeSurprise = !isClub(currentGame?.id) && room?.view !== "game" && room?.surprise && (room.surprise.phase === "active" || room.surprise.reveal) ? room.surprise : null;
 
   const topBar = (title: string) => <TopBar code={room?.code ?? ""} title={title} showLobby={isHost && room?.view !== "lobby"} actionsDisabled={hostActionLocked} onLobby={() => setConfirmType("lobby")} onLeave={() => setConfirmType("leave")} />;
   const confirmSpec = confirmType === "leave"
@@ -1178,6 +1187,7 @@ export default function Home() {
     const mazePlayerCountValid = room.players.length <= 8;
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
     const cashNGunsPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
+    if (isClub(currentGame.id)) return <ClubBriefing kind={currentGame.id} setup={currentGame.clubSetup} players={room.players} isHost={isHost} onAction={applyAction} onStart={() => void startGame()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
     if (currentGame.id === "frontier-beans") return <FrontierBeansBriefing
       playerCount={room.players.length}
       debugPlayers={frontierDebugPlayers}
@@ -1276,6 +1286,8 @@ export default function Home() {
       {commonOverlays}
     </main>;
   }
+
+  if (currentGame?.club && isClub(currentGame.id)) return <ClubGame key={currentGame.club.id} s={currentGame.club} players={room.players} meId={room.meId} isHost={isHost} onAction={applyAction} onReplay={() => gameMeta && void prepareGame(gameMeta)} onLobby={() => void goLobby()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
 
   if (room.view === "result" || (currentGame?.id === "apartment" && currentGame.apartmentRevealed)) {
     if (!currentGame) return <main className="app-shell"><div className="waiting-card">결과를 불러오는 중</div>{commonOverlays}</main>;

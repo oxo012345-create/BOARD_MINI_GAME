@@ -1,3 +1,4 @@
+import { isClub, createClub, cleanClubSetup, defaultClubSetup, clubAction, type ClubSetup } from "../../_lib/club";
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
 import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, resolveApartmentPenalty, roundContentKey, cleanStrokes, type GameRound, type GemDifficulty } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
@@ -167,7 +168,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const expectedRevision = room.revision ?? 0;
     const playerIdsBeforePrune = new Set(room.players.map((player) => player.id));
     const activeDealerGame = room.game as GameRound | undefined;
-    const dealerParticipantIds = activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && activeDealerGame.dealer.phase !== "finished"
+    const dealerParticipantIds = activeDealerGame?.club && room.view === "game" ? new Set(activeDealerGame.club.players) : activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && activeDealerGame.dealer.phase !== "finished"
       ? new Set(Object.keys(activeDealerGame.dealer.balances))
       : undefined;
     const playersChanged = touchAndPrunePlayers(room, viewer?.id, dealerParticipantIds ? DEALER_HEARTBEAT_TOUCH_MS : 15_000, dealerParticipantIds);
@@ -211,7 +212,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const room = await getRoom(context);
     if (!room) return Response.json({ error: "방을 찾을 수 없어요." }, { status: 404 });
     const payload = (await request.json()) as {
-      action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
+      clubSetup?: Partial<ClubSetup>; clubId?: string; matchId?: string; attempt?: number; turn?: number; cell?: number; discId?: number; dx?: number; dy?: number; round?: number; value?: string; action?: string; player?: unknown; gameId?: string; view?: string; mode?: "normal" | "dumb"; entries?: string[];
       choice?: string; seconds?: number; strokes?: unknown; guess?: string; chainId?: string; specialRoles?: boolean; suspectId?: string; difficulty?: GemDifficulty;
       itemIndex?: number; itemIds?: string[]; cardId?: number; targetId?: string; character?: number; ready?: boolean; requestId?: string;
       mazeResults?: Array<{ playerId?: string; score?: number; recipeIndex?: number }>;
@@ -242,6 +243,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         existing.status = "active";
         existing.lastSeen = Date.now();
         const activeGame = room.game as GameRound | undefined;
+        if (activeGame?.club?.paused) activeGame.club.paused = activeGame.club.paused.filter(id => id !== existing.id);
         if (activeGame?.id === "place-mafia" && activeGame.placeMafia) resumePlaceMafia(activeGame.placeMafia, existing.id);
         if (activeGame?.id === "double-dealers" && activeGame.dealer) resumeDealerIfReady(activeGame.dealer, dealerPlayers(room, activeGame.dealer));
         return persistAndRespond(room, existing.id);
@@ -253,7 +255,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (room.players.length >= 12) return Response.json({ error: "방이 가득 찼어요." }, { status: 409 });
       if (room.players.some((item) => item.name.toLowerCase() === profile.name.toLowerCase())) return Response.json({ error: "이미 사용 중인 이름이에요." }, { status: 409 });
       const activeGame = room.game as GameRound | undefined;
-      if (["double-dealers", "place-mafia", "cash-n-guns", "frontier-beans"].includes(String(activeGame?.id)) && ["game", "result"].includes(room.view)) {
+      if ((isClub(activeGame?.id) || ["double-dealers", "place-mafia", "cash-n-guns", "frontier-beans"].includes(String(activeGame?.id))) && ["game", "result"].includes(room.view)) {
         return Response.json({ error: "게임이 이미 시작되어 늦은 참가자를 받을 수 없습니다.", code: "GAME_IN_PROGRESS" }, { status: 409 });
       }
       const session = await createSession();
@@ -289,9 +291,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       room.game = {
         id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing,
         liarMode: "normal", previousContentKey, startedAt: Date.now(),
+        ...(isClub(payload.gameId) ? { clubSetup: previousGame?.id === payload.gameId && previousGame.club ? previousGame.club.setup : defaultClubSetup(payload.gameId), club: previousGame?.id === payload.gameId ? previousGame.club : undefined } : {}),
         ...(payload.gameId === "place-mafia" ? { placeMafiaSetup: { discussionSeconds: 90, balance: "normal", mafiaCount: 1 } satisfies PlaceMafiaSetup } : {}),
         ...(payload.gameId === "maze-courier" ? { mazeCharacters: {}, mazeReadyPlayerIds: [] } : {}),
       };
+      return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "club-settings") {
+      const pending = room.game as GameRound | undefined;
+      if (!isHost || room.view !== "briefing" || !isClub(pending?.id)) return Response.json({ error: "준비 화면에서 방장만 설정할 수 있어요." }, { status: 403 });
+      pending!.clubSetup = cleanClubSetup(pending!.id as import("../../_lib/club").ClubId, payload.clubSetup);
       return persistAndRespond(room, viewer.id);
     }
 
@@ -329,6 +339,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       const gameId = payload.gameId || String(room.game?.id ?? "");
       const pendingGame = room.game as GameRound | undefined;
+      if (isClub(gameId)) {
+        if (room.view !== "briefing" || pendingGame?.id !== gameId) return Response.json({ error: "준비 화면에서 시작해 주세요." }, { status: 409 });
+        try {
+          const club = createClub(gameId, room.players.map(p => p.id), pendingGame.clubSetup, pendingGame.club);
+          room.players.forEach(p => { p.status = "active"; });
+          room.game = { id: gameId, title: GAME_INFO[gameId].title, prompt: "", startedAt: Date.now(), club };
+          room.view = "game"; room.roundNumber++;
+          return persistAndRespond(room, viewer.id);
+        } catch (error) { return Response.json({ error: error instanceof Error ? error.message : "설정을 확인해 주세요." }, { status: 422 }); }
+      }
       const previousPlaceMafia = pendingGame?.id === "place-mafia" ? pendingGame.placeMafia : undefined;
       const pendingPlaceMafiaSetup = pendingGame?.id === "place-mafia" ? pendingGame.placeMafiaSetup : undefined;
       if (!GAME_IDS.includes(gameId)) return Response.json({ error: "지원하지 않는 게임이에요." }, { status: 400 });
@@ -468,6 +488,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         if (!await writeRoomIfRevision(room, room.revision ?? 0)) return Response.json({ error: "다른 참가자의 변경을 반영하지 못했습니다. 다시 시도해주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
         return Response.json({ room: toClientRoom(room, viewer.id) });
       }
+      if (activeGame?.club && room.view === "game" && !activeGame.club.finished) {
+        viewer.status = "waiting";
+        activeGame.club.paused = [...new Set([...(activeGame.club.paused ?? []), viewer.id])];
+        if (room.hostId === viewer.id) room.hostId = (room.players.find(p => p.id !== viewer.id && p.status === "active") ?? viewer).id;
+        if (!await writeRoomIfRevision(room, room.revision ?? 0)) return Response.json({ error: "다시 시도해 주세요.", code: "ROOM_CONFLICT" }, { status: 409 });
+        return Response.json({ room: null });
+      }
       removePlayerFromRound(activeGame, viewer.id);
       room.players = room.players.filter((item) => item.id !== viewer.id);
       if (activeGame?.id === "double-dealers" && activeGame.dealer) {
@@ -497,6 +524,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     const game = room.game as GameRound | undefined;
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
+
+    if (String(payload.action).startsWith("club-")) {
+      if (!game.club || room.view !== "game") return Response.json({ error: "진행 중인 경기가 없어요." }, { status: 409 });
+      try { clubAction(game.club, viewer.id, payload as Record<string, unknown>); }
+      catch (error) { return Response.json({ error: error instanceof Error ? error.message : "입력을 확인해 주세요." }, { status: 422 }); }
+      if (game.club.finished) room.view = "result";
+      return persistAndRespond(room, viewer.id);
+    }
 
     if (String(payload.action).startsWith("mafia-")) {
       if (game.id !== "mafia" || !game.mafia || room.view !== "game") return Response.json({ error: "오리지널 마피아가 진행 중이 아니에요." }, { status: 409 });

@@ -1,3 +1,4 @@
+import { clubClientState } from "./club";
 import { env } from "cloudflare:workers";
 import { assignedTelestrationChain, type GameRound } from "./rounds";
 import { clientSurprise, type SurpriseState } from "./surprise";
@@ -96,6 +97,8 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.cashNGuns;
     delete game.mafia;
     delete game.frontierBeans;
+    delete game.club;
+    if (internal.club) game.club = clubClientState(internal.club, viewerId);
 
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);
