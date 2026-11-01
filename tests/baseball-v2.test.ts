@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createClub,clubAction,clubClientState,baseballActor,type ClubState} from '../app/api/_lib/club';
+import {createClub,judge,clubAction,clubClientState,baseballActor,type ClubState} from '../app/api/_lib/club';
 import {activeBaseballKey,baseballKeys,baseballKey} from '../app/api/_lib/club-baseball';
 const players=['a','b','c','d'];
 const act=(s:ClubState,p:string,body:Record<string,unknown>)=>clubAction(s,p,{clubId:s.id,requestId:crypto.randomUUID(),...body});
@@ -51,4 +51,25 @@ test('individual keeps four simultaneous private guesses and reveals common answ
 test('rematch resets secrets, rotates opener, and never reuses previous private numbers',()=>{
  const s=createClub('number-baseball',['a','b'],{mode:'duel'});setup(s);attack(s,'456');attack(s,'123');const next=createClub('number-baseball',s.players,s.setup,s);
  assert.equal(next.first,1);assert.equal(next.baseball!.phase,'setup');assert.deepEqual(next.baseball!.secrets,{});assert.deepEqual(next.histories,{});assert.notEqual(next.id,s.id);
+});
+
+
+test('3/4/5 digit settings generate valid secrets and repeat OFF stays backward compatible',()=>{
+ for(const digits of [3,4,5] as const)for(const allowDuplicates of [false,true]){
+  for(let i=0;i<20;i++){const s=createClub('number-baseball',players,{mode:'individual',digits,allowDuplicates});assert.equal(s.secret.length,digits);assert.match(s.secret,/^[1-9]+$/);assert.equal(s.setup.allowDuplicates,allowDuplicates);if(!allowDuplicates)assert.equal(new Set(s.secret).size,digits);}
+  const s=createClub('number-baseball',players,{mode:'individual',digits,allowDuplicates});s.secret='1'.repeat(digits);
+  if(allowDuplicates){for(const p of players)act(s,p,{action:'club-guess',round:1,value:s.secret});assert.equal(s.finished,true);assert.deepEqual(s.winners,players);}
+  else assert.throws(()=>act(s,'a',{action:'club-guess',round:1,value:s.secret}),/중복/);
+ }
+ const legacy=createClub('number-baseball',players,{digits:4});delete legacy.setup.allowDuplicates;assert.throws(()=>act(legacy,'a',{action:'club-guess',round:1,value:'1122'}),/중복/);
+});
+test('repeat scoring counts each secret digit once, reserving strikes before balls',()=>{
+ for(const [secret,value,strikes,balls] of [['11223','11111',2,0],['11223','22111',0,4],['12345','11111',1,0],['11112','21111',3,2],['1122','1212',2,2]] as const){assert.deepEqual(judge(secret,value),{strikes,balls});assert.deepEqual(judge(value,secret),{strikes,balls});}
+});
+test('5-digit repeated team secrets remain private and rematch preserves options',()=>{
+ const s=createClub('number-baseball',players,{mode:'team',digits:5,allowDuplicates:true,redIds:['a','c']});
+ act(s,'a',{action:'club-secret',value:'11223'});act(s,'b',{action:'club-secret',value:'44556'});
+ assert.equal(clubClientState(s,'c').baseball?.ownSecret,'11223');assert.equal(JSON.stringify(clubClientState(s,'d')).includes('11223'),false);
+ attack(s,'44556');attack(s,'99999');assert.deepEqual(s.winners,['team-0']);
+ const next=createClub('number-baseball',players,s.setup,s);assert.equal(next.setup.digits,5);assert.equal(next.setup.allowDuplicates,true);assert.deepEqual(next.baseball!.secrets,{});
 });

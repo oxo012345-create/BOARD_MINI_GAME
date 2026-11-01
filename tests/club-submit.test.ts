@@ -60,3 +60,14 @@ test('SQL rechecks session, pause and game identity after the initial read',asyn
   const result=await q.send('a',q.payload(),initial);assert.equal(result.status,change==='removed'?401:422);assert.equal(JSON.stringify(q.read()),JSON.stringify(latest));
  }
 });
+
+
+test('atomic four-player repeated five-digit guesses publish correct scores and winner names for every viewer',async()=>{
+ const q=fixture(),r=q.read(),s=r.game!.club as ClubState;s.setup.digits=5;s.setup.allowDuplicates=true;s.secret='11223';q.set(r);
+ const initial=q.read(),values=['11223','11111','22111','99999'];
+ const responses=await Promise.all(q.ids.map((id,i)=>q.send(id,q.payload(values[i]),structuredClone(initial))));assert.ok(responses.every(r=>r.status===200));
+ const actual=q.read().game!.club as ClubState;
+ assert.deepEqual(actual.histories.b[0],{round:1,value:'11111',strikes:2,balls:0});assert.equal(actual.histories.c[0].balls,4);
+ for(const id of q.ids){const view=clubClientState(actual,id);assert.equal(view.finished,true);assert.deepEqual(view.winners,['a']);assert.equal(view.baseball?.revealed?.common,'11223');}
+ assert.deepEqual(q.counts(),{atomic:4,cas:0});
+});

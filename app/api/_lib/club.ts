@@ -4,8 +4,8 @@ import { renjuMove } from './renju';
 export const CLUB_IDS = ['gomoku', 'alkkagi', 'number-baseball'] as const;
 export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
-export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4; obstacles: boolean; redIds?: string[] };
-export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, obstacles: false });
+export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4 | 5; allowDuplicates?: boolean; obstacles: boolean; redIds?: string[] };
+export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, allowDuplicates: false, obstacles: false });
 export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; shotStartedAt?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
 export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; pendingResults?: Record<string, Guess>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[]; baseball?: BaseballState };
@@ -17,7 +17,7 @@ export function shuffle<T>(items: T[]): T[] {
 }
 export function cleanClubSetup(kind: ClubId, value: Partial<ClubSetup> = {}): ClubSetup {
   const mode = value.mode === 'duel' ? 'duel' : value.mode === 'team' ? 'team' : kind === 'number-baseball' ? 'individual' : 'tournament';
-  return { mode, digits: value.digits === 4 ? 4 : 3, obstacles: kind === 'alkkagi' && value.obstacles === true, redIds: Array.isArray(value.redIds) ? value.redIds.map(String).slice(0, 2) : undefined };
+  return { mode, digits: value.digits === 5 ? 5 : value.digits === 4 ? 4 : 3, allowDuplicates: kind === 'number-baseball' && value.allowDuplicates === true, obstacles: kind === 'alkkagi' && value.obstacles === true, redIds: Array.isArray(value.redIds) ? value.redIds.map(String).slice(0, 2) : undefined };
 }
 function newMatch(id: string, label: string, sides: [string[], string[]], first: number, attempt = 1): Match { return { id, label, sides, first, attempt, turn: 0, board: Array(225).fill(0), discs: initialDiscs(), replayReady: [] }; }
 function blackStarts(m: Match, kind: ClubId) { if (kind === 'gomoku' && m.first === 1) { m.sides = [m.sides[1], m.sides[0]]; m.first = 0; } return m; }
@@ -31,7 +31,7 @@ export function createClub(kind: ClubId, players: string[], input: Partial<ClubS
   const ordered = shuffle(players);
   const teams: [string[], string[]] = setup.mode === 'duel' ? (sameRoster && previous.setup.mode === 'duel' ? previous.teams : [[ordered[0]], [ordered[1]]]) : setup.mode === 'team' && red ? [red, players.filter(id => !red.includes(id))] : sameRoster && previous.setup.mode === 'team' && setup.mode === 'team' ? previous.teams : [ordered.slice(0, 2), ordered.slice(2)];
   const first = sameRoster ? 1 - previous.first : 0;
-  const state: ClubState = { id: crypto.randomUUID(), kind, setup, players, teams, first, matches: [], stage: 0, finished: false, ranking: [], secret: kind === 'number-baseball' ? shuffle('123456789'.split('')).slice(0, setup.digits).join('') : '', round: 1, pending: {}, histories: {}, winners: [], processed: [] };
+  const state: ClubState = { id: crypto.randomUUID(), kind, setup, players, teams, first, matches: [], stage: 0, finished: false, ranking: [], secret: kind === 'number-baseball' ? (setup.allowDuplicates ? Array.from({length:setup.digits},()=>String(1+Math.floor(Math.random()*9))).join('') : shuffle('123456789'.split('')).slice(0, setup.digits).join('')) : '', round: 1, pending: {}, histories: {}, winners: [], processed: [] };
   if (kind !== 'number-baseball') state.matches = setup.mode === 'duel' ? [newMatch('duel', '1대1', teams, first)] : setup.mode === 'team' ? [newMatch('team', '2대2 팀전', teams, first)] : [newMatch('semi-1', '준결승 1', [[ordered[0]], [ordered[1]]], first), newMatch('semi-2', '준결승 2', [[ordered[2]], [ordered[3]]], first)];
   if(kind==='number-baseball')state.baseball={version:2,phase:setup.mode==='individual'?'play':'setup',secrets:{},turn:0};
   state.matches.forEach(m => blackStarts(m, kind));

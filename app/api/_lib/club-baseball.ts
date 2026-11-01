@@ -4,7 +4,9 @@ export type BaseballState = { version: 2; phase: 'setup' | 'play'; secrets: Reco
 export type BaseballView = { phase: 'setup' | 'play'; turn: number; ready: string[]; activeKey?: string; ownSecret?: string; revealed?: Record<string, string>; attempts: Record<string, number>; lastChance: boolean };
 export function scoreNumbers(secret: string, value: string) {
   let strikes=0,balls=0;
-  for(let i=0;i<value.length;i++){if(value[i]===secret[i])strikes++;else if(secret.includes(value[i]))balls++;}
+  const remaining:Record<string,number>={};
+  for(let i=0;i<secret.length;i++){if(value[i]===secret[i])strikes++;else remaining[secret[i]]=(remaining[secret[i]]??0)+1;}
+  for(let i=0;i<value.length;i++){if(value[i]!==secret[i]&&remaining[value[i]]>0){balls++;remaining[value[i]]--;}}
   return {strikes,balls};
 }
 export const baseballKey=(s:ClubState,id:string)=>s.setup.mode==='team'?`team-${s.teams.findIndex(t=>t.includes(id))}`:id;
@@ -20,7 +22,7 @@ export function baseballView(s:ClubState,viewer?:string):BaseballView|undefined{
     attempts:Object.fromEntries(baseballKeys(s).map(k=>[k,s.histories[k]?.length??0])),
     lastChance:b.turn%2===1&&Object.keys(s.pending).some(k=>s.histories[k]?.at(-1)?.strikes===s.setup.digits)};
 }
-function validate(s:ClubState,value:unknown){const n=String(value??'');if(!/^[1-9]+$/.test(n)||n.length!==s.setup.digits||new Set(n).size!==n.length)throw new Error(`중복 없이 1~9 숫자 ${s.setup.digits}자리를 입력해 주세요.`);return n;}
+function validate(s:ClubState,value:unknown){const n=String(value??'');if(!/^[1-9]+$/.test(n)||n.length!==s.setup.digits||(!s.setup.allowDuplicates&&new Set(n).size!==n.length))throw new Error(`${s.setup.allowDuplicates?'':'중복 없이 '}1~9 숫자 ${s.setup.digits}자리를 입력해 주세요.`);return n;}
 function finish(s:ClubState,winners:string[]){s.finished=true;s.winners=winners;s.ranking=winners.map(k=>s.setup.mode==='team'?s.teams[Number(k.slice(-1))]:[k]);}
 
 /** v2 duel/team: private number setup, alternating attacks, equal attempts.
