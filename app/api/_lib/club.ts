@@ -86,7 +86,7 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
       if(m.winner!==undefined||m.draw||matchActor(m)!==player)throw new Error('현재 차례가 아니에요.');
       const side=matchSide(m);
       if(s.kind==='gomoku' && p.action==='club-place') {
-        const cell=Number(p.cell);if(!Number.isInteger(cell)||cell<0||cell>=225||m.board[cell])throw new Error('빈 교차점을 선택해 주세요.');
+        const cell=p.cell;if(typeof cell!=='number'||!Number.isInteger(cell)||cell<0||cell>=225||m.board[cell])throw new Error('빈 교차점을 선택해 주세요.');
         const verdict=renjuMove(m.board,cell,side+1);if(!verdict.legal)throw new Error(verdict.reason);
         m.board[cell]=side+1;m.lastMove=cell;if(verdict.win)m.winner=side;else if(m.board.every(Boolean))m.draw=true;
       }else if(s.kind==='alkkagi' && p.action==='club-shot'){

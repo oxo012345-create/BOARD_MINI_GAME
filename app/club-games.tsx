@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { defaultClubSetup, matchActor, matchSide, type ClubId, type ClubSetup, type ClubView, type Match } from './api/_lib/club';
 import { renjuMove } from './api/_lib/renju';
 import { ClubBoard } from './club-board';
+import { StoneSound } from './club-stone-sound';
 import { ClubBaseball, BaseballBriefing } from './club-baseball';
 import './club-games.css';
 type Player = {id:string;name:string};
@@ -36,7 +37,7 @@ export function ClubGame({s,players,meId,isHost,onAction,onReplay,onLobby,topBar
  {!!s.paused?.length&&<p className="club-paused">{s.paused.map(name).join(' · ')} 복귀 대기</p>}
  {s.kind==='number-baseball'?<ClubBaseball key={s.id} s={s} name={name} meId={meId} busy={busy} isHost={isHost} onReplay={onReplay} onLobby={onLobby} onSecret={value=>void send({action:'club-secret',value})} onGuess={value=>void send({action:'club-guess',round:s.round,turn:s.baseball?.turn,value})}/>:m&&<>
  {s.matches.length>1&&<nav className="club-match-tabs" aria-label="경기 관전">{s.matches.map(match=><button key={match.id} aria-pressed={match.id===m.id} onClick={()=>{setWatch(match.id);setSelected(null);}}>{match.label}{match.winner!==undefined?' ✓':''}</button>)}</nav>}
- <section className={`club-panel club-play-panel ${s.kind}`}><div className="club-panel-heading"><h2>{s.kind==='gomoku'?'오목':'알까기'}</h2><span>{s.kind==='gomoku'?'렌주룰 · 15 × 15':`5알 대전${s.setup.obstacles?' · 장애물 ON':''}`}</span></div>
+ <section className={`club-panel club-play-panel ${s.kind}`}><div className="club-panel-heading"><h2>{s.kind==='gomoku'?'오목':'알까기'}</h2>{s.kind==='gomoku'&&<StoneSound gameId={s.id} matchId={m.id} attempt={m.attempt} turn={m.turn}/>}<span>{s.kind==='gomoku'?'렌주룰 · 15 × 15':`5알 대전${s.setup.obstacles?' · 장애물 ON':''}`}</span></div>
  <div className="club-players">{m.sides.map((ids,side)=><div key={side} className={`club-player ${!s.finished&&m.winner===undefined&&!m.draw&&matchSide(m)===side?'current':''}`}><i className={`club-avatar ${side?'white':'black'}`}/><div><b>{ids.map(name).join(' · ')}</b><small>{side?'백돌':'흑돌'}{ids.includes(meId??'')?' · 나':''}</small></div>{s.kind==='alkkagi'&&<span>{m.discs.filter(d=>d.alive&&d.side===side).length}알</span>}</div>)}</div>
  <ClubBoard key={s.id+'-'+m.id+'-'+m.attempt} kind={s.kind} m={m} canPlay={canPlay} obstacles={s.setup.obstacles} selected={selected} onSelect={setSelected} onMotion={setMoving} onShot={async p=>{const result=await send({action:'club-shot',...matchPayload,...p}) as {game?:{club?:ClubView}}|undefined;return result?.game?.club?.matches.find((match:Match)=>match.id===m.id)??null;}}/>
  <div className="club-status" aria-live="polite"><i/><div><b>{moving?'발사 진행 중':m.winner!==undefined?`${m.sides[m.winner].map(name).join(' · ')} 승리`:m.draw?'무승부':`${name(matchActor(m))} 차례`}</b><small>{moving?'돌이 멈추고 결과가 확인되면 다음 차례로 넘어갑니다.':s.kind==='gomoku'?'놓을 곳을 선택하고, 착수 버튼을 누르세요.':'내 돌을 누른 뒤, 쏘고 싶은 방향의 반대로 당기세요.'}</small></div></div>

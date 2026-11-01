@@ -53,3 +53,13 @@ test('legacy team guesses share private history and alternate inputter; reconnec
 test('physics deterministic collision, stopping, boundary elimination and symmetric obstacles',()=>{const d=initialDiscs();d[0].x=200;d[0].y=300;d[5].x=245;d[5].y=300;const a=simulateShot(d,0,160,0,false);assert.deepEqual(a,simulateShot(d,0,160,0,false));assert.ok(a.discs[5].x>245);assert.ok(a.discs.every(d=>d.vx===0&&d.vy===0));const edge=initialDiscs();edge[0].x=599;assert.equal(simulateShot(edge,0,180,0,false).discs[0].alive,false);const o=initialDiscs();o[0].x=300;o[0].y=150;const blocked=simulateShot(o,0,0,160,true);assert.ok(blocked.frames.some(frame=>frame[0].vy<0));assert.equal(BARRIERS.length,5);assert.equal(BARRIERS[0].y,600-BARRIERS[4].y);assert.equal(BARRIERS[0].x,600-BARRIERS[4].x);assert.throws(()=>simulateShot(d,0,Infinity,0,false));});
 test('alkkagi accepts only server-validated own discs, rematch changes opening',()=>{const s=createClub('alkkagi',players,{mode:'team',redIds:['a','c']});const m=s.matches[0];assert.throws(()=>action(s,'a',{action:'club-shot',matchId:m.id,turn:0,attempt:1,discId:5,dx:0,dy:-180}));action(s,'a',{action:'club-shot',matchId:m.id,turn:0,attempt:1,discId:0,dx:0,dy:150});assert.equal(m.turn,1);assert.ok(m.frames!.length>1);const next=createClub('alkkagi',players,s.setup,s);assert.equal(next.first,1);});
 test('simultaneous final alkkagi removals draw; team baseball tied winners share records only with their team',()=>{const s=createClub('alkkagi',players,{mode:'team',redIds:['a','c']}),m=s.matches[0];for(const d of m.discs)d.alive=false;Object.assign(m.discs[0],{alive:true,x:530,y:270});Object.assign(m.discs[5],{alive:true,x:599,y:270});action(s,'a',{action:'club-shot',matchId:m.id,turn:0,attempt:1,discId:0,dx:180,dy:0});assert.equal(m.draw,true);assert.equal(s.finished,false);const n=createClub('number-baseball',players,{mode:'team',redIds:['a','c']});delete n.baseball;n.secret='123';for(const p of ['a','b'])action(n,p,{action:'club-guess',round:1,value:'123'});assert.equal(n.winners.length,2);assert.equal(n.finished,true);assert.deepEqual(clubClientState(n,'a').history,clubClientState(n,'c').history);assert.equal(clubClientState(n).history.length,0);});
+
+test('malformed Omok coordinate types cannot silently become a legal cell after opening',()=>{
+ const s=createClub('gomoku',players,{mode:'team',redIds:['a','c']}),m=s.matches[0];
+ action(s,matchActor(m),{action:'club-place',matchId:m.id,attempt:1,turn:0,cell:112});
+ for(const cell of [null,true,false,'','0',[],{},-1,225,NaN,Infinity,1.5]){
+  const before=JSON.stringify(m);
+  assert.throws(()=>action(s,matchActor(m),{action:'club-place',matchId:m.id,attempt:1,turn:1,cell}));
+  assert.equal(JSON.stringify(m),before);
+ }
+});
