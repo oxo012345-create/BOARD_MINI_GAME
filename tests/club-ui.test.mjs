@@ -12,14 +12,14 @@ test('1대1 is selectable only with two players, with matching start count and r
  for(const kind of ['gomoku','alkkagi','number-baseball'])for(const count of [1,2,3,4,5]){
   const roster=Array.from({length:count},(_,i)=>({id:String(i),name:`참가자${i}`}));
   const html=renderToStaticMarkup(createElement(ClubBriefing,{kind,setup:{mode:'duel',digits:3,obstacles:false},players:roster,isHost:true,onAction:action,onStart:noop}));
-  const mode=html.match(/<button[^>]*>1대1<\/button>/)[0];
+  const mode=kind==='number-baseball'?html.match(/<button[^>]*data-mode="duel"[^>]*>/)[0]:html.match(/<button[^>]*>1대1<\/button>/)[0];
   const start=html.match(/<button[^>]*>게임 시작<\/button>/)[0];
   assert.equal(mode.includes('disabled'),count!==2);
   assert.equal(start.includes('disabled'),count!==2);
  }
- const state=createClub('number-baseball',['a','b'],{mode:'duel'});state.finished=true;state.ranking=[['a'],['b']];
+ const state=createClub('number-baseball',['a','b'],{mode:'duel'});state.finished=true;state.ranking=[['a'],['b']];state.winners=['a','b'];state.baseball.phase='play';
  const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));
- assert.match(html,/>1대1</);assert.match(html,/>무승부</);
+ assert.match(html,/>1대1 대결</);assert.match(html,/>무승부</);
 });
 test('five circular obstacle medallions match collision geometry',()=>{
  const state=createClub('alkkagi',ids,{mode:'team',redIds:['a','c'],obstacles:true});

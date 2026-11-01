@@ -1,4 +1,5 @@
 import { initialDiscs, simulateShot, type Disc } from './club-physics';
+import { baseballAction, baseballInputter, baseballView, scoreNumbers, type BaseballState, type BaseballView } from './club-baseball';
 import { renjuMove } from './renju';
 export const CLUB_IDS = ['gomoku', 'alkkagi', 'number-baseball'] as const;
 export type ClubId = typeof CLUB_IDS[number];
@@ -7,8 +8,8 @@ export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; d
 export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, obstacles: false });
 export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
-export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[] };
-export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'processed'> & { submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
+export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[]; baseball?: BaseballState };
+export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'processed' | 'baseball'> & { baseball?: BaseballView; submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [result[i], result[j]] = [result[j], result[i]]; }
@@ -32,6 +33,7 @@ export function createClub(kind: ClubId, players: string[], input: Partial<ClubS
   const first = sameRoster ? 1 - previous.first : 0;
   const state: ClubState = { id: crypto.randomUUID(), kind, setup, players, teams, first, matches: [], stage: 0, finished: false, ranking: [], secret: kind === 'number-baseball' ? shuffle('123456789'.split('')).slice(0, setup.digits).join('') : '', round: 1, pending: {}, histories: {}, winners: [], processed: [] };
   if (kind !== 'number-baseball') state.matches = setup.mode === 'duel' ? [newMatch('duel', '1대1', teams, first)] : setup.mode === 'team' ? [newMatch('team', '2대2 팀전', teams, first)] : [newMatch('semi-1', '준결승 1', [[ordered[0]], [ordered[1]]], first), newMatch('semi-2', '준결승 2', [[ordered[2]], [ordered[3]]], first)];
+  if(kind==='number-baseball')state.baseball={version:2,phase:setup.mode==='individual'?'play':'setup',secrets:{},turn:0};
   state.matches.forEach(m => blackStarts(m, kind));
   return state;
 }
@@ -45,14 +47,13 @@ export function hasFive(board: number[], cell: number, color: number) {
     return n >= 5;
   });
 }
-export function judge(secret: string, value: string) { let strikes=0,balls=0; for(let i=0;i<value.length;i++) { if(value[i]===secret[i]) strikes++; else if(secret.includes(value[i])) balls++; } return {strikes,balls}; }
+export const judge = scoreNumbers;
 export function clubKey(s: ClubState, viewer?: string) { if (!viewer || !s.players.includes(viewer)) return undefined; return s.setup.mode==='team' ? `team-${s.teams.findIndex(t=>t.includes(viewer))}` : viewer; }
-function keys(s: ClubState) { return s.setup.mode==='team' ? ['team-0','team-1'] : s.players; }
-export function baseballActor(s: ClubState, key: string) { return s.setup.mode === 'team' ? s.teams[Number(key.slice(-1))][(s.round-1)%2] : key; }
+export const baseballActor = baseballInputter;
 export function clubClientState(s: ClubState, viewer?: string): ClubView {
   // Explicit allowlist: never serialize the secret, guesses in flight, or opponents' histories.
   const key = clubKey(s,viewer);
-  return { id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
+  return { id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,baseball:baseballView(s,viewer),submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
 }
 function progress(s: ClubState) {
   if (!s.matches.every(m=>m.winner!==undefined)) return;
@@ -68,18 +69,7 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
   if(s.processed.includes(requestId)) return;
   if(s.finished || s.paused?.length) throw new Error(s.paused?.length?'참가자의 복귀를 기다리고 있어요.':'경기가 끝났어요.');
   if(s.kind==='number-baseball') {
-    const key=clubKey(s,player)!;
-    if(p.round!==s.round || p.action!=='club-guess') throw new Error('현재 라운드를 확인해 주세요.');
-    if(baseballActor(s,key)!==player) throw new Error('이번 라운드 입력 담당이 아니에요.');
-    if(s.pending[key]) throw new Error('이미 제출했어요.');
-    const value=String(p.value??'');
-    if(!/^[1-9]+$/.test(value)||value.length!==s.setup.digits||new Set(value).size!==value.length) throw new Error('중복 없이 1~9 숫자를 입력해 주세요.');
-    s.pending[key]=value;
-    if(keys(s).every(k=>s.pending[k])) {
-      const winners:string[]=[];
-      for(const k of keys(s)) { const value=s.pending[k], result=judge(s.secret,value); (s.histories[k]??=[]).push({round:s.round,value,...result});if(result.strikes===s.setup.digits)winners.push(k); }
-      s.pending={};if(winners.length){s.finished=true;s.winners=winners;s.ranking=winners.map(k=>s.setup.mode==='team'?s.teams[Number(k.slice(-1))]:[k]);}else s.round++;
-    }
+    baseballAction(s,player,p);
   } else {
     const m=s.matches.find(m=>m.id===p.matchId); if(!m)throw new Error('경기를 다시 선택해 주세요.');
     if(p.attempt!==m.attempt || p.turn!==m.turn)throw new Error('차례가 바뀌었어요.');

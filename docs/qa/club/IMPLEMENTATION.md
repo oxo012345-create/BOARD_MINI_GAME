@@ -81,3 +81,15 @@
 - 실제 브라우저 393×664, 320×740 확인: 알까기 흑→백→흑 턴 전환 및 충돌, 오목 10수 후 I9 등 삼삼 X 표시, X 터치 시 선택/착수 불가. 가로 넘침 없음, 브라우저 콘솔 오류 없음. 증거는 ignored artifacts/club/alkkagi-circular-obstacles.png 및 renju-forbidden-mobile.png.
 - lint 오류 0 (기존 경고 39), build 성공. 전체 tsc는 기존 maze/frontier-beans/Cloudflare 타입 오류로 실패, 이번 변경 파일 오류 없음. 실제 휴대폰 하드웨어 검수는 미실시.
 - 기존 한판 게임·공용 방 API·DB/배포 설정은 변경하지 않음.
+
+## 2026-11-01 숫자야구 재구성 및 세 게임 세로 한 화면 플레이
+
+- 숫자야구 UI/게임 전체를 재구성. GitHub celaldrg/bulls-and-cows의 숫자 키패드·메모·판정 기록 구성, RomeoGolf/bulls-cows의 상대 비밀 숫자/교대 추리/후공 동등 기회 방식을 참고해 독립 구현(외부 코드 복사 없음).
+- 새 1대1/2대2는 각 편이 3/4자리 비밀 숫자를 확정한 후 상대 숫자를 교대로 추리. 팀 입력 담당은 라운드마다 교대. 선공 정답 후 후공도 한 번 추리하여 동점 가능. 4인 개인전은 공통 정답을 동시에 추리하고 전원 제출 후 판정, 같은 라운드 정답자는 공동 승리.
+- 비밀 숫자는 서버에 보관, 자기 편 숫자/기록만 전달. 상대 정답은 종료 시 공개. 잘못된 순서·과거 턴·중복 추리·확정 변경 차단. 기존 저장된 숫자야구는 종료까지 기존 동시 제출 방식 유지, 새 경기부터 v2 적용.
+- 모바일 참고 화면 직접 확인: https://lichess.org/analysis (큰 판과 바로 아래 도구), https://celaldrg.github.io/bulls-and-cows/ (2행 숫자 키패드). https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/length 의 dvh 사용. 모바일 주소창 변화·safe-area에 맞춰 화면 높이 사용.
+- 오목·알까기·숫자야구의 준비/플레이 화면만 100dvh 세로 레이아웃으로 변경. 판은 남은 높이에 맞춰 축소, 착수·숫자 입력·제출은 항상 화면 안에 배치. 숫자야구 전체 기록은 3개씩 페이지 버튼으로 이동, 규칙·메모·비밀 숫자는 닫을 수 있는 dialog. 사용자 요청에 따라 가로 전용 배치는 제거하고 세로 화면 기준으로 제공.
+- 원래 한판 색상, 다른 게임, 기존 오목 렌주/금수 X와 알까기 즉시 예측 재생·원형 장애물, 인원 제한·타이머 없음 유지. 공용 방 API·DB·호스팅 바인딩 변경 없음.
+- 검증: 규칙/렌주/재생/방 API/SSR 35개와 실제 로컬 HTTP 2개 통과. 두 브라우저에서 비밀 숫자 설정, 번갈아 입력, 후공 동점 종료/공개, 메모 재접속 유지 확인. 4인 개인전 4자리 입력 및 팀 설정 확인. 오목 중앙 착수 후 상대 차례, 알까기 드래그→충돌/탈락→다음 차례 확인.
+- 320×568, 393×664, 393×852 브라우저 세로 viewport 검수. 작은 화면에서 document scrollHeight = innerHeight 및 하단 버튼 영역이 viewport 내부임을 확인. lint 오류 0(기존 경고 39), build 성공, 브라우저 console 오류 없음. 실물 휴대폰 하드웨어 검수는 미실시. 증거: ignored artifacts/club/baseball-v2-game.png, baseball-v2-mobile.png, gomoku-no-scroll.png, alkkagi-no-scroll.png.
+- 기존 비밀 유출 테스트의 UUID 부분 문자열 오탐을 정확한 JSON 문자열 값 비교로 수정.

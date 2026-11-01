@@ -29,7 +29,8 @@ test('duels enforce live room count at selection and start, then play with two s
   r=await call(host,{action:'start-game',gameId});assert.equal(r.status,200);let s=r.room.game.club;
   assert.equal(s.setup.mode,'duel');assert.equal(s.players.length,2);assert.equal(r.room.game.deadline,undefined);
   if(gameId==='number-baseball'){
-   for(const p of clients){r=await call(p,{action:'club-guess',clubId:s.id,requestId:crypto.randomUUID(),round:1,value:'123'});assert.equal(r.status,200);}
+   for(const p of clients){r=await call(p,{action:'club-secret',clubId:s.id,requestId:crypto.randomUUID(),value:'123'});assert.equal(r.status,200);s=r.room.game.club;}
+   for(let t=0;t<2;t++){const p=clients.find(c=>c.id===s.baseball.activeKey);r=await call(p,{action:'club-guess',clubId:s.id,requestId:crypto.randomUUID(),round:1,turn:t,value:'456'});assert.equal(r.status,200);s=r.room.game.club;}
    assert.equal(r.room.game.club.history.length,1);
   }else{
    assert.equal(s.matches.length,1);
@@ -136,6 +137,17 @@ test('four HTTP clients complete tournaments, alternate teams, restore seats, an
   for (let a = 1; a <= 9; a++) for (let b = 1; b <= 9; b++) for (let c = 1; c <= 9; c++) if (new Set([a, b, c]).size === 3) candidates.push(`${a}${b}${c}`);
   for (const mode of ['individual', 'team']) {
     s = await start('number-baseball', { mode, digits: 3, redIds: [clients[0].id, clients[2].id] });
+    if(mode==='team'){
+      for(const key of ['team-0','team-1'])s=(await send(client(s.teams[Number(key.slice(-1))][0]),{action:'club-secret',clubId:s.id,requestId:crypto.randomUUID(),value:'123'})).game.club;
+      const order=[];
+      for(let t=0;t<4;t++){
+        const p=client(s.teams[Number(s.baseball.activeKey.slice(-1))][Math.floor(t/2)]);order.push(p.id);
+        s=(await send(p,{action:'club-guess',clubId:s.id,requestId:crypto.randomUUID(),round:s.round,turn:t,value:t<2?'456':'123'})).game.club;
+        assert.equal('secrets' in s.baseball,false);
+        if(t<3)assert.equal(s.baseball.revealed,undefined);
+      }
+      assert.equal(new Set(order).size,4);assert.equal(s.finished,true);assert.equal(s.winners.length,2);continue;
+    }
     let pool = [...candidates];
     for (let attempt = 0; attempt < 20 && !s.finished; attempt++) {
       const guess = pool[0]; assert.ok(guess);
