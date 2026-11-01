@@ -1,54 +1,28 @@
-/** Deterministic server-side disc physics. Coordinates use a 600 × 600 board.
- * Fixed 120 Hz integration, equal-mass elastic impulses and static obstacles.
- * No client-provided positions or simulation results are accepted. */
-export type Disc = { id: number; side: number; x: number; y: number; vx: number; vy: number; alive: boolean };
-export type Barrier = { x: number; y: number; w: number; h: number };
-export const DISC_RADIUS = 19;
-export const BARRIERS: Barrier[] = [{ x: 270, y: 190, w: 60, h: 35 }, { x: 270, y: 375, w: 60, h: 35 }];
-export function initialDiscs(): Disc[] {
-  return [0, 1].flatMap(side => Array.from({ length: 5 }, (_, i) => ({ id: side * 5 + i, side, x: 100 + i * 100, y: side ? 485 : 115, vx: 0, vy: 0, alive: true })));
-}
-export function simulateShot(input: Disc[], id: number, dx: number, dy: number, obstacles: boolean) {
-  if (![dx, dy].every(Number.isFinite) || Math.hypot(dx, dy) < 3 || Math.hypot(dx, dy) > 181) throw new Error('힘을 다시 조절해 주세요.');
-  const discs = structuredClone(input);
-  const selected = discs.find(d => d.id === id && d.alive);
-  if (!selected) throw new Error('돌을 다시 선택해 주세요.');
-  selected.vx = dx * 5; selected.vy = dy * 5;
-  const frames: Disc[][] = [structuredClone(discs)];
-  for (let step = 0; step < 1200; step++) {
-    for (const d of discs) {
-      if (!d.alive) continue;
-      d.x += d.vx / 120; d.y += d.vy / 120;
-      d.vx *= .984; d.vy *= .984;
-      if (d.x < 0 || d.x > 600 || d.y < 0 || d.y > 600) { d.alive = false; d.vx = d.vy = 0; continue; }
-      for (const b of obstacles ? BARRIERS : []) {
-        const nx = Math.max(b.x, Math.min(d.x, b.x + b.w));
-        const ny = Math.max(b.y, Math.min(d.y, b.y + b.h));
-        const ex = d.x - nx, ey = d.y - ny, distance = Math.hypot(ex, ey);
-        if (distance > 0 && distance < DISC_RADIUS) {
-          const ux = ex / distance, uy = ey / distance;
-          d.x += ux * (DISC_RADIUS - distance); d.y += uy * (DISC_RADIUS - distance);
-          const vn = d.vx * ux + d.vy * uy;
-          if (vn < 0) { d.vx -= 1.84 * vn * ux; d.vy -= 1.84 * vn * uy; }
-        }
-      }
-    }
-    for (let i = 0; i < discs.length; i++) for (let j = i + 1; j < discs.length; j++) {
-      const a = discs[i], b = discs[j]; if (!a.alive || !b.alive) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, distance = Math.hypot(dx, dy);
-      if (distance >= DISC_RADIUS * 2) continue;
-      const nx = distance ? dx / distance : 1, ny = distance ? dy / distance : 0;
-      const overlap = (DISC_RADIUS * 2 - distance) / 2 + .001;
-      a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
-      const approach = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-      if (approach > 0) { const impulse = approach * .94; a.vx -= impulse * nx; a.vy -= impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny; }
-    }
-    // Resolve removals even when separation impulses moved a centre off-board.
-    for (const d of discs) if (d.alive && (d.x < 0 || d.x > 600 || d.y < 0 || d.y > 600)) { d.alive = false; d.vx = d.vy = 0; }
-    if (step % 12 === 0) frames.push(structuredClone(discs));
-    if (discs.every(d => !d.alive || Math.hypot(d.vx, d.vy) < 1)) break;
-  }
-  for (const d of discs) { d.vx = 0; d.vy = 0; }
-  frames.push(structuredClone(discs));
-  return { discs, frames };
+import Matter from './vendor/matter.mjs';
+export type Disc = { id:number; side:number; x:number; y:number; vx:number; vy:number; alive:boolean };
+export type Barrier = { x:number; y:number; w:number; h:number };
+export const DISC_RADIUS=18*600/560, MAX_PULL=130*600/560, FRAME_MS=50;
+export const BARRIERS:Barrier[]=[{x:270,y:190,w:60,h:35},{x:270,y:375,w:60,h:35}];
+export function initialDiscs():Disc[]{return [0,1].flatMap(side=>Array.from({length:5},(_,i)=>({id:side*5+i,side,x:(95+i*92)*600/560,y:(side?120:440)*600/560,vx:0,vy:0,alive:true})));}
+/** Original Hansu Matter.js 0.20 simulation scaled from 560 to 600 units.
+ * Server authority is preserved. Clients interpolate real-time snapshots. */
+export function simulateShot(input:Disc[],id:number,dx:number,dy:number,obstacles:boolean){
+ const length=Math.hypot(dx,dy);
+ if(![dx,dy].every(Number.isFinite)||length<3||length>181)throw new Error('힘을 다시 조절해 주세요.');
+ const discs=structuredClone(input);
+ const engine=Matter.Engine.create({gravity:{x:0,y:0,scale:0},enableSleeping:false});
+ const bodies=new Map(discs.filter(d=>d.alive).map(d=>[d.id,Matter.Bodies.circle(d.x,d.y,DISC_RADIUS,{restitution:.86,friction:0,frictionAir:.025,density:.003,slop:.01})]));
+ const selected=bodies.get(id);if(!selected)throw new Error('돌을 다시 선택해 주세요.');
+ Matter.Composite.add(engine.world,[...bodies.values(),...(obstacles?BARRIERS.map(b=>Matter.Bodies.rectangle(b.x+b.w/2,b.y+b.h/2,b.w,b.h,{isStatic:true,restitution:.86,friction:0})):[])]);
+ const power=Math.min(length,MAX_PULL)/5;
+ Matter.Body.setVelocity(selected,{x:dx/length*power,y:dy/length*power});
+ const frames:Disc[][]=[structuredClone(discs)];let settled=0;
+ for(let step=1;step<=1440;step++){
+  Matter.Engine.update(engine,1000/120);
+  for(const d of discs){const b=bodies.get(d.id);if(!d.alive||!b)continue;d.x=b.position.x;d.y=b.position.y;d.vx=b.velocity.x;d.vy=b.velocity.y;if(d.x<0||d.x>600||d.y<0||d.y>600){d.alive=false;d.vx=d.vy=0;Matter.Composite.remove(engine.world,b);}}
+  settled=discs.every(d=>!d.alive||Math.hypot(d.vx,d.vy)<.12*600/560)?settled+1:0;
+  if(step%6===0){frames.push(discs.map(d=>({...d,x:+d.x.toFixed(3),y:+d.y.toFixed(3)})));if(settled>19)break;}
+ }
+ for(const d of discs){d.vx=0;d.vy=0;}frames[frames.length-1]=structuredClone(discs);
+ Matter.Composite.clear(engine.world,false);Matter.Engine.clear(engine);return {discs,frames};
 }

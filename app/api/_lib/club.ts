@@ -4,7 +4,7 @@ export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
 export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4; obstacles: boolean; redIds?: string[] };
 export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, obstacles: false });
-export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number };
+export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
 export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[] };
 export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'processed'> & { submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
@@ -87,14 +87,14 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
         Object.assign(m,newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1));
         // Optional terminal/animation fields are absent from a fresh match;
         // Object.assign alone would leave the previous draw permanently active.
-        delete m.draw; delete m.winner; delete m.frames; delete m.shot;
+        delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.lastMove;
       }
     }else{
       if(m.winner!==undefined||m.draw||matchActor(m)!==player)throw new Error('현재 차례가 아니에요.');
       const side=matchSide(m);
       if(s.kind==='gomoku' && p.action==='club-place') {
         const cell=Number(p.cell);if(!Number.isInteger(cell)||cell<0||cell>=225||m.board[cell])throw new Error('빈 교차점을 선택해 주세요.');
-        m.board[cell]=side+1;if(hasFive(m.board,cell,side+1))m.winner=side;else if(m.board.every(Boolean))m.draw=true;
+        m.board[cell]=side+1;m.lastMove=cell;if(hasFive(m.board,cell,side+1))m.winner=side;else if(m.board.every(Boolean))m.draw=true;
       }else if(s.kind==='alkkagi' && p.action==='club-shot'){
         const disc=m.discs.find(d=>d.id===p.discId&&d.alive&&d.side===side);if(!disc)throw new Error('우리 팀 돌을 선택해 주세요.');
         const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;
