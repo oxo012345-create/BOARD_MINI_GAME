@@ -1,4 +1,5 @@
 /* New club screens inherit Hanpan's dark palette; no shared game styles change. */
+body:has(.club-shell) { min-width: 0; }
 .club-shell { max-width: 540px; padding-bottom: max(24px, env(safe-area-inset-bottom)); color: var(--text); }
 .club-shell button { touch-action: manipulation; }
 .club-shell > .topbar { margin-bottom: 16px; }
