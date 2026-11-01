@@ -1,4 +1,4 @@
-import { readExistingClubRoom, toClientRoom, writeRoomIfRevision } from '../../../_lib/rooms';
+import { submitIndividualClub, readExistingClubRoom, toClientRoom, writeRoomIfRevision } from '../../../_lib/rooms';
 import { authenticatePlayer } from '../../../_lib/session';
 import { commitClubAction, isFastClub } from '../../../_lib/club-fast';
 import { tickSurprise } from '../../../_lib/surprise';
@@ -16,7 +16,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const viewer = await authenticatePlayer(request, room);
     if (!viewer) return Response.json({ error: '방에 다시 참가해 주세요.' }, { status: 401 });
     if (!isFastClub(room.game?.id)) return Response.json({ error: '진행 중인 경기가 없어요.' }, { status: 409 });
-    const result = await commitClubAction(room, viewer.id, viewer.sessionHash, payload, { read: readExistingClubRoom, write: writeRoomIfRevision, tick: tickSurprise });
+    const result = await commitClubAction(room, viewer.id, viewer.sessionHash, payload, { read: readExistingClubRoom, write: writeRoomIfRevision, tick: tickSurprise, submitIndividual: submitIndividualClub });
     return result.room ? Response.json({ room: toClientRoom(result.room, viewer.id) }) : Response.json({ error: result.error, code: result.code }, { status: result.status });
   } catch {
     return Response.json({ error: '입력을 처리하지 못했어요. 다시 시도해 주세요.' }, { status: 500 });

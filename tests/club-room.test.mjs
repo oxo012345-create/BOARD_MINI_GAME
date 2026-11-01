@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
+import { DatabaseSync } from 'node:sqlite';
 // Exercise the actual room handlers/session cookies/serializer. Only D1's
 // atomic compare-and-swap is substituted; this is not a real Worker/browser test.
 const states=new Map();
@@ -11,7 +12,7 @@ globalThis.__clubTestEnv={DB:{prepare(sql){let args=[];return{bind(...a){args=a;
  if(sql.startsWith('UPDATE rooms')){const old=JSON.parse(states.get(args[1]));if(args.length===3&&old.revision!==args[2]){conflicts++;return{meta:{changes:0}};}states.set(args[1],args[0]);return{meta:{changes:1}};}
  if(sql.startsWith('DELETE FROM rooms WHERE code'))states.delete(args[0]);
  return{meta:{changes:0}};
- },async first(){if(sql.startsWith('INSERT INTO rate_limits'))return{count:1,reset_at:Math.floor(Date.now()/1000)+60};if(sql.startsWith('SELECT state'))return states.has(args[0])?{state:states.get(args[0])}:null;throw new Error('Unhandled test SQL '+sql);}};}}};
+ },async first(){if(sql.startsWith('WITH incoming')){const db=new DatabaseSync(':memory:');try{db.exec('CREATE TABLE rooms(code TEXT PRIMARY KEY,state TEXT,updated_at TEXT)');for(const [code,state] of states)db.prepare('INSERT INTO rooms(code,state) VALUES(?,?)').run(code,state);const row=db.prepare(sql).get(...args);if(row)states.set(args[0],row.state);return row??null;}finally{db.close();}}if(sql.startsWith('INSERT INTO rate_limits'))return{count:1,reset_at:Math.floor(Date.now()/1000)+60};if(sql.startsWith('SELECT state'))return states.has(args[0])?{state:states.get(args[0])}:null;throw new Error('Unhandled test SQL '+sql);}};}}};
 registerHooks({resolve(specifier,context,next){if(specifier==='cloudflare:workers')return{url:'data:text/javascript,export const env = globalThis.__clubTestEnv;',shortCircuit:true};return next(specifier,context);}});
 const { POST }=await import('../app/api/rooms/route.ts');
 const { PATCH,GET }=await import('../app/api/rooms/[code]/route.ts');

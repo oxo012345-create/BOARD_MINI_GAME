@@ -1,4 +1,5 @@
 import { clubClientState } from "./club";
+import { INDIVIDUAL_SUBMISSION_SQL, individualSubmissionArgs } from './club-submit';
 import { env } from "cloudflare:workers";
 import { assignedTelestrationChain, type GameRound } from "./rounds";
 import { clientSurprise, type SurpriseState } from "./surprise";
@@ -337,6 +338,12 @@ export async function readClubUpdate(code: string, knownRevision: number) {
     CASE WHEN CAST(COALESCE(json_extract(state, '$.revision'), 0) AS INTEGER) > ? THEN state ELSE NULL END AS state
     FROM rooms WHERE code = ?`).bind(knownRevision, code).first<{ revision: number; state: string | null }>();
   return row ? { revision: Number(row.revision), room: row.state ? JSON.parse(row.state) as RoomState : undefined } : null;
+}
+
+export async function submitIndividualClub(room: RoomState, viewerId: string, sessionHash: string, payload: Record<string, unknown>) {
+  const club=(room.game as GameRound).club!;
+  const row=await getD1().prepare(INDIVIDUAL_SUBMISSION_SQL).bind(...individualSubmissionArgs(room.code,club,viewerId,sessionHash,payload)).first<RoomRow>();
+  return row ? JSON.parse(row.state) as RoomState : null;
 }
 
 export async function createRoom(state: RoomState) {

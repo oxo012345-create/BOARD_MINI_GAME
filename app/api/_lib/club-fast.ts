@@ -1,6 +1,7 @@
 import { clubAction } from './club';
 import type { RoomState } from './rooms';
 import type { GameRound } from './rounds';
+import { canMergeIndividual } from './club-submit';
 
 export const isFastClub = (id: unknown) => id === 'number-baseball' || id === 'alkkagi';
 
@@ -8,7 +9,7 @@ export const isFastClub = (id: unknown) => id === 'number-baseball' || id === 'a
  * Revalidate the session, game and turn against every fresh snapshot. */
 export async function commitClubAction(
   initial: RoomState, viewerId: string, sessionHash: string, payload: Record<string, unknown>,
-  io: { read: (code: string) => Promise<RoomState | null>; write: (room: RoomState, revision: number) => Promise<boolean>; tick: (room: RoomState) => unknown },
+  io: { read: (code: string) => Promise<RoomState | null>; write: (room: RoomState, revision: number) => Promise<boolean>; tick: (room: RoomState) => unknown; submitIndividual?: (room: RoomState, viewerId: string, sessionHash: string, payload: Record<string, unknown>) => Promise<RoomState | null> },
 ) {
   let room: RoomState | null = initial;
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -19,6 +20,14 @@ export async function commitClubAction(
     if (!isFastClub(game?.id) || !game?.club || !['game', 'result'].includes(room.view)) return { status: 409, error: '진행 중인 경기가 없어요.' };
     const revision = room.revision ?? 0;
     const alreadyApplied = game.club.id === payload.clubId && game.club.processed.includes(String(payload.requestId ?? ''));
+    if (io.submitIndividual && payload.action==='club-guess' && canMergeIndividual(game.club) && !alreadyApplied) {
+      try { clubAction(structuredClone(game.club), viewer.id, payload); }
+      catch (error) { return { status: 422, error: error instanceof Error ? error.message : '입력을 확인해 주세요.' }; }
+      const merged = await io.submitIndividual(room, viewer.id, sessionHash, payload);
+      if (merged) return { status: 200, room: merged };
+      room = await io.read(room.code);
+      continue;
+    }
     try { clubAction(game.club, viewer.id, payload); }
     catch (error) { return { status: 422, error: error instanceof Error ? error.message : '입력을 확인해 주세요.' }; }
     if (alreadyApplied) return { status: 200, room };

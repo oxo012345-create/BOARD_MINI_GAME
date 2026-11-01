@@ -51,6 +51,6 @@ export function baseballAction(s:ClubState,player:string,p:Record<string,unknown
   }else if(baseballKeys(s).every(k=>s.pending[k])){
     const winners:string[]=[];
     for(const k of baseballKeys(s)){const guess=s.pending[k],result=scoreNumbers(s.secret,guess);(s.histories[k]??=[]).push({round:s.round,value:guess,...result});if(result.strikes===s.setup.digits)winners.push(k);}
-    s.pending={};if(winners.length)finish(s,winners);else s.round++;
+    s.pending={};s.pendingResults={};if(winners.length)finish(s,winners);else s.round++;
   }
 }
