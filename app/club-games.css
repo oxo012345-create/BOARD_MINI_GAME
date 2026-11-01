@@ -1,1 +1,49 @@
-.club-shell{--club-green:#214e3e;max-width:540px;padding-bottom:max(28px,env(safe-area-inset-bottom));color:#233c30}.club-shell button{touch-action:manipulation}.club-panel{background:#fffdf6;border:1px solid #d9dfd1;border-radius:20px;padding:18px;margin:14px 0}.club-panel h2{font-size:21px;margin:0 0 16px}.club-panel h3{font-size:16px;margin:22px 0 10px}.club-panel p{font-size:14px;line-height:1.6}.club-options{display:flex;gap:8px;flex-wrap:wrap}.club-options>button,.club-toggle,.club-match-tabs button{border:1px solid #bbc9bb;background:#f3f5ee;color:#294538;border-radius:12px;padding:12px 14px;font:inherit;min-height:44px;flex:1}.club-options button[aria-pressed=true],.club-toggle[aria-pressed=true],.club-match-tabs button[aria-pressed=true]{background:#214e3e;color:white;border-color:#214e3e}.club-shell button:disabled{opacity:.48}.club-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:16px}.club-teams label{display:flex;gap:5px;align-items:center;min-height:44px;font-size:14px;overflow-wrap:anywhere}.club-mode{text-align:center;font-size:13px;font-weight:700;margin:4px 0 12px}.club-team-banner,.club-match-info{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:13px;background:#f2f3e9;padding:12px;border-radius:12px;overflow-wrap:anywhere}.club-team-banner span,.club-match-info span{max-width:100%}.club-match-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}.club-match-tabs button{font-size:12px;padding:8px;min-width:65px}.club-turn{text-align:center;font-size:19px;margin:15px 0}.club-gomoku{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));aspect-ratio:1;background:#dfb77c;border:9px solid #ba8d55;border-radius:8px;margin:12px 0;box-shadow:0 5px 15px #3b362326;overflow:hidden}.club-gomoku button{min-width:0;padding:0;border:0;border-radius:0;position:relative;display:grid;place-items:center;background:linear-gradient(to right,transparent calc(50% - .5px),#926e40 calc(50% - .5px),#926e40 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(to bottom,transparent calc(50% - .5px),#926e40 calc(50% - .5px),#926e40 calc(50% + .5px),transparent calc(50% + .5px))}.club-gomoku button:disabled{opacity:1}.club-stone{width:85%;height:85%;border-radius:50%;display:block;pointer-events:none}.club-stone.color-1{background:radial-gradient(circle at 35% 30%,#ef8570,#a72d2a);box-shadow:1px 2px 2px #3d282966}.club-stone.color-2{background:radial-gradient(circle at 35% 30%,#a1cdf6,#22578b);box-shadow:1px 2px 2px #3d282966}.club-stone.preview-1,.club-stone.preview-2{border:2px dashed #fff;background:#214e3e88}.club-disc-board{display:block;width:100%;height:auto;aspect-ratio:1;touch-action:none;border-radius:12px;box-shadow:0 5px 15px #3b362326}.club-submitted{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}.club-submitted span{padding:6px 8px;border-radius:8px;background:#edf1e7;font-size:12px}.club-panel form{display:grid;gap:12px}.club-panel input.text-field{text-align:center;font-size:28px;letter-spacing:8px;width:100%;min-width:0}.club-history{max-height:40vh;overflow:auto}.club-history>div{display:grid;grid-template-columns:50px 1fr 1fr;padding:12px 0;border-bottom:1px solid #e2e6d9}.club-history b{letter-spacing:4px}.club-error{color:#a93027;min-height:20px}.club-paused{background:#fff0cd;padding:12px;border-radius:10px}.club-result p{font-size:18px}.club-shell .button{min-height:46px}.club-shell :focus-visible{outline:3px solid #db8b2e;outline-offset:2px}@media(max-width:350px){.club-panel{padding:13px}.club-gomoku{border-width:5px}.club-turn{font-size:17px}.club-options>button{padding:10px;font-size:14px}}
+/* New club screens inherit Hanpan's dark palette; no shared game styles change. */
+.club-shell { max-width: 540px; padding-bottom: max(24px, env(safe-area-inset-bottom)); color: var(--text); }
+.club-shell button { touch-action: manipulation; }
+.club-shell > .topbar { margin-bottom: 16px; }
+.club-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px; margin: 14px 0; }
+.club-panel h2 { font-size: 21px; margin: 0 0 16px; }
+.club-panel h3 { font-size: 16px; margin: 22px 0 10px; }
+.club-panel p { color: #b9c0c9; font-size: 14px; line-height: 1.6; }
+.club-panel [role=alert] { color: var(--danger); }
+.club-shell [role=alert]:empty { display: none; }
+.club-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.club-options > button, .club-toggle, .club-match-tabs button { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 12px; padding: 12px 14px; font: inherit; font-weight: 700; min-height: 44px; flex: 1; cursor: pointer; }
+.club-options button[aria-pressed=true], .club-toggle[aria-pressed=true], .club-match-tabs button[aria-pressed=true] { background: #d9ff5718; color: var(--accent); border-color: var(--accent); }
+.club-shell button:disabled { opacity: .48; cursor: default; }
+.club-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; }
+.club-teams label { display: flex; gap: 5px; align-items: center; min-height: 44px; font-size: 14px; overflow-wrap: anywhere; }
+.club-teams input { accent-color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; }
+.club-mode { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .03em; margin: 4px 0 12px; }
+.club-team-banner, .club-match-info { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 13px; background: var(--panel); border: 1px solid var(--line); padding: 12px; border-radius: 12px; overflow-wrap: anywhere; }
+.club-team-banner span, .club-match-info span { max-width: 100%; }
+.club-match-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.club-match-tabs button { font-size: 12px; padding: 8px; min-width: 65px; }
+.club-turn { text-align: center; font-size: 19px; margin: 16px 0; }
+.club-gomoku { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); grid-template-rows: repeat(15, minmax(0, 1fr)); aspect-ratio: 1; background: #dfb77c; border: 9px solid #ba8d55; border-radius: 8px; margin: 12px 0; box-shadow: 0 5px 15px #0006; overflow: hidden; }
+.club-gomoku button { min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 0; position: relative; display: grid; place-items: center; background: linear-gradient(to right, transparent calc(50% - .5px), #926e40 calc(50% - .5px), #926e40 calc(50% + .5px), transparent calc(50% + .5px)), linear-gradient(to bottom, transparent calc(50% - .5px), #926e40 calc(50% - .5px), #926e40 calc(50% + .5px), transparent calc(50% + .5px)); }
+.club-gomoku button:disabled { opacity: 1; }
+.club-stone { width: 85%; height: 85%; border-radius: 50%; display: block; pointer-events: none; }
+.club-stone.color-1 { background: radial-gradient(circle at 35% 30%, #ef8570, #a72d2a); box-shadow: 1px 2px 2px #3d282966; }
+.club-stone.color-2 { background: radial-gradient(circle at 35% 30%, #a1cdf6, #22578b); box-shadow: 1px 2px 2px #3d282966; }
+.club-stone.preview-1, .club-stone.preview-2 { border: 2px dashed #fff; background: #214e3e88; }
+.club-disc-board { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; border-radius: 12px; box-shadow: 0 5px 15px #0006; }
+.club-submitted { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.club-submitted span { padding: 6px 8px; border-radius: 8px; background: var(--panel-2); font-size: 12px; }
+.club-panel form { display: grid; gap: 12px; }
+.club-panel input.text-field { text-align: center; font-size: 28px; letter-spacing: 8px; width: 100%; min-width: 0; }
+.club-history { max-height: 40vh; overflow: auto; }
+.club-history > div { display: grid; grid-template-columns: 50px 1fr 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.club-history b { letter-spacing: 4px; }
+.club-error { color: var(--danger); }
+.club-paused { color: #ffe1a1; background: #49391c; padding: 12px; border-radius: 10px; }
+.club-result p { font-size: 18px; color: var(--text); }
+.club-shell .button { min-height: 46px; }
+.club-shell :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 350px) {
+  .club-panel { padding: 13px; }
+  .club-gomoku { border-width: 5px; }
+  .club-turn { font-size: 17px; }
+  .club-options > button { padding: 10px; font-size: 14px; }
+}
