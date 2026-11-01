@@ -91,7 +91,7 @@ test('four HTTP clients complete tournaments, alternate teams, restore seats, an
   async function win(matchId) {
     for (let turn = 0; turn < 9; turn++) {
       const s = (await read(host)).game.club, m = s.matches.find(m => m.id === matchId);
-      await send(actor(m), payload(s, m, 'club-place', { cell: turn % 2 ? 30 + Math.floor(turn / 2) : Math.floor(turn / 2) }));
+      await send(actor(m), payload(s, m, 'club-place', { cell: turn % 2 ? 127 + Math.floor(turn / 2) : 112 + Math.floor(turn / 2) }));
     }
   }
   await Promise.all(tournament.matches.map(m => win(m.id)));
@@ -106,8 +106,8 @@ test('four HTTP clients complete tournaments, alternate teams, restore seats, an
   for (let turn = 0; turn < 4; turn++) {
     const m = s.matches[0], p = actor(m); ordered.push(p.id);
     const wrong = clients.find(c => c.id !== p.id);
-    assert.equal((await request(wrong, payload(s, m, 'club-place', { cell: turn }))).status, 422);
-    s = (await send(p, payload(s, m, 'club-place', { cell: turn }))).game.club;
+    assert.equal((await request(wrong, payload(s, m, 'club-place', { cell: 112+turn }))).status, 422);
+    s = (await send(p, payload(s, m, 'club-place', { cell: 112+turn }))).game.club;
   }
   assert.equal(new Set(ordered).size, 4);
   assert.equal((await read(clients[2])).game.club.matches[0].turn, 4);

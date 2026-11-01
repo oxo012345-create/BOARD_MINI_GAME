@@ -1,4 +1,5 @@
 import { initialDiscs, simulateShot, type Disc } from './club-physics';
+import { renjuMove } from './renju';
 export const CLUB_IDS = ['gomoku', 'alkkagi', 'number-baseball'] as const;
 export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
@@ -18,6 +19,7 @@ export function cleanClubSetup(kind: ClubId, value: Partial<ClubSetup> = {}): Cl
   return { mode, digits: value.digits === 4 ? 4 : 3, obstacles: kind === 'alkkagi' && value.obstacles === true, redIds: Array.isArray(value.redIds) ? value.redIds.map(String).slice(0, 2) : undefined };
 }
 function newMatch(id: string, label: string, sides: [string[], string[]], first: number, attempt = 1): Match { return { id, label, sides, first, attempt, turn: 0, board: Array(225).fill(0), discs: initialDiscs(), replayReady: [] }; }
+function blackStarts(m: Match, kind: ClubId) { if (kind === 'gomoku' && m.first === 1) { m.sides = [m.sides[1], m.sides[0]]; m.first = 0; } return m; }
 export function createClub(kind: ClubId, players: string[], input: Partial<ClubSetup> = {}, previous?: ClubState): ClubState {
   const setup = cleanClubSetup(kind, input);
   const required = setup.mode === 'duel' ? 2 : 4;
@@ -30,6 +32,7 @@ export function createClub(kind: ClubId, players: string[], input: Partial<ClubS
   const first = sameRoster ? 1 - previous.first : 0;
   const state: ClubState = { id: crypto.randomUUID(), kind, setup, players, teams, first, matches: [], stage: 0, finished: false, ranking: [], secret: kind === 'number-baseball' ? shuffle('123456789'.split('')).slice(0, setup.digits).join('') : '', round: 1, pending: {}, histories: {}, winners: [], processed: [] };
   if (kind !== 'number-baseball') state.matches = setup.mode === 'duel' ? [newMatch('duel', '1대1', teams, first)] : setup.mode === 'team' ? [newMatch('team', '2대2 팀전', teams, first)] : [newMatch('semi-1', '준결승 1', [[ordered[0]], [ordered[1]]], first), newMatch('semi-2', '준결승 2', [[ordered[2]], [ordered[3]]], first)];
+  state.matches.forEach(m => blackStarts(m, kind));
   return state;
 }
 export function matchSide(m: Match) { return (m.turn + m.first) % 2; }
@@ -55,7 +58,7 @@ function progress(s: ClubState) {
   if (!s.matches.every(m=>m.winner!==undefined)) return;
   const winner = (m: Match) => m.sides[m.winner!], loser = (m: Match) => m.sides[1-m.winner!];
   if (s.setup.mode!=='tournament') { s.finished=true; s.ranking=[winner(s.matches[0]),loser(s.matches[0])]; }
-  else if (s.stage===0) { const [a,b]=s.matches; s.stage=1; s.matches.push(newMatch('final','결승',[winner(a),winner(b)],1-s.first),newMatch('bronze','3·4위전',[loser(a),loser(b)],1-s.first)); }
+  else if (s.stage===0) { const [a,b]=s.matches; s.stage=1; s.matches.push(blackStarts(newMatch('final','결승',[winner(a),winner(b)],1-s.first),s.kind),blackStarts(newMatch('bronze','3·4위전',[loser(a),loser(b)],1-s.first),s.kind)); }
   else { const f=s.matches.find(m=>m.id==='final')!, b=s.matches.find(m=>m.id==='bronze')!; s.finished=true;s.ranking=[winner(f),loser(f),winner(b),loser(b)]; }
 }
 export function clubAction(s: ClubState, player: string, p: Record<string, unknown>) {
@@ -84,7 +87,7 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
       if(!m.draw || !m.sides.flat().includes(player))throw new Error('재경기 대상이 아니에요.');
       if(!m.replayReady.includes(player))m.replayReady.push(player);
       if(m.sides.flat().every(id=>m.replayReady.includes(id))) {
-        Object.assign(m,newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1));
+        Object.assign(m,blackStarts(newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1),s.kind));
         // Optional terminal/animation fields are absent from a fresh match;
         // Object.assign alone would leave the previous draw permanently active.
         delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.lastMove;
@@ -94,7 +97,8 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
       const side=matchSide(m);
       if(s.kind==='gomoku' && p.action==='club-place') {
         const cell=Number(p.cell);if(!Number.isInteger(cell)||cell<0||cell>=225||m.board[cell])throw new Error('빈 교차점을 선택해 주세요.');
-        m.board[cell]=side+1;m.lastMove=cell;if(hasFive(m.board,cell,side+1))m.winner=side;else if(m.board.every(Boolean))m.draw=true;
+        const verdict=renjuMove(m.board,cell,side+1);if(!verdict.legal)throw new Error(verdict.reason);
+        m.board[cell]=side+1;m.lastMove=cell;if(verdict.win)m.winner=side;else if(m.board.every(Boolean))m.draw=true;
       }else if(s.kind==='alkkagi' && p.action==='club-shot'){
         const disc=m.discs.find(d=>d.id===p.discId&&d.alive&&d.side===side);if(!disc)throw new Error('우리 팀 돌을 선택해 주세요.');
         const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;

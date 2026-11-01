@@ -25,12 +25,12 @@ test('four authenticated clients: simultaneous semifinal, team turns, hidden gue
  async function start(kind,setup){assert.equal((await send(code,host,{action:'prepare-game',gameId:kind})).status,200);if(setup)assert.equal((await send(code,host,{action:'club-settings',clubSetup:setup})).status,200);const r=await send(code,host,{action:'start-game',gameId:kind});assert.equal(r.status,200,JSON.stringify(r));assert.equal(r.room.game.deadline,undefined);return r.room.game.club;}
  const g=await start('gomoku');
  const semis=g.matches;
- const results=await Promise.all(semis.map(m=>{const actor=m.sides[m.first][0];return send(code,clients.find(p=>p.id===actor),{action:'club-place',clubId:g.id,requestId:crypto.randomUUID(),matchId:m.id,turn:0,attempt:1,cell:0});}));
+ const results=await Promise.all(semis.map(m=>{const actor=m.sides[m.first][0];return send(code,clients.find(p=>p.id===actor),{action:'club-place',clubId:g.id,requestId:crypto.randomUUID(),matchId:m.id,turn:0,attempt:1,cell:112});}));
  assert.ok(results.every(r=>r.status===200));let saved=JSON.parse(states.get(code));assert.ok(saved.game.club.matches.every(m=>m.turn===1));assert.ok(conflicts>0,'concurrent mutations must exercise CAS');
  let r=await invoke(code,clients[2].cookie);assert.ok(r.room.game.club.matches.every(m=>m.turn===1));
  await start('gomoku',{mode:'team',redIds:[clients[0].id,clients[2].id]});
  saved=JSON.parse(states.get(code));const team=saved.game.club,m=team.matches[0];
- for(let turn=0;turn<4;turn++){const actor=clients.find(c=>c.id===m.sides[(turn+m.first)%2][Math.floor(turn/2)]);r=await send(code,actor,{action:'club-place',clubId:team.id,requestId:crypto.randomUUID(),matchId:m.id,turn,attempt:1,cell:turn});assert.equal(r.status,200);}
+ for(let turn=0;turn<4;turn++){const actor=clients.find(c=>c.id===m.sides[(turn+m.first)%2][Math.floor(turn/2)]);r=await send(code,actor,{action:'club-place',clubId:team.id,requestId:crypto.randomUUID(),matchId:m.id,turn,attempt:1,cell:112+turn});assert.equal(r.status,200);}
  const baseball=await start('number-baseball',{mode:'individual',digits:4});saved=JSON.parse(states.get(code));const secret=saved.game.club.secret;
  const submission={action:'club-guess',clubId:baseball.id,requestId:crypto.randomUUID(),round:1,value:secret};
  r=await send(code,host,submission);assert.equal(r.status,200);r=await send(code,host,submission);assert.equal(r.status,200,'retransmission is harmless');

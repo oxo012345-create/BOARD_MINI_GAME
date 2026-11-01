@@ -21,9 +21,17 @@ test('1대1 is selectable only with two players, with matching start count and r
  const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));
  assert.match(html,/>1대1</);assert.match(html,/>무승부</);
 });
-test('obstacle collision rectangles have visible SVG dimensions',()=>{
+test('five circular obstacle medallions match collision geometry',()=>{
  const state=createClub('alkkagi',ids,{mode:'team',redIds:['a','c'],obstacles:true});
  const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));
- assert.equal((html.match(/width="60" height="35"/g)||[]).length,4);
+ assert.equal((html.match(/data-bumper="[0-4]"/g)||[]).length,5);
+});
+
+test('black forbidden moves show X and disabled cells; white can select the same point',()=>{
+ const state=createClub('gomoku',ids,{mode:'team',redIds:['a','c']}),m=state.matches[0];
+ for(const i of [111,113,97,127])m.board[i]=1;m.turn=8;
+ const render=()=>renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));
+ const black=render();assert.match(black,/data-forbidden="112"/);assert.match(black,/<button[^>]*disabled=""[^>]*aria-label="H8 삼삼 금수"/);assert.match(black,/렌주룰/);
+ m.turn=9;assert.doesNotMatch(render(),/data-forbidden=/);
 });
 test('new screens render only the three separate games and required controls',()=>{for(const kind of ['gomoku','alkkagi','number-baseball']){const state=createClub(kind,ids,{mode:kind==='number-baseball'?'individual':'team',redIds:['a','c']});const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));assert.doesNotMatch(html,/무르기|새 게임|제한시간|시간 초과|가입 없이|YOUR LITTLE|만든 이야기|작은 클럽/);if(kind==='gomoku'){assert.equal((html.match(/role="gridcell"/g)||[]).length,225);assert.match(html,/>착수</);}if(kind==='number-baseball')assert.match(html,/추리 숫자/);if(kind==='alkkagi')assert.match(html,/알까기 게임판/);const briefing=renderToStaticMarkup(createElement(ClubBriefing,{kind,players,isHost:true,onAction:action,onStart:noop}));if(kind==='alkkagi')assert.match(briefing,/장애물 OFF/);if(kind==='number-baseball')assert.match(briefing,/4자리/);}});
