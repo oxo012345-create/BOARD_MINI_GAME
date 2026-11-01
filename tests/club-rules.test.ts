@@ -3,6 +3,34 @@ import assert from 'node:assert/strict';
 import { createClub, clubAction, clubClientState, matchActor, hasFive, judge } from '../app/api/_lib/club';
 import { initialDiscs, simulateShot, BARRIERS } from '../app/api/_lib/club-physics';
 const players=['a','b','c','d'];
+test('duels require exactly two distinct players in every game; four-player modes stay four-player',()=>{
+ for(const kind of ['gomoku','alkkagi','number-baseball'] as const){
+  for(const roster of [[],['a'],['a','a'],players.slice(0,3),players,[...players,'e']]) assert.throws(()=>createClub(kind,roster,{mode:'duel'}));
+  const s=createClub(kind,['a','b'],{mode:'duel'});
+  assert.equal(s.setup.mode,'duel');assert.deepEqual(s.teams.map(t=>t.length),[1,1]);
+  assert.throws(()=>createClub(kind,['a','b'],{mode:'team'}));
+  assert.throws(()=>createClub(kind,['a','b']));
+  const next=createClub(kind,['a','b'],s.setup,s);
+  assert.deepEqual(next.teams,s.teams);assert.equal(next.first,1-s.first);
+ }
+});
+test('gomoku duel finishes directly, and alkkagi duel uses one match without a bracket',()=>{
+ const s=createClub('gomoku',['a','b'],{mode:'duel'}),m=s.matches[0];
+ for(let t=0;t<9;t++)action(s,matchActor(m),{action:'club-place',matchId:m.id,attempt:1,turn:t,cell:t%2?30+Math.floor(t/2):Math.floor(t/2)});
+ assert.equal(s.finished,true);assert.equal(s.matches.length,1);assert.equal(s.ranking.length,2);
+ const a=createClub('alkkagi',['a','b'],{mode:'duel',obstacles:true}),am=a.matches[0];
+ for(const d of am.discs)d.alive=d.side===0;
+ action(a,matchActor(am),{action:'club-shot',matchId:am.id,attempt:1,turn:0,discId:0,dx:5,dy:0});
+ assert.equal(a.finished,true);assert.equal(a.matches.length,1);assert.deepEqual(a.ranking,[am.sides[0],am.sides[1]]);
+});
+test('baseball duel waits for both players, keeps guesses private and supports ties',()=>{
+ const s=createClub('number-baseball',['a','b'],{mode:'duel'});s.secret='123';
+ action(s,'a',{action:'club-guess',round:1,value:'123'});
+ assert.equal(s.finished,false);assert.equal(clubClientState(s,'b').history.length,0);
+ assert.equal(JSON.stringify(clubClientState(s,'b')).includes('123'),false);
+ action(s,'b',{action:'club-guess',round:1,value:'123'});
+ assert.equal(s.finished,true);assert.deepEqual(s.winners,['a','b']);
+});
 function action(s:ReturnType<typeof createClub>, player:string, p:Record<string,unknown>) {clubAction(s,player,{clubId:s.id,requestId:crypto.randomUUID(),...p});}
 test('five and overline; no row wrapping',()=>{const b=Array(225).fill(0);for(let i=0;i<6;i++)b[30+i]=1;assert.ok(hasFive(b,32,1));const c=Array(225).fill(0);for(let i=13;i<18;i++)c[i]=1;assert.equal(hasFive(c,15,1),false);});
 test('team order, authorization, stale turn and replay idempotency',()=>{const s=createClub('gomoku',players,{mode:'team',redIds:['a','c']});const m=s.matches[0];const order=[];for(let turn=0;turn<4;turn++){const actor=matchActor(m);order.push(actor);const p={clubId:s.id,requestId:crypto.randomUUID(),action:'club-place',matchId:m.id,attempt:1,turn,cell:turn};assert.throws(()=>clubAction(s,'outsider',p));clubAction(s,actor,p);clubAction(s,actor,p);assert.equal(m.turn,turn+1);assert.throws(()=>action(s,actor,{...p,requestId:crypto.randomUUID()}));}assert.deepEqual(order,['a','b','c','d']);assert.equal(s.matches[0].board.filter(Boolean).length,4);});

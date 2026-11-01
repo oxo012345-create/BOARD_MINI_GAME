@@ -6,6 +6,44 @@ import test from 'node:test';
 const base = process.env.HANPAN_TEST_URL;
 if (base && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base)) throw new Error('Local test server required');
 
+test('duels enforce live room count at selection and start, then play with two sessions', { skip: !base, timeout: 60_000 }, async()=>{
+ let code;const clients=[];
+ async function call(p,body,path=`/api/rooms/${code}`){
+  for(let retry=0;retry<8;retry++){
+   const r=await fetch(base+path,{method:body?(path==='/api/rooms'?'POST':'PATCH'):'GET',headers:{'Content-Type':'application/json',...(p?{Cookie:p.cookie}:{})},...(body?{body:JSON.stringify(body)}:{})});
+   const j=await r.json();if(j.code==='ROOM_CONFLICT')continue;
+   return {...j,status:r.status,cookie:r.headers.get('set-cookie')?.split(';')[0]};
+  }throw Error('conflicts');
+ }
+ const made=await call(null,{player:{name:'1대1 하나',avatar:'😎'}},'/api/rooms');assert.equal(made.status,201);code=made.room.code;
+ const host={id:made.room.meId,cookie:made.cookie};clients.push(host);
+ const joined=await call(null,{action:'join',player:{name:'1대1 둘',avatar:'🐻'}});const other={id:joined.room.meId,cookie:joined.cookie};clients.push(other);
+ for(const gameId of ['gomoku','alkkagi','number-baseball']){
+  let r=await call(host,{action:'prepare-game',gameId});assert.equal(r.room.game.clubSetup.mode,'duel');
+  const third=await call(null,{action:'join',player:{name:'인원변경 검수',avatar:'🐥'}});
+  assert.equal(third.status,200);
+  assert.equal((await call(host,{action:'club-settings',clubSetup:{mode:'duel'}})).status,422);
+  assert.equal((await call(host,{action:'start-game',gameId})).status,422,'stale two-player setup cannot start with three');
+  await call({cookie:third.cookie},{action:'leave'});
+  assert.equal((await call(other,{action:'club-settings',clubSetup:{mode:'duel'}})).status,403);
+  r=await call(host,{action:'start-game',gameId});assert.equal(r.status,200);let s=r.room.game.club;
+  assert.equal(s.setup.mode,'duel');assert.equal(s.players.length,2);assert.equal(r.room.game.deadline,undefined);
+  if(gameId==='number-baseball'){
+   for(const p of clients){r=await call(p,{action:'club-guess',clubId:s.id,requestId:crypto.randomUUID(),round:1,value:'123'});assert.equal(r.status,200);}
+   assert.equal(r.room.game.club.history.length,1);
+  }else{
+   assert.equal(s.matches.length,1);
+   for(let t=0;t<2;t++){
+    const m=s.matches[0],side=(m.turn+m.first)%2,p=clients.find(c=>c.id===m.sides[side][0]);
+    r=await call(p,{action:gameId==='gomoku'?'club-place':'club-shot',clubId:s.id,requestId:crypto.randomUUID(),matchId:m.id,attempt:1,turn:t,cell:112+t,discId:side*5,dx:0,dy:side?-25:25});assert.equal(r.status,200);s=r.room.game.club;
+   }
+   assert.equal(s.matches[0].turn,2);
+  }
+ }
+ await call(host,{action:'prepare-game',gameId:'gomoku'});
+ for(const p of clients)await call(p,{action:'leave'});
+});
+
 test('four HTTP clients complete tournaments, alternate teams, restore seats, and solve simultaneous baseball', { skip: !base, timeout: 120_000 }, async () => {
   let code;
   const clients = [];

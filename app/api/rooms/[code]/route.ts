@@ -291,7 +291,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       room.game = {
         id: payload.gameId, title: info.title, prompt: info.briefing, briefing: info.briefing,
         liarMode: "normal", previousContentKey, startedAt: Date.now(),
-        ...(isClub(payload.gameId) ? { clubSetup: previousGame?.id === payload.gameId && previousGame.club ? previousGame.club.setup : defaultClubSetup(payload.gameId), club: previousGame?.id === payload.gameId ? previousGame.club : undefined } : {}),
+        ...(isClub(payload.gameId) ? { clubSetup: previousGame?.id === payload.gameId && previousGame.club ? previousGame.club.setup : defaultClubSetup(payload.gameId, room.players.length), club: previousGame?.id === payload.gameId ? previousGame.club : undefined } : {}),
         ...(payload.gameId === "place-mafia" ? { placeMafiaSetup: { discussionSeconds: 90, balance: "normal", mafiaCount: 1 } satisfies PlaceMafiaSetup } : {}),
         ...(payload.gameId === "maze-courier" ? { mazeCharacters: {}, mazeReadyPlayerIds: [] } : {}),
       };
@@ -301,6 +301,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (payload.action === "club-settings") {
       const pending = room.game as GameRound | undefined;
       if (!isHost || room.view !== "briefing" || !isClub(pending?.id)) return Response.json({ error: "준비 화면에서 방장만 설정할 수 있어요." }, { status: 403 });
+      if (payload.clubSetup?.mode === "duel" && room.players.length !== 2) return Response.json({ error: "1대1은 정확히 2명일 때만 선택할 수 있어요." }, { status: 422 });
       pending!.clubSetup = cleanClubSetup(pending!.id as import("../../_lib/club").ClubId, payload.clubSetup);
       return persistAndRespond(room, viewer.id);
     }

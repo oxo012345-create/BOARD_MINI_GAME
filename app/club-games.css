@@ -8,6 +8,7 @@
 .club-panel p { color: #b9c0c9; font-size: 14px; line-height: 1.6; }
 .club-panel [role=alert] { color: var(--danger); }
 .club-shell [role=alert]:empty { display: none; }
+.club-options > button { word-break: keep-all; }
 .club-options { display: flex; gap: 8px; flex-wrap: wrap; }
 .club-options > button, .club-toggle, .club-match-tabs button { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 12px; padding: 12px 14px; font: inherit; font-weight: 700; min-height: 44px; flex: 1; cursor: pointer; }
 .club-options button[aria-pressed=true], .club-toggle[aria-pressed=true], .club-match-tabs button[aria-pressed=true] { background: #d9ff5718; color: var(--accent); border-color: var(--accent); }

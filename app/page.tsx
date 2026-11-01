@@ -143,9 +143,9 @@ const BOARD_GAMES: GameMeta[] = [
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 BOARD_GAMES.push({ id: "frontier-beans", title: "황혼의 콩시장", icon: "♨", description: "3~5인 · 손패 순서와 협상이 핵심인 서부 농장 거래게임", category: "board" });
 BOARD_GAMES.push(
-  { id: "gomoku", title: "오목", icon: "●", description: "4인 토너먼트 · 2대2 팀전", category: "board" },
-  { id: "alkkagi", title: "알까기", icon: "◉", description: "4인 토너먼트 · 2대2 팀전", category: "board" },
-  { id: "number-baseball", title: "숫자야구", icon: "123", description: "4인 개인전 · 2대2 팀전", category: "board" },
+  { id: "gomoku", title: "오목", icon: "●", description: "1대1 · 4인 토너먼트 · 2대2 팀전", category: "board" },
+  { id: "alkkagi", title: "알까기", icon: "◉", description: "1대1 · 4인 토너먼트 · 2대2 팀전", category: "board" },
+  { id: "number-baseball", title: "숫자야구", icon: "123", description: "1대1 · 4인 개인전 · 2대2 팀전", category: "board" },
 );
 const ALL_GAMES = [...SOLO_GAMES, ...COOP_GAMES, ...BOARD_GAMES];
 // 랜덤게임은 개인전·모두 협동 탭의 게임만 대상으로 한다.
