@@ -526,7 +526,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
 
     if (String(payload.action).startsWith("club-")) {
-      if (!game.club || room.view !== "game") return Response.json({ error: "진행 중인 경기가 없어요." }, { status: 409 });
+      if (!game.club || !["game", "result"].includes(room.view)) return Response.json({ error: "진행 중인 경기가 없어요." }, { status: 409 });
       try { clubAction(game.club, viewer.id, payload as Record<string, unknown>); }
       catch (error) { return Response.json({ error: error instanceof Error ? error.message : "입력을 확인해 주세요." }, { status: 422 }); }
       if (game.club.finished) room.view = "result";

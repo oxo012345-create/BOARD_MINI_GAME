@@ -37,6 +37,9 @@ test('four authenticated clients: simultaneous semifinal, team turns, hidden gue
  for(const c of clients){r=await invoke(code,c.cookie);const view=r.room.game.club;assert.ok(!('secret'in view)&&!('histories'in view)&&!('pending'in view));assert.equal(view.history.length,0);assert.equal(JSON.stringify(view).includes(secret),false);}
  await Promise.all(clients.slice(1).map(c=>send(code,c,{...submission,requestId:crypto.randomUUID()})));
  r=await invoke(code,host.cookie);assert.equal(r.room.view,'result');assert.equal(r.room.game.club.winners.length,4);
+ // A response lost on the last submission may be retried after the result view.
+ r=await send(code,host,submission);assert.equal(r.status,200);assert.equal(r.room.game.club.history.length,1);
+ r=await send(code,host,{...submission,requestId:crypto.randomUUID()});assert.equal(r.status,422,'new inputs after a result remain rejected');
  const a=await start('alkkagi',{mode:'team',obstacles:true,redIds:[clients[0].id,clients[2].id]});
  r=await send(code,host,{action:'club-shot',clubId:a.id,requestId:crypto.randomUUID(),matchId:'team',turn:0,attempt:1,discId:0,dx:0,dy:150});assert.equal(r.status,200);const shot=r.room.game.club.matches[0].discs;
  for(const c of clients){r=await invoke(code,c.cookie);assert.deepEqual(r.room.game.club.matches[0].discs,shot);}

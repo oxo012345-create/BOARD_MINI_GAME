@@ -82,7 +82,12 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
     if(p.action==='club-replay-draw') {
       if(!m.draw || !m.sides.flat().includes(player))throw new Error('재경기 대상이 아니에요.');
       if(!m.replayReady.includes(player))m.replayReady.push(player);
-      if(m.sides.flat().every(id=>m.replayReady.includes(id)))Object.assign(m,newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1));
+      if(m.sides.flat().every(id=>m.replayReady.includes(id))) {
+        Object.assign(m,newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1));
+        // Optional terminal/animation fields are absent from a fresh match;
+        // Object.assign alone would leave the previous draw permanently active.
+        delete m.draw; delete m.winner; delete m.frames; delete m.shot;
+      }
     }else{
       if(m.winner!==undefined||m.draw||matchActor(m)!==player)throw new Error('현재 차례가 아니에요.');
       const side=matchSide(m);
