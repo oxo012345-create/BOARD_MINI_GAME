@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import { ShotPlayback } from '../app/club-motion';
 import { initialDiscs, simulateShot } from '../app/api/_lib/club-physics';
 const before=initialDiscs(),after=before.map(d=>({...d,x:d.x+10})),frames=[before,after];
+
+test('late remote frames catch up to server time instead of restarting the full animation',()=>{
+ const p=new ShotPlayback(0,before);p.receive(1,frames,after,1000,25);
+ assert.equal(p.sample(1000).discs[0].x,before[0].x+5);assert.equal(p.sample(1025).locked,false);
+ p.receive(2,frames,before,2000,500);assert.equal(p.sample(2000).locked,false);
+ assert.deepEqual(p.sample(2000).discs,before);
+});
 test('local release moves before network acknowledgement, waits without replay, then unlocks',()=>{
  const p=new ShotPlayback(0,before);assert.ok(p.predict(1,frames,100));assert.ok(p.sample(125).discs[0].x>before[0].x);
  assert.equal(p.sample(2000).awaiting,true);assert.equal(p.predict(1,frames,2100),false);

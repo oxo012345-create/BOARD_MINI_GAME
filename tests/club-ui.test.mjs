@@ -8,6 +8,19 @@ const {ClubGame,ClubBriefing}=await import('../app/club-games.tsx');
 const {createClub,clubClientState}=await import('../app/api/_lib/club.ts');
 const players=['a','b','c','d'].map((id,i)=>({id,name:`참가자${i+1}`}));
 const ids=players.map(p=>p.id),noop=()=>{},action=async()=>{};
+
+test('baseball names every winner for winner and losing viewers, including team members and ties',()=>{
+ for(const mode of ['individual','team','duel'])for(const tie of [false,true]){
+  const s=createClub('number-baseball',mode==='duel'?ids.slice(0,2):ids,{mode,redIds:['a','c']});s.finished=true;s.baseball.phase='play';
+  s.winners=mode==='team'?(tie?['team-0','team-1']:['team-0']):(tie?['a','b']:['a']);
+  for(const viewer of ['a','b']){
+   const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(s,viewer),players,meId:viewer,isHost:false,onAction:action,onReplay:noop,onLobby:noop}));
+   const winners=html.match(/<div class="nb-winners"[\s\S]*?<\/div><\/div>/)[0];
+   assert.match(winners,/참가자1/);if(tie)assert.match(winners,/참가자2/);if(mode==='team')assert.match(winners,/참가자3/);
+   assert.match(html,tie&&mode!=='individual'?/>무승부</:tie?/>공동 우승</:/>우승</);
+  }
+ }
+});
 test('1대1 is selectable only with two players, with matching start count and result labels',()=>{
  for(const kind of ['gomoku','alkkagi','number-baseball'])for(const count of [1,2,3,4,5]){
   const roster=Array.from({length:count},(_,i)=>({id:String(i),name:`참가자${i}`}));

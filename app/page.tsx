@@ -168,7 +168,8 @@ async function patchRoomWithConflictRetry(code: string, payload: Record<string, 
   let lastResponse: Response | null = null;
   let lastBody: { room?: Room | null; error?: string; code?: string } = {};
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const response = await fetch(`/api/rooms/${code}`, {
+    const clubFastPath = ['club-guess', 'club-secret', 'club-shot'].includes(String(payload.action));
+    const response = await fetch(`/api/rooms/${code}${clubFastPath ? '/club' : ''}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

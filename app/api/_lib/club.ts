@@ -6,10 +6,10 @@ export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
 export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4; obstacles: boolean; redIds?: string[] };
 export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, obstacles: false });
-export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; lastMove?: number };
+export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; shotStartedAt?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
 export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[]; baseball?: BaseballState };
-export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'processed' | 'baseball'> & { baseball?: BaseballView; submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
+export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'processed' | 'baseball'> & { baseball?: BaseballView; sampledAt?: number; submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [result[i], result[j]] = [result[j], result[i]]; }
@@ -53,7 +53,7 @@ export const baseballActor = baseballInputter;
 export function clubClientState(s: ClubState, viewer?: string): ClubView {
   // Explicit allowlist: never serialize the secret, guesses in flight, or opponents' histories.
   const key = clubKey(s,viewer);
-  return { id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,baseball:baseballView(s,viewer),submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
+  return { ...(s.kind==='alkkagi'?{sampledAt:Date.now()}:{}),id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,baseball:baseballView(s,viewer),submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
 }
 function progress(s: ClubState) {
   if (!s.matches.every(m=>m.winner!==undefined)) return;
@@ -80,7 +80,7 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
         Object.assign(m,blackStarts(newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1),s.kind));
         // Optional terminal/animation fields are absent from a fresh match;
         // Object.assign alone would leave the previous draw permanently active.
-        delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.lastMove;
+        delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.shotStartedAt; delete m.lastMove;
       }
     }else{
       if(m.winner!==undefined||m.draw||matchActor(m)!==player)throw new Error('현재 차례가 아니에요.');
@@ -91,7 +91,7 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
         m.board[cell]=side+1;m.lastMove=cell;if(verdict.win)m.winner=side;else if(m.board.every(Boolean))m.draw=true;
       }else if(s.kind==='alkkagi' && p.action==='club-shot'){
         const disc=m.discs.find(d=>d.id===p.discId&&d.alive&&d.side===side);if(!disc)throw new Error('우리 팀 돌을 선택해 주세요.');
-        const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;
+        const startedAt=Date.now();const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);m.shotStartedAt=startedAt;m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;
         const alive=[0,1].map(side=>m.discs.some(d=>d.alive&&d.side===side));if(!alive[0]&&!alive[1])m.draw=true;else if(!alive[0])m.winner=1;else if(!alive[1])m.winner=0;
       }else throw new Error('지원하지 않는 행동이에요.');
       m.turn++;progress(s);

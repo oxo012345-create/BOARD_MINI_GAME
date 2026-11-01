@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { commitClubAction } from '../app/api/_lib/club-fast';
+import { createClub, clubClientState } from '../app/api/_lib/club';
+import type { RoomState } from '../app/api/_lib/rooms';
+
+function fixture() {
+ const ids=['a','b','c','d'];
+ const club=createClub('number-baseball',ids,{mode:'individual',digits:3});club.secret='123';
+ let saved:RoomState={code:'1234',hostId:'a',view:'game',roundNumber:1,revision:1,players:ids.map(id=>({id,name:id,avatar:'🙂',sessionHash:id,joinedAt:0,lastSeen:0,status:'active'})),game:{id:'number-baseball',club}};
+ let writes=0,conflicts=0;
+ const io={read:async()=>structuredClone(saved),write:async(room:RoomState,revision:number)=>{writes++;if(saved.revision!==revision){conflicts++;return false;}saved=structuredClone({...room,revision:revision+1});return true;},tick:()=>{}};
+ return {ids,club,io,read:()=>structuredClone(saved),set:(r:RoomState)=>{saved=r;},counts:()=>({writes,conflicts})};
+}
+test('four simultaneous guesses finish within one HTTP call each, without lost writes or leaked answers',async()=>{
+ const q=fixture(),initial=q.read();
+ const payloads=q.ids.map(()=>({action:'club-guess',clubId:q.club.id,requestId:crypto.randomUUID(),round:1,value:'123'}));
+ const results=await Promise.all(q.ids.map((id,i)=>commitClubAction(structuredClone(initial),id,id,payloads[i],q.io)));
+ assert.ok(results.every(r=>r.status===200));assert.ok(q.counts().conflicts>=3);
+ const state=q.read().game!.club as typeof q.club;
+ assert.equal(state.finished,true);assert.equal(state.winners.length,4);assert.equal(state.processed.length,4);
+ for(const id of q.ids){const view=clubClientState(state,id);assert.equal(view.history.length,1);assert.equal('secret' in view,false);assert.equal('pending' in view,false);}
+ const writes=q.counts().writes;
+ const retry=await commitClubAction(q.read(),'a','a',payloads[0],q.io);
+ assert.equal(retry.status,200);assert.equal(q.counts().writes,writes,'acknowledged retry must not touch D1');
+});
+test('conflict refresh rechecks removed sessions, pauses and changed game instead of overwriting them',async()=>{
+ for(const change of ['removed','paused','newGame','otherGame']){
+  const q=fixture(),initial=q.read();let once=true;
+  const io={...q.io,write:async(r:RoomState,revision:number)=>{if(once){once=false;const next=q.read();next.revision=2;const s=next.game!.club as typeof q.club;if(change==='removed')next.players=next.players.filter(p=>p.id!=='a');if(change==='paused')s.paused=['b'];if(change==='newGame')s.id='new-game';if(change==='otherGame')next.game={id:'mafia'};q.set(next);return false;}return q.io.write(r,revision);}};
+  const result=await commitClubAction(initial,'a','a',{action:'club-guess',clubId:q.club.id,requestId:crypto.randomUUID(),round:1,value:'123'},io);
+  assert.equal(result.status,change==='removed'?401:change==='otherGame'?409:422);assert.equal(q.read().revision,2);
+ }
+});
+test('persistent write contention is bounded and reports a retryable conflict',async()=>{
+ const q=fixture();let attempts=0;
+ const result=await commitClubAction(q.read(),'a','a',{action:'club-guess',clubId:q.club.id,requestId:crypto.randomUUID(),round:1,value:'123'},{...q.io,write:async()=>{attempts++;return false;}});
+ assert.equal(attempts,8);assert.equal(result.status,409);assert.equal(result.code,'ROOM_CONFLICT');
+});

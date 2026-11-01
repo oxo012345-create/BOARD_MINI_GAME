@@ -308,6 +308,11 @@ export async function checkRateLimit(request: Request, scope: string, limit: num
 
 export async function readRoom(code: string): Promise<RoomState | null> {
   await ensureRoomsTable();
+  return readExistingClubRoom(code);
+}
+
+// Only callers that have already loaded an existing room may skip schema setup.
+export async function readExistingClubRoom(code: string): Promise<RoomState | null> {
   const row = await getD1()
     .prepare("SELECT state FROM rooms WHERE code = ?")
     .bind(code)
@@ -323,6 +328,15 @@ export async function readRoomRevision(code: string): Promise<number | null> {
     .bind(code)
     .first<RoomRevisionRow>();
   return row ? Number(row.revision ?? 0) : null;
+}
+
+// Existing fast-club long polls return the full state only when it changed.
+export async function readClubUpdate(code: string, knownRevision: number) {
+  const row = await getD1().prepare(`SELECT
+    CAST(COALESCE(json_extract(state, '$.revision'), 0) AS INTEGER) AS revision,
+    CASE WHEN CAST(COALESCE(json_extract(state, '$.revision'), 0) AS INTEGER) > ? THEN state ELSE NULL END AS state
+    FROM rooms WHERE code = ?`).bind(knownRevision, code).first<{ revision: number; state: string | null }>();
+  return row ? { revision: Number(row.revision), room: row.state ? JSON.parse(row.state) as RoomState : undefined } : null;
 }
 
 export async function createRoom(state: RoomState) {

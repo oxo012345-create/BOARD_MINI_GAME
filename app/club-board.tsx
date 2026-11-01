@@ -14,10 +14,10 @@ function winningCells(m:Match){
   const cells=[];for(let k=0;k<15;k++){const x=cell%15+dx*k,y=Math.floor(cell/15)+dy*k;if(x<0||x>=15||y<0||y>=15||m.board[y*15+x]!==m.winner+1)break;cells.push(y*15+x);}if(m.winner===0?cells.length===5:cells.length>=5)return cells;
  }return [];
 }
-export function ClubBoard({kind,m,canPlay,obstacles,selected,onSelect,onShot,onMotion}:{kind:'gomoku'|'alkkagi';m:Match;canPlay:boolean;obstacles:boolean;selected:number|null;onSelect:(cell:number)=>void;onShot:(p:Record<string,unknown>)=>Promise<Match|null>;onMotion:(moving:boolean)=>void}){
+export function ClubBoard({kind,m,sampledAt,canPlay,obstacles,selected,onSelect,onShot,onMotion}:{kind:'gomoku'|'alkkagi';m:Match;sampledAt?:number;canPlay:boolean;obstacles:boolean;selected:number|null;onSelect:(cell:number)=>void;onShot:(p:Record<string,unknown>)=>Promise<Match|null>;onMotion:(moving:boolean)=>void}){
  const uid=useId().replace(/:/g,''),svg=useRef<SVGSVGElement>(null);
  const [drag,setDrag]=useState<{id:number;x:number;y:number;ox:number;oy:number;dx:number;dy:number}|null>(null);
- const playback=useClubShot(m,obstacles,onShot,onMotion);
+ const playback=useClubShot(m,obstacles,onShot,onMotion,sampledAt);
  const boardKey=m.board.join('');
  const forbidden=useMemo(()=>kind==='gomoku'?forbiddenBlackMoves(boardKey.split('').map(Number)):new Map<number,string>(),[boardKey,kind]);
  const opening=kind==='gomoku'&&!m.board.some(Boolean);

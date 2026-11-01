@@ -17,12 +17,13 @@ export async function waitForRoomUpdate(
   initialRevision: number,
   signal: AbortSignal,
   loadLatest: (knownRevision: number) => Promise<RealtimeSnapshot>,
+  checkMs = REALTIME_ROOM_CHECK_MS,
 ) {
   const deadline = Date.now() + REALTIME_WAIT_MS;
   while (!signal.aborted && Date.now() < deadline) {
     const snapshot = await loadLatest(initialRevision);
     if (snapshot.room !== undefined) return snapshot;
-    await wait(REALTIME_ROOM_CHECK_MS, signal);
+    await wait(checkMs, signal);
   }
   return { revision: initialRevision } satisfies RealtimeSnapshot;
 }

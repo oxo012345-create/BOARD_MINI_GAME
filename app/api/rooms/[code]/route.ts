@@ -1,4 +1,6 @@
 import { isClub, createClub, cleanClubSetup, defaultClubSetup, clubAction, type ClubSetup } from "../../_lib/club";
+import { commitClubAction, isFastClub } from "../../_lib/club-fast";
+import { readExistingClubRoom } from "../../_lib/rooms";
 import { checkRateLimit, deleteRoom, readRoom, toClientRoom, touchAndPrunePlayers, writeRoomIfRevision, type Player, type RoomState } from "../../_lib/rooms";
 import { advanceCoopQuestion, advanceQuestion, advanceSyllableQuestion, advanceTelestration, assignedTelestrationChain, failCoopQuestion, GAME_IDS, GAME_INFO, getTelestrationCorrectCount, makeRound, removePlayerFromRound, resolveApartmentPenalty, roundContentKey, cleanStrokes, type GameRound, type GemDifficulty } from "../../_lib/rounds";
 import { authenticatePlayer, createSession, sessionCookie } from "../../_lib/session";
@@ -527,6 +529,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!game) return Response.json({ error: "진행 중인 게임이 없어요." }, { status: 409 });
 
     if (String(payload.action).startsWith("club-")) {
+      if (isFastClub(game.id)) {
+        const result = await commitClubAction(room, viewer.id, viewer.sessionHash, payload as Record<string, unknown>, { read: readExistingClubRoom, write: writeRoomIfRevision, tick: tickSurprise });
+        return result.room ? Response.json({ room: toClientRoom(result.room, viewer.id) }) : Response.json({ error: result.error, code: result.code }, { status: result.status });
+      }
       if (!game.club || !["game", "result"].includes(room.view)) return Response.json({ error: "진행 중인 경기가 없어요." }, { status: 409 });
       try { clubAction(game.club, viewer.id, payload as Record<string, unknown>); }
       catch (error) { return Response.json({ error: error instanceof Error ? error.message : "입력을 확인해 주세요." }, { status: 422 }); }

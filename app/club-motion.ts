@@ -17,7 +17,7 @@ export class ShotPlayback {
     return true;
   }
 
-  receive(shot: number, frames: Disc[][], discs: Disc[], now: number) {
+  receive(shot: number, frames: Disc[][], discs: Disc[], now: number, elapsedMs = 0) {
     if (shot < this.confirmed) return;
     const newer = shot > this.confirmed;
     this.confirmed = shot;
@@ -27,7 +27,7 @@ export class ShotPlayback {
       // Keep the original start time: a response must never replay our shot.
       if (frames.length > 1) this.active.frames = frames;
     } else if (newer) {
-      this.active = frames.length > 1 ? { shot, start: now, frames, acknowledged: true } : undefined;
+      this.active = frames.length > 1 ? { shot, start: now - Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0), frames, acknowledged: true } : undefined;
     }
   }
 
