@@ -37,7 +37,7 @@ export class Game{
  movableUnitsOf(player){this.reindex();return this.unitsOf(player).filter(u=>{const {target,dist,range}=this.combatTarget(u);return !target||dist>=range;});}
  commandCount(player,fraction=1){if(this.over||!this.players[player]||this.players[player].eliminated||!Number.isFinite(fraction))return 0;const count=this.movableUnitsOf(player).length;return count?Math.max(1,Math.floor(count*Math.min(1,Math.max(.1,fraction)))):0;}
  emit(type,data={}){this.events.push({type,...data});if(this.events.length>500)this.events.shift();}
- spawn(z,player){if(this.units.length+this.dispensers.length+this.zones.filter(z=>z.owner>=0).length>=this.rules.sharedUnitLimit)return;const a=this.random()*Math.PI*2,d=24+this.random()*40,pos=clampPosition(z.x+Math.cos(a)*d,z.y+Math.sin(a)*d);const p=this.players[player];this.units.push({id:++this.uid,player,...pos,hp:this.rules.hydraHp,maxHp:this.rules.hydraHp,cooldown:this.random()*.8,tx:p.rally?.x??z.x,ty:p.rally?.y??z.y,phase:this.random()*Math.PI*2,face:player===0?1:-1,walking:false,hit:0,recoil:0,command:-1,selectedUntil:0});}
+ spawn(z,player){if(this.unitsOf(player).length>=(this.rules.playerUnitLimit??Infinity)||this.units.length+this.dispensers.length+this.zones.filter(z=>z.owner>=0).length>=this.rules.sharedUnitLimit)return;const a=this.random()*Math.PI*2,d=24+this.random()*40,pos=clampPosition(z.x+Math.cos(a)*d,z.y+Math.sin(a)*d);const p=this.players[player];this.units.push({id:++this.uid,player,...pos,hp:this.rules.hydraHp,maxHp:this.rules.hydraHp,cooldown:this.random()*.8,tx:p.rally?.x??z.x,ty:p.rally?.y??z.y,phase:this.random()*Math.PI*2,face:player===0?1:-1,walking:false,hit:0,recoil:0,command:-1,selectedUntil:0});}
  command({player=0,x,y,fraction=1,source=null}){
   if(this.over||!this.players[player]||this.players[player].eliminated||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(fraction)||cellId(x,y)===null)return 0;
   const all=this.movableUnitsOf(player);if(!all.length)return 0;
@@ -82,11 +82,18 @@ export class Game{
   if(d&&neutral.length){const pending=this.zoneMap.get(d.zone);if(!pending||pending.owner>=0){neutral.sort((a,b)=>Math.hypot(a.x-d.x,a.y-d.y)-Math.hypot(b.x-d.x,b.y-d.y));this.claimCommand(p.id,neutral[0].id);}const z=this.zoneMap.get(d.zone);if(z){this.command({player:p.id,x:z.x,y:z.y,fraction:.55});}}
   const reserve=neutral.length?this.rules.claimCost:0;
   p.aiUpgradeBudget=Math.max(0,Math.min(own.length<4?2:6,Math.floor((p.minerals-reserve)/this.rules.upgradeCost)));
-  let best=null,score=-Infinity;for(const z of this.zones){if(z.owner<0)continue;const foes=this.units.filter(u=>!this.allied(u.player,p.id)&&Math.hypot(u.x-z.x,u.y-z.y)<170).length;let rank;
-   if(this.allied(z.owner,p.id)){if(foes<3)continue;rank=1000+foes;}else{const distance=Math.min(...army.map(u=>Math.hypot(u.x-z.x,u.y-z.y)));rank=300-distance*.35-foes*.4+(1-z.hp/z.maxHp)*90;}
-   if(rank>score){score=rank;best=z;}}
+  const centre={x:army.reduce((s,u)=>s+u.x,0)/army.length,y:army.reduce((s,u)=>s+u.y,0)/army.length};
+  const fighting=army.some(u=>{const t=this.combatTarget(u);return t.target&&t.dist<t.range;});
+  if(fighting||!p.aiProgress||p.aiProgress.kills!==p.kills||Math.hypot(centre.x-p.aiProgress.x,centre.y-p.aiProgress.y)>18)p.aiProgress={...centre,kills:p.kills,at:this.time};
+  const stalled=this.time-p.aiProgress.at>=8;
+  if(stalled){p.aiAssaultUntil=this.time+10;p.aiProgress={...centre,kills:p.kills,at:this.time};}
+  let best=null,score=-Infinity,defender=null;for(const z of this.zones){if(z.owner<0)continue;const enemies=this.units.filter(u=>!this.allied(u.player,p.id)&&Math.hypot(u.x-z.x,u.y-z.y)<170),foes=enemies.length;let rank,target=null;
+   // Defend a firing threat, not a distant army outside the base's attack reach.
+   // Aim at the attacker instead of retreating into our own base centre.
+   if(this.allied(z.owner,p.id)){if(this.time<(p.aiAssaultUntil||0))continue;target=enemies.find(u=>Math.hypot(u.x-z.x,u.y-z.y)<this.rules.hydraRange+20);if(!target)continue;rank=1000+foes;}else{const distance=Math.min(...army.map(u=>Math.hypot(u.x-z.x,u.y-z.y)));rank=300-distance*.35-foes*.4+(1-z.hp/z.maxHp)*90;}
+   if(rank>score){score=rank;best=z;defender=target;}}
   if(!best){const foes=this.units.filter(u=>u.hp>0&&!this.allied(u.player,p.id));if(foes.length){let focus=foes[0],distance=Infinity;for(const enemy of foes){const value=Math.hypot(enemy.x-army[0].x,enemy.y-army[0].y);if(value<distance){distance=value;focus=enemy;}}this.command({player:p.id,x:focus.x,y:focus.y,fraction:1});}}
-  if(best&&(!d?.zone||!neutral.length||score>900||own.length>=5))this.command({player:p.id,x:best.x,y:best.y,fraction:this.difficulty==='easy'?.65:.85});
+  if(best&&(!d?.zone||!neutral.length||score>900||own.length>=5)){const target=defender||best;this.command({player:p.id,x:target.x,y:target.y,fraction:this.difficulty==='easy'?.65:.85});}
  }
  step(dt){if(this.over||!Number.isFinite(dt)||dt<=0||this.checkElimination())return;dt=Math.min(dt,.1);this.time+=dt;this.frame++;this.reindex();
   for(const p of this.players){if(p.eliminated)continue;

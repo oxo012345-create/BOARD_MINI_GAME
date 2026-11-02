@@ -3,6 +3,8 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const source=path.resolve(process.argv[2]||'../swarm-territory'),target=path.resolve('public/swarm'),runtime=path.resolve('app/api/_lib/vendor/swarm');
+const current=await fs.readFile(path.join(target,'source.json'),'utf8').then(JSON.parse).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+if(current?.localProfile)throw new Error('Hanpan has a local Swarm balance profile. Merge its documented changes before replacing these files with upstream assets.');
 await fs.mkdir(target,{recursive:true});await fs.mkdir(runtime,{recursive:true});
 const files=['index.html','style.css','app.js','engine.js','rules.js','modes.js','integration.js','art.js','audio.js','frame-clock.js','icon.svg','network.js','net-protocol.js','http-network.js'];
 const hashes={};

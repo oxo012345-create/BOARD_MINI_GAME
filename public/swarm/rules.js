@@ -17,7 +17,7 @@ export const RULES=Object.freeze({
 // Mobile 1v1 tuning. Keep the original profile above independently verifiable.
 // Benchmarked without a time-limit victory; see research/five-minute-balance.md.
 export const MOBILE_RULES=Object.freeze({...RULES,
- edition:'5×5 성큰 전투',baseHp:8000,baseArmor:16,baseDamage:200,killReward:3,
+ edition:'5×5 성큰 전투',playerUnitLimit:200,baseHp:8000,baseArmor:16,baseDamage:200,killReward:3,
 });
 // TRIG 37–47: score conversion is deliberately NOT a flat +5 per kill.
 // Large batches are paid +10 for each highest power-of-two chunk, leaving the remainder.
