@@ -1,0 +1,25 @@
+{
+  "sourceCommit": "165083894c0bc4994d77debd971008f7bce00bb2",
+  "hashEncoding": "UTF-8 with CRLF normalized to LF",
+  "hashes": {
+    "index.html": "b9957ffb9a21a8b125681340d0862fdd13d1aecceb396449ffb43bc5e8569573",
+    "style.css": "61f3fb54fddb1744b34956becd03fbdd81fa8a529cc198172b8b5c71529293c4",
+    "app.js": "45689439ce78276e357312164a1ac23d1147f746e90ef7b7ae75b8559f5addf9",
+    "engine.js": "30c1b0b6c1016a24ebf07858bfd5dff82fe4fd40086c3d0751e986a0a80a7d61",
+    "rules.js": "2dbfb9d848fae68406aa96d152e3a3072254b7182cceaf09036df836988b6306",
+    "modes.js": "ec28a9dc56a66f1aa6eb2d628c8ad5e74efcc951d3671efd3567b32d96c902d6",
+    "integration.js": "23bdb20f20a690b780d348af64f9cf361134238daa6a67c70034efe638bef3a6",
+    "art.js": "ffcb0b2836dbedb617ac04ad482157c89dcaad50843e7afc69b163b009e4ca78",
+    "audio.js": "faf83a825a3628932a55ceeec95df00e2d0c2bb511047c76c7714c7f716f5668",
+    "frame-clock.js": "d28a5bbd4b3dd76a6472e4534ecb83686f891ef53ef1e8bf703ee6a6fec7e0e9",
+    "icon.svg": "997bcd55ca1b3491240a2f79d327d8ce3bb19efa99b34f59d79cce4871bb2edf",
+    "network.js": "2c9558ca55c707a529eca7d7ff5baaa5b9aa4f65dda70d6229b108a2a0b2f019",
+    "net-protocol.js": "c6ffbe3cabb0eb1887c89822a1747443fd6c956140c84a46abe3d9a6c32276db",
+    "http-network.js": "1e8f5474331d4008742604db3294eac6b8be636e4567767aad34d4cef7256aa2"
+  },
+  "adaptations": [
+    "Background/text color overlay",
+    "Hanpan navigation messages",
+    "Same-origin authenticated room transport"
+  ]
+}

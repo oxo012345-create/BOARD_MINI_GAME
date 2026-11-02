@@ -15,6 +15,13 @@
       "when": 1784206225159,
       "tag": "0001_fast_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793620431312,
+      "tag": "0002_slim_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

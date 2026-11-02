@@ -170,7 +170,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const expectedRevision = room.revision ?? 0;
     const playerIdsBeforePrune = new Set(room.players.map((player) => player.id));
     const activeDealerGame = room.game as GameRound | undefined;
-    const dealerParticipantIds = activeDealerGame?.club && room.view === "game" ? new Set(activeDealerGame.club.players) : activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && activeDealerGame.dealer.phase !== "finished"
+    const dealerParticipantIds = activeDealerGame?.id === "swarm-territory" && room.view === "game" ? new Set(activeDealerGame.swarm?.playerIds??[]) : activeDealerGame?.club && room.view === "game" ? new Set(activeDealerGame.club.players) : activeDealerGame?.id === "double-dealers" && activeDealerGame.dealer && activeDealerGame.dealer.phase !== "finished"
       ? new Set(Object.keys(activeDealerGame.dealer.balances))
       : undefined;
     const playersChanged = touchAndPrunePlayers(room, viewer?.id, dealerParticipantIds ? DEALER_HEARTBEAT_TOUCH_MS : 15_000, dealerParticipantIds);
@@ -232,6 +232,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       balance?: PlaceMafiaBalance;
       mafiaCount?: number;
       debugPlayers?: number;
+      swarmMode?: "duel" | "team" | "ffa";
       fieldIndex?: number;
       offerId?: string;
       giveCardIds?: string[];
@@ -257,7 +258,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (room.players.length >= 12) return Response.json({ error: "방이 가득 찼어요." }, { status: 409 });
       if (room.players.some((item) => item.name.toLowerCase() === profile.name.toLowerCase())) return Response.json({ error: "이미 사용 중인 이름이에요." }, { status: 409 });
       const activeGame = room.game as GameRound | undefined;
-      if ((isClub(activeGame?.id) || ["double-dealers", "place-mafia", "cash-n-guns", "frontier-beans"].includes(String(activeGame?.id))) && ["game", "result"].includes(room.view)) {
+      if ((isClub(activeGame?.id) || ["double-dealers", "place-mafia", "cash-n-guns", "frontier-beans", "swarm-territory"].includes(String(activeGame?.id))) && ["game", "result"].includes(room.view)) {
         return Response.json({ error: "게임이 이미 시작되어 늦은 참가자를 받을 수 없습니다.", code: "GAME_IN_PROGRESS" }, { status: 409 });
       }
       const session = await createSession();
@@ -296,8 +297,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         ...(isClub(payload.gameId) ? { clubSetup: previousGame?.id === payload.gameId && previousGame.club ? previousGame.club.setup : defaultClubSetup(payload.gameId, room.players.length), club: previousGame?.id === payload.gameId ? previousGame.club : undefined } : {}),
         ...(payload.gameId === "place-mafia" ? { placeMafiaSetup: { discussionSeconds: 90, balance: "normal", mafiaCount: 1 } satisfies PlaceMafiaSetup } : {}),
         ...(payload.gameId === "maze-courier" ? { mazeCharacters: {}, mazeReadyPlayerIds: [] } : {}),
+        ...(payload.gameId === "swarm-territory" ? {swarm:{mode:room.players.length===2?"duel":"ffa"}} : {}),
       };
       return persistAndRespond(room, viewer.id);
+    }
+
+    if (payload.action === "swarm-settings") {
+      const pending=room.game as GameRound|undefined;
+      if(!isHost||room.view!=="briefing"||pending?.id!=="swarm-territory")return Response.json({error:"준비 화면에서 방장만 설정할 수 있어요."},{status:403});
+      const mode=payload.swarmMode;
+      if(!["duel","team","ffa"].includes(String(mode)))return Response.json({error:"대전 모드를 확인해 주세요."},{status:422});
+      if(room.players.length!==(mode==="duel"?2:4))return Response.json({error:mode==="duel"?"1대1은2명이 필요해요.":"팀전·개인전은4명이 필요해요."},{status:422});
+      pending.swarm={mode:mode!};return persistAndRespond(room,viewer.id);
     }
 
     if (payload.action === "club-settings") {
@@ -342,6 +353,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
       if (!isHost) return Response.json({ error: "방장만 할 수 있어요." }, { status: 403 });
       const gameId = payload.gameId || String(room.game?.id ?? "");
       const pendingGame = room.game as GameRound | undefined;
+      if(gameId==="swarm-territory"){
+        if(room.view!=="briefing"||pendingGame?.id!==gameId)return Response.json({error:"준비 화면에서 시작해 주세요."},{status:409});
+        const mode=pendingGame.swarm?.mode??(room.players.length===2?"duel":"ffa");
+        if(room.players.length!==(mode==="duel"?2:4))return Response.json({error:mode==="duel"?"1대1은2명이 필요해요.":"팀전·개인전은4명이 필요해요."},{status:422});
+        room.players.forEach(p=>{p.status="active";});
+        room.game={id:gameId,title:GAME_INFO[gameId].title,prompt:"",startedAt:Date.now(),swarm:{mode,matchId:crypto.randomUUID(),playerIds:room.players.map(p=>p.id)}};
+        room.view="game";room.roundNumber++;return persistAndRespond(room,viewer.id);
+      }
       if (isClub(gameId)) {
         if (room.view !== "briefing" || pendingGame?.id !== gameId) return Response.json({ error: "준비 화면에서 시작해 주세요." }, { status: 409 });
         try {
@@ -471,6 +490,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
 
     if (payload.action === "leave") {
       const activeGame = room.game as GameRound | undefined;
+      if(activeGame?.id==="swarm-territory"&&room.view==="game"){
+        viewer.status="waiting";
+        if(room.hostId===viewer.id)room.hostId=(room.players.find(p=>p.id!==viewer.id&&p.status==="active")??viewer).id;
+        if(!await writeRoomIfRevision(room,room.revision??0))return Response.json({error:"다시 시도해 주세요.",code:"ROOM_CONFLICT"},{status:409});
+        return Response.json({room:null});
+      }
       if (activeGame?.id === "place-mafia" && activeGame.placeMafia && room.view === "game" && activeGame.placeMafia.phase !== "game_over") {
         viewer.status = "waiting";
         pausePlaceMafia(activeGame.placeMafia, viewer.id);

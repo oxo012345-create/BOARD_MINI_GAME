@@ -1,0 +1,13 @@
+/* Hanpan colors only. Keep the original layout, art, map, team palette and controls. */
+:root{--paper:#15181d;--ink:#f6f7f8;--muted:#9299a3;--line:#2a2f37;color-scheme:dark}
+html,body{background:#0d0f12;color:var(--ink)}
+.i{stroke:var(--ink)}.mode-badge,.match-status,.rule-card p,.rule-card small,.cost-tag,.upgrades small{color:var(--muted)}
+.icon-btn,.command-deck,.modal,.sound-panel,.rule-card,.income-card{background:var(--paper);border-color:var(--line)}
+.command-deck{box-shadow:0 3px 0 #07080a}.modal{box-shadow:0 26px 100px #00000045}.sound-panel{box-shadow:0 12px 40px #00000035}
+.order,.mode-options button,.difficulty,.sound-heading button,.sound-panel>button,.sound-bottom button,.upgrade-tags span,.cost-tag{background:#1b1f25;border-color:var(--line);color:var(--ink)}
+.order.active,.mode-options button.active{background:#d9ff57;border-color:#d9ff57;color:#101208}.difficulty button.active{background:#2a2f37;color:var(--ink)}
+.primary-btn{background:#d9ff57;color:#101208}.primary-btn span{color:#101208}.secondary-btn{color:var(--muted)}
+.seat-card{background:#15181d}.seat-name,.seat-upgrades,.seat-stats{color:var(--ink)}.setup-roster>span{color:var(--ink)}
+.toast{background:#1b1f25f2;color:var(--ink);border-color:var(--line)}.modal-layer{background:#07080ab3}.rule-flow .arrow{stroke:var(--muted)}.income-line strong{color:#d9ff57}
+.friend-link{width:100%;background:#1b1f25;color:#f6f7f8;border-color:var(--line)}
+.swarm-connection{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:#0d0f12;color:var(--ink);text-align:center;font-size:14px;line-height:1.6}.swarm-connection button{min-height:48px;padding:0 24px;margin-top:10px;border-radius:12px;background:#d9ff57;color:#101208}

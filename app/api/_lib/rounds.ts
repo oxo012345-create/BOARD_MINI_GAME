@@ -125,6 +125,7 @@ export type GameRound = {
   club?: import("./club").ClubState;
   clubSetup?: import("./club").ClubSetup;
   frontierBeans?: import("./frontier-beans").FrontierBeanState;
+  swarm?: import("./swarm-host").SwarmMatch;
 };
 
 export const GAME_INFO: Record<string, { title: string; briefing: string; category: "solo" | "coop" }> = {
@@ -158,6 +159,7 @@ export const GAME_INFO: Record<string, { title: string; briefing: string; catego
 
 GAME_INFO["cash-n-guns"] = { title: "CASH AND GUNS", briefing: "총을 겨누고, 숨고, 전리품을 예약하세요. 8라운드 동안 살아남아 가장 많은 돈을 모으는 게임입니다.", category: "solo" };
 GAME_INFO["frontier-beans"] = { title: "황혼의 콩시장", briefing: "손패 순서를 지키며 콩을 심고 공개된 콩과 손패를 협상하세요. 거래받은 콩은 모두 심고, 세 번째 덱이 끝날 때 가장 많은 코인을 모으면 승리합니다.", category: "solo" };
+GAME_INFO["swarm-territory"] = {title:"군단 땅따먹기",briefing:"전군·절반을 선택하고 목적지를 터치하세요. 대군주로 빈 구역을 점령하고 적의 성큰과 병력을 모두 제거하면 승리합니다.",category:"solo"};
 for (const [id, title] of [["gomoku", "오목"], ["alkkagi", "알까기"], ["number-baseball", "숫자야구"]]) GAME_INFO[id] = { title, briefing: "2인 · 4인 대전", category: "solo" };
 export const GAME_IDS = Object.keys(GAME_INFO);
 const CONTENT = GAME_CONTENT as Record<string, unknown>;

@@ -14,6 +14,7 @@ import { CashNGunsGame } from "./cash-n-guns";
 import type { CashNGunsClientState } from "./cash-n-guns";
 import { FrontierBeansBriefing, FrontierBeansGame } from "./frontier-beans";
 import type { FrontierBeanClientState } from "./frontier-beans";
+import {SwarmBriefing,SwarmGame,type SwarmRound} from "./swarm-game";
 
 type Point = { x: number; y: number };
 type Stroke = { eraser?: boolean; points: Point[] };
@@ -103,6 +104,7 @@ type GameRound = {
   clubSetup?: ClubSetup;
   club?: ClubView;
   frontierBeans?: FrontierBeanClientState;
+  swarm?: SwarmRound;
 };
 type Surprise = { phase: "waiting" | "active" | "rest"; title?: string; text?: string; startedAt: number; endsAt: number; ruleId?: string; reveal?: boolean };
 type Room = { code: string; hostId: string; players: Player[]; view: "lobby" | "hub" | "briefing" | "game" | "result"; roundNumber: number; revision?: number; serverNow: number; game?: GameRound; surpriseEnabled?: boolean; surprise?: Surprise; meId?: string; authenticated: boolean };
@@ -142,6 +144,7 @@ const BOARD_GAMES: GameMeta[] = [
 ];
 BOARD_GAMES.push({ id: "cash-n-guns", title: "CASH AND GUNS", icon: "¤", description: "4~8인 · 총을 겨누고 전리품을 차지하는 픽셀 보드게임", category: "board" });
 BOARD_GAMES.push({ id: "frontier-beans", title: "황혼의 콩시장", icon: "♨", description: "3~5인 · 손패 순서와 협상이 핵심인 서부 농장 거래게임", category: "board" });
+BOARD_GAMES.push({ id: "swarm-territory", title: "군단 땅따먹기", icon: "◈", description: "1대1 · 2대2 팀전 · 4인 개인전 · AI 연습", category: "board" });
 BOARD_GAMES.push(
   { id: "gomoku", title: "오목", icon: "●", description: "1대1 · 4인 토너먼트 · 2대2 팀전", category: "board" },
   { id: "alkkagi", title: "알까기", icon: "◉", description: "1대1 · 4인 토너먼트 · 2대2 팀전", category: "board" },
@@ -1189,6 +1192,7 @@ export default function Home() {
     const dealerPlayerCountValid = room.players.length >= 3 && room.players.length <= 8;
     const cashNGunsPlayerCountValid = room.players.length >= 4 && room.players.length <= 8;
     if (isClub(currentGame.id)) return <ClubBriefing kind={currentGame.id} setup={currentGame.clubSetup} players={room.players} isHost={isHost} onAction={applyAction} onStart={() => void startGame()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
+    if (currentGame.id === "swarm-territory") return <SwarmBriefing round={currentGame.swarm} players={room.players} isHost={isHost} busy={hostActionLocked} onAction={applyAction} onStart={() => void startGame()} topBar={topBar(currentGame.title)} overlays={commonOverlays}/>;
     if (currentGame.id === "frontier-beans") return <FrontierBeansBriefing
       playerCount={room.players.length}
       debugPlayers={frontierDebugPlayers}
@@ -1289,6 +1293,7 @@ export default function Home() {
   }
 
   if (currentGame?.club && isClub(currentGame.id)) return <ClubGame key={currentGame.club.id} s={currentGame.club} players={room.players} meId={room.meId} isHost={isHost} onAction={applyAction} onReplay={() => gameMeta && void prepareGame(gameMeta)} onLobby={() => void goLobby()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
+  if (room.view === "game" && currentGame?.id === "swarm-territory" && currentGame.swarm?.matchId) return <SwarmGame room={room.code} round={currentGame.swarm} onExit={()=>setConfirmType(isHost?"lobby":"leave")} overlays={commonOverlays}/>;
 
   if (room.view === "result" || (currentGame?.id === "apartment" && currentGame.apartmentRevealed)) {
     if (!currentGame) return <main className="app-shell"><div className="waiting-card">결과를 불러오는 중</div>{commonOverlays}</main>;
