@@ -30,7 +30,8 @@
     "playerUnitLimit": 200,
     "population": "Living hydralisks per player; bases and overlords excluded",
     "ai": "Intercept firing threats; reassess non-fighting stalled armies",
-    "baseHp": 8000
+    "baseHp": 8000,
+    "network": "Adaptive render pacing; combined authenticated state read; atomic lease/checkpoint read; fixed30Hz catch-up"
   },
   "localHashes": {
     "engine.js": "357571263558644f6e0e9e70317ebff12ebeec7d30a46e632c1920852d0475ff",
@@ -38,6 +39,8 @@
     "app.js": "7376a2fdf3e616afe6d1ec6c40eaf6518fe4ffb9d5a017452568a6fa1ad9c652",
     "style.css": "e28653c05e035a9f5701032f816fb909d11d90c2e986f4d37496df20e8aa19c0",
     "index.html": "07c073beeaecf3b74968f731dba429f64ea92c019fe44484f1fe88b41a1e9f3f",
-    "hanpan.html": "da560dbf96f4ae385f5d4b3199139fcd5d11b7b7549ffdee3953645c57306ba2"
+    "hanpan.html": "da560dbf96f4ae385f5d4b3199139fcd5d11b7b7549ffdee3953645c57306ba2",
+    "network.js": "29b59d7d03ce61ad0f9f77e01f701e3120cec2a62aa147adbb0960f65b3ebc69",
+    "snapshot-motion.js": "26abdfbb204b7b71467356f8703c1701c8ad139136566c8508214641a27fcd54"
   }
 }

@@ -1,10 +1,22 @@
 import type {RoomState,Player} from './rooms';
 import {D1Rooms} from './vendor/swarm/d1-rooms.js';
 import {makeInitialBattle,swarmDatabase} from './vendor/swarm/bootstrap.js';
+import {authorizedPoll} from './vendor/swarm/hanpan-poll.js';
+import {getSessionToken,hashToken} from './session';
 
 export type SwarmMatch={mode:'duel'|'team'|'ffa';matchId?:string;playerIds?:string[]};
 type SwarmGame={id?:string;swarm?:SwarmMatch};
 const error=(message:string,status=409)=>{throw Object.assign(new Error(message),{status});};
+
+// Read the parent authority and cached battle view in one D1 round trip.
+// Authentication still runs before any battle mutation or snapshot is returned.
+export async function readSwarmContext(db:ReturnType<typeof swarmDatabase>,code:string,payload:Record<string,unknown>,request?:Request){
+ const key=typeof payload.matchId==='string'?`hanpan:${code}:${payload.matchId}`:'',revision=Number.isSafeInteger(payload.revision)?Number(payload.revision):0;
+ if(request&&payload.operation==='poll'&&typeof payload.matchId==='string'){
+  const session=getSessionToken(request,code);if(session){const sessionHash=await hashToken(session),token=await seatToken(sessionHash,payload.matchId);const row=await authorizedPoll(db,{roomCode:code,key,matchId:payload.matchId,sessionHash,token,revision});if(row)return row;}
+ }
+ return db.prepare('SELECT p.state AS parent_state,r.*,CASE WHEN s.revision>? THEN s.snapshot END AS snapshot,s.acks,s.revision AS state_revision FROM rooms p LEFT JOIN swarm_rooms r ON r.code=? AND r.expires>? LEFT JOIN swarm_states s ON r.code=s.code WHERE p.code=?').bind(revision,key,Date.now(),code).first();
+}
 
 export function currentSwarm(room:RoomState,viewer:Player,matchId:unknown){
  const game=room.game as SwarmGame|undefined,match=game?.swarm;
@@ -31,7 +43,7 @@ async function bootstrap(db:ReturnType<typeof swarmDatabase>,room:RoomState,matc
  ]);
 }
 
-export async function swarmRequest(db:ReturnType<typeof swarmDatabase>,room:RoomState,viewer:Player,payload:Record<string,unknown>){
+export async function swarmRequest(db:ReturnType<typeof swarmDatabase>,room:RoomState,viewer:Player,payload:Record<string,unknown>,prefetched=null){
  const match=currentSwarm(room,viewer,payload.matchId),key=`hanpan:${room.code}:${match.matchId}`,token=await seatToken(viewer.sessionHash,match.matchId),service=new D1Rooms(db);
  if(payload.operation==='join'){
   await bootstrap(db,room,match,key);
@@ -40,11 +52,11 @@ export async function swarmRequest(db:ReturnType<typeof swarmDatabase>,room:Room
   // is returned to the browser or stored in the public parent room snapshot.
   return {welcome:{type:'welcome',room:match.matchId,seat:welcome.seat,mode:welcome.mode,sequence:welcome.sequence},lobby};
  }
- if(payload.operation==='poll')return service.poll(key,token,Number.isSafeInteger(payload.revision)?Number(payload.revision):0,Number.isSafeInteger(payload.ack)?Number(payload.ack):0);
+ if(payload.operation==='poll')return service.poll(key,token,Number.isSafeInteger(payload.revision)?Number(payload.revision):0,Number.isSafeInteger(payload.ack)?Number(payload.ack):0,prefetched);
  if(payload.operation==='command'){
   const command=payload.command as Record<string,unknown>|undefined;
   if(!command||command.matchId!==match.matchId)error('이전 전투 명령입니다.');
-  return service.command(key,token,{...command,matchId:key},Number.isSafeInteger(payload.revision)?Number(payload.revision):0,Number.isSafeInteger(payload.ack)?Number(payload.ack):0);
+  return service.command(key,token,{...command,matchId:key},Number.isSafeInteger(payload.revision)?Number(payload.revision):0,Number.isSafeInteger(payload.ack)?Number(payload.ack):0,prefetched);
  }
  error('지원하지 않는 전투 요청입니다.',400);
 }

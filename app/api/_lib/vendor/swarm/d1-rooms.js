@@ -46,12 +46,16 @@ export class D1Rooms{
   const checkpoint=JSON.stringify({room:state.room.checkpoint(),accumulator:state.accumulator});
   if(new TextEncoder().encode(checkpoint).byteLength>1800000)fail('방 상태가 저장 한도를 초과했습니다',503);
   const guard='EXISTS(SELECT 1 FROM swarm_rooms WHERE code=? AND lease=?)';
+  // A different seat may heartbeat while this owner computes. Preserve its
+  // newer timestamp instead of replacing it with the checkpoint's older copy.
+  const seatArgs=[JSON.stringify(state.room.seats)],seatParts=[];for(const s of state.room.seats){const path=`$[${s.id}].seen`;seatParts.push('?,max(coalesce(json_extract(seats,?),0),?)');seatArgs.push(path,path,s.seen||0);}
+  const mergedSeats=`json_set(?,${seatParts.join(',')})`;
   const results=await this.db.batch([
    this.stmt(`UPDATE swarm_states SET checkpoint=?,snapshot=?,revision=?,acks=? WHERE code=? AND ${guard}`,checkpoint,snapshot,revision,JSON.stringify(state.acks.slice(-64)),row.code,row.code,lease),
    this.stmt(`UPDATE swarm_commands SET done=1 WHERE code=? AND done=0 AND id<=? AND ${guard}`,row.code,processed,row.code,lease),
-   this.stmt('UPDATE swarm_rooms SET seats=?,started=?,revision=?,last_at=?,next_tick=?,lease=NULL,lease_until=0 WHERE code=? AND lease=?',JSON.stringify(state.room.seats),game?1:0,revision,lastAt,nextTick,row.code,lease),
+   this.stmt(`UPDATE swarm_rooms SET seats=${mergedSeats},started=?,revision=?,last_at=?,next_tick=?,lease=NULL,lease_until=0 WHERE code=? AND lease=? RETURNING seats`,...seatArgs,game?1:0,revision,lastAt,nextTick,row.code,lease),
   ]);
-  state.snapshot=snapshot;state.revision=revision;
+  state.snapshot=snapshot;state.revision=revision;if(results[2].results?.[0]?.seats)state.room.seats=JSON.parse(results[2].results[0].seats);
   return results[2].meta.changes===1;
  }
  async join(code,{token,name}){
@@ -81,44 +85,52 @@ export class D1Rooms{
    const now=this.now();await this.commit(row,lease,state,{lastAt:now,nextTick:now+100});
   }finally{await this.release(code,lease);}
  }
- async command(code,token,command,revision=0,ack=0){
-  const row=await this.row(code),seat=this.seat(row,token);if(!row.started)fail('전투가 시작되지 않았습니다',409);
+ async command(code,token,command,revision=0,ack=0,prefetched=null){
+  const row=prefetched||await this.row(code);if(!row.code)fail('방이 없거나 만료되었습니다',404);const seat=this.seat(row,token);if(!row.started)fail('전투가 시작되지 않았습니다',409);
   if(!validCommand(command)||command.matchId!==code)fail('잘못된 명령입니다');
   const sanitized={sequence:command.sequence,matchId:code,type:command.type,...(command.type==='move'?{x:command.x,y:command.y,fraction:command.fraction}:command.type==='claim'?{zone:command.zone}:{kind:command.kind})};
-  const queued=await this.stmt('SELECT count(*) AS n FROM swarm_commands WHERE code=? AND done=0',code).first();if(queued.n>=64)fail('명령을 처리 중입니다. 잠시 후 다시 시도하세요',429);
-  await this.stmt('INSERT OR IGNORE INTO swarm_commands(code,seat,sequence,body) VALUES(?,?,?,?)',code,seat.id,command.sequence,JSON.stringify(sanitized)).run();
+  const [,existing]=await this.db.batch([
+   this.stmt('INSERT OR IGNORE INTO swarm_commands(code,seat,sequence,body) SELECT ?,?,?,? WHERE (SELECT count(*) FROM swarm_commands WHERE code=? AND done=0)<64',code,seat.id,command.sequence,JSON.stringify(sanitized),code),
+   this.stmt('SELECT id FROM swarm_commands WHERE code=? AND seat=? AND sequence=?',code,seat.id,command.sequence),
+  ]);if(!existing.results.length)fail('명령을 처리 중입니다. 잠시 후 다시 시도하세요',429);
   const advanced=await this.advance(code,true,row);return {queued:true,...(advanced?{state:this.response(advanced,seat.id,revision,ack)}:{})};
  }
  async advance(code,force=false,known){
   const preliminary=known||await this.row(code);if(!preliminary.started||!force&&preliminary.next_tick>this.now())return;
-  const lease=await this.lock(code,false,!force);if(!lease)return;
+  if(preliminary.lease&&preliminary.lease_until>this.now())return;
+  const lease=crypto.randomUUID(),lockAt=this.now();
+  // The lease returns its checkpoint and queue atomically. No second DB read
+  // after acquiring a lock, and no isolate-local authoritative state/cache.
+  const row=await this.stmt('UPDATE swarm_rooms SET lease=?,lease_until=? WHERE code=? AND expires>? AND (lease IS NULL OR lease_until<?)'+(!force?' AND started=1 AND next_tick<=?':'')+' RETURNING *, (SELECT checkpoint FROM swarm_states WHERE code=swarm_rooms.code) AS checkpoint, (SELECT acks FROM swarm_states WHERE code=swarm_rooms.code) AS acks, (SELECT json_group_array(json_object(\'id\',id,\'seat\',seat,\'sequence\',sequence,\'body\',body)) FROM (SELECT id,seat,sequence,body FROM swarm_commands WHERE code=swarm_rooms.code AND done=0 ORDER BY id LIMIT 64)) AS queued',...[lease,lockAt+12000,code,lockAt,lockAt,...(!force?[lockAt]:[])]).first();
+  if(!row)return;
+  return this.advanceLocked(row,lease);
+ }
+ async advanceLocked(row,lease){
+  const code=row.code;
   let committed=false;
   try{
-   const [saved,queued]=await this.db.batch([
-    this.stmt('SELECT r.*,s.checkpoint,s.acks FROM swarm_rooms r JOIN swarm_states s ON r.code=s.code WHERE r.code=?',code),
-    this.stmt('SELECT id,seat,sequence,body FROM swarm_commands WHERE code=? AND done=0 ORDER BY id LIMIT 64',code),
-   ]);
-   const row=saved.results[0];if(!row)fail('방이 만료되었습니다',404);
    const state=await this.hydrate(code,row),g=state.room.session?.game;if(!g)return;
    state.room.seats=JSON.parse(row.seats);
-   let processed=0;for(const c of queued.results){
+   let processed=0;for(const c of JSON.parse(row.queued||'[]')){
     const ok=state.room.session.dispatch('seat-'+c.seat,JSON.parse(c.body));
     state.acks.push({seat:c.seat,sequence:c.sequence,ok:!!ok,result:ok,frame:g.frame+1});processed=c.id;
    }
    const now=this.now(),active=state.room.seats.some(s=>now-s.seen<8000);
    if(active&&!g.over)state.accumulator+=Math.min(1000,Math.max(0,now-row.last_at));
-   let steps=0;while(state.accumulator+1e-7>=1000/30&&steps<6&&!g.over){state.room.session.tick(1/30);state.accumulator-=1000/30;steps++;}
+   // Cover up to one elapsed second at the normal30Hz. A slow DB round trip
+   // must not cap the entire shared game's progress at six ticks per request.
+   let steps=0;while(state.accumulator+1e-7>=1000/30&&steps<30&&!g.over){state.room.session.tick(1/30);state.accumulator-=1000/30;steps++;}
    state.accumulator=Math.min(1000,state.accumulator);
    committed=await this.commit(row,lease,state,{lastAt:now,nextTick:now+100,processed});
    if(committed)return {...row,seats:JSON.stringify(state.room.seats),state_revision:state.revision,snapshot:state.snapshot,acks:JSON.stringify(state.acks.slice(-64))};
   }finally{if(!committed)await this.release(code,lease);}
  }
  response(row,seat,revision,ack){return {lobby:publicLobby(row),revision:row.state_revision,snapshot:row.state_revision>revision?row.snapshot:null,acks:JSON.parse(row.acks).filter(a=>a.seat===seat&&a.sequence>ack).map(({seat,...a})=>({type:'ack',...a,serverMs:null}))};}
- async poll(code,token,revision=0,ack=0){
-  const row=await this.stmt('SELECT r.*,CASE WHEN s.revision>? THEN s.snapshot END AS snapshot,s.acks,s.revision AS state_revision FROM swarm_rooms r JOIN swarm_states s ON r.code=s.code WHERE r.code=? AND r.expires>?',revision,code,this.now()).first();
-  if(!row)fail('방이 없거나 만료되었습니다',404);const seat=this.seat(row,token);
-  if(this.now()-seat.seen>1500)await this.stmt('UPDATE swarm_rooms SET seats=json_set(seats,?,?) WHERE code=? AND json_extract(seats,?)=?',`$[${seat.id}].seen`,this.now(),code,`$[${seat.id}].token`,token).run();
-  const result=await this.advance(code,false,row);
+ async poll(code,token,revision=0,ack=0,prefetched=null){
+  const row=prefetched||await this.stmt('SELECT r.*,CASE WHEN s.revision>? THEN s.snapshot END AS snapshot,s.acks,s.revision AS state_revision FROM swarm_rooms r JOIN swarm_states s ON r.code=s.code WHERE r.code=? AND r.expires>?',revision,code,this.now()).first();
+  if(!row?.code)fail('방이 없거나 만료되었습니다',404);const seat=this.seat(row,token);
+  if(!row.fastPoll&&this.now()-seat.seen>1500)await this.stmt('UPDATE swarm_rooms SET seats=json_set(seats,?,?) WHERE code=? AND json_extract(seats,?)=?',`$[${seat.id}].seen`,this.now(),code,`$[${seat.id}].token`,token).run();
+  const result=row.fastPoll?(row.claimed?await this.advanceLocked(row,row.lease):null):await this.advance(code,false,row);
   return this.response(result||row,seat.id,revision,ack);
  }
 }
