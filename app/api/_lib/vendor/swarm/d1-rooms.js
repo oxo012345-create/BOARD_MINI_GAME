@@ -8,6 +8,7 @@ export function base64(buffer){let text='';const bytes=new Uint8Array(buffer);fo
 const equalToken=(a,b)=>typeof b==='string'&&b.length===36&&a===b;
 const publicLobby=row=>({type:'lobby',room:row.code,mode:row.mode,started:!!row.started,capacity:MODES[row.mode].count,seats:JSON.parse(row.seats).map(s=>({id:s.id,name:s.name,connected:Date.now()-s.seen<8000}))});
 const validCommand=c=>c&&Number.isSafeInteger(c.sequence)&&c.sequence>0&&c.sequence<=50000&&(c.type==='move'?Number.isFinite(c.x)&&Number.isFinite(c.y)&&c.x>=0&&c.x<=1000&&c.y>=0&&c.y<=1000&&[.5,1].includes(c.fraction):c.type==='claim'?Number.isInteger(c.zone)&&c.zone>=0&&c.zone<25:c.type==='upgrade'&&['attack','armor'].includes(c.kind));
+export function sanitizeCommand(command,matchId){if(!validCommand(command)||command.matchId!==matchId)return null;return {sequence:command.sequence,matchId,type:command.type,...(command.type==='move'?{x:command.x,y:command.y,fraction:command.fraction}:command.type==='claim'?{zone:command.zone}:{kind:command.kind})};}
 
 // No process-local room map: every isolate reads the same D1 state. A fenced
 // lease serializes joins/start/steps; state, queue consumption and revision commit
@@ -87,8 +88,8 @@ export class D1Rooms{
  }
  async command(code,token,command,revision=0,ack=0,prefetched=null){
   const row=prefetched||await this.row(code);if(!row.code)fail('방이 없거나 만료되었습니다',404);const seat=this.seat(row,token);if(!row.started)fail('전투가 시작되지 않았습니다',409);
-  if(!validCommand(command)||command.matchId!==code)fail('잘못된 명령입니다');
-  const sanitized={sequence:command.sequence,matchId:code,type:command.type,...(command.type==='move'?{x:command.x,y:command.y,fraction:command.fraction}:command.type==='claim'?{zone:command.zone}:{kind:command.kind})};
+  const sanitized=sanitizeCommand(command,code);if(!sanitized)fail('잘못된 명령입니다');
+  if(row.fastCommand){if(!row.queueAccepted)fail('명령을 처리 중입니다. 잠시 후 다시 시도하세요',429);const advanced=row.claimed?await this.advanceLocked(row,row.lease):null;return {queued:true,state:this.response(advanced||row,seat.id,revision,ack)};}
   const [,existing]=await this.db.batch([
    this.stmt('INSERT OR IGNORE INTO swarm_commands(code,seat,sequence,body) SELECT ?,?,?,? WHERE (SELECT count(*) FROM swarm_commands WHERE code=? AND done=0)<64',code,seat.id,command.sequence,JSON.stringify(sanitized),code),
    this.stmt('SELECT id FROM swarm_commands WHERE code=? AND seat=? AND sequence=?',code,seat.id,command.sequence),

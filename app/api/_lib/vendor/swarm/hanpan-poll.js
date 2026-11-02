@@ -2,7 +2,7 @@
 // returns the cached view. SQL guards prevent pre-authentication mutations.
 export async function authorizedPoll(db,{roomCode,key,matchId,sessionHash,token,revision,now=Date.now()}){
  const lease=crypto.randomUUID();
- const authority=alias=>`EXISTS(SELECT 1 FROM rooms hp JOIN json_each(hp.state,'$.players') pp WHERE hp.code=? AND json_extract(hp.state,'$.view')='game' AND json_extract(hp.state,'$.game.id')='swarm-territory' AND json_extract(hp.state,'$.game.swarm.matchId')=? AND json_extract(pp.value,'$.sessionHash')=? AND json_extract(pp.value,'$.status')='active' AND EXISTS(SELECT 1 FROM json_each(${alias}.seats) se WHERE json_extract(se.value,'$.token')=? AND json_extract(hp.state,'$.game.swarm.playerIds['||json_extract(se.value,'$.id')||']')=json_extract(pp.value,'$.id')))`;
+ const authority=roomAuthority;
  const auth=[roomCode,matchId,sessionHash,token],q=(sql,...args)=>db.prepare(sql).bind(...args);
  const result=await db.batch([
   q(`UPDATE swarm_rooms SET seats=json_set(seats,(SELECT '$['||json_extract(value,'$.id')||'].seen' FROM json_each(seats) WHERE json_extract(value,'$.token')=?),?) WHERE code=? AND expires>? AND ${authority('swarm_rooms')} AND (SELECT json_extract(value,'$.seen') FROM json_each(seats) WHERE json_extract(value,'$.token')=?)<?`,token,now,key,now,...auth,token,now-1500),
@@ -11,3 +11,4 @@ export async function authorizedPoll(db,{roomCode,key,matchId,sessionHash,token,
  ]);
  const row=result[2].results[0];return row?{...row,fastPoll:true}:null;
 }
+export const roomAuthority=alias=>`EXISTS(SELECT 1 FROM rooms hp JOIN json_each(hp.state,'$.players') pp WHERE hp.code=? AND json_extract(hp.state,'$.view')='game' AND json_extract(hp.state,'$.game.id')='swarm-territory' AND json_extract(hp.state,'$.game.swarm.matchId')=? AND json_extract(pp.value,'$.sessionHash')=? AND json_extract(pp.value,'$.status')='active' AND EXISTS(SELECT 1 FROM json_each(${alias}.seats) se WHERE json_extract(se.value,'$.token')=? AND json_extract(hp.state,'$.game.swarm.playerIds['||json_extract(se.value,'$.id')||']')=json_extract(pp.value,'$.id')))`;

@@ -682,6 +682,7 @@ export default function Home() {
   const roomCode = room?.code;
   const fallbackSyncInterval = room && FAST_SYNC_VIEWS.includes(room.view) ? FAST_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
   const syncInterval = realtimeConnected ? REALTIME_SAFETY_SYNC_INTERVAL_MS : fallbackSyncInterval;
+  const swarmRunning = room?.view === "game" && currentGame?.id === "swarm-territory";
 
   const nextRoomRequestSequence = useCallback(() => {
     roomRequestSequenceRef.current += 1;
@@ -727,7 +728,7 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 100); return () => window.clearInterval(id); }, []);
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), swarmRunning ? 1_000 : 100); return () => window.clearInterval(id); }, [swarmRunning]);
   useEffect(() => {
     if (!roleVisible || !roleTouchRevealRef.current) return;
     const releaseRole = () => {

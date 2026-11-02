@@ -21,7 +21,8 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const initialRevision = Math.min(room.revision ?? 0, requestedRevision);
     const shouldWait = new URL(request.url).searchParams.get("wait") === "1";
     if (!shouldWait) return Response.json({ revision: room.revision ?? 0 }, { headers: { "Cache-Control": "no-store" } });
-    if (isFastClub(room.game?.id)) {
+    const swarmRunning = room.view === "game" && room.game?.id === "swarm-territory";
+    if (isFastClub(room.game?.id) || swarmRunning) {
       // One read supplies both revision and state; no CREATE/second SELECT on
       // each wake. Other games retain their existing polling path and cadence.
       const snapshot = await waitForRoomUpdate(initialRevision, request.signal, async known => {
@@ -30,7 +31,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
         const latest = update.room;
         if (latest && !latest.players.some(p => p.id === viewer.id && p.sessionHash === viewer.sessionHash)) return { revision: update.revision, room: null };
         return latest ? { revision: update.revision, room: toClientRoom(latest, viewer.id) } : { revision: update.revision };
-      }, 100);
+      }, swarmRunning ? 1_000 : 100);
       return Response.json(snapshot, { headers: { "Cache-Control": "no-store" } });
     }
     const snapshot = await waitForRoomUpdate(initialRevision, request.signal, async (knownRevision) => {

@@ -6,7 +6,7 @@ import {Miniflare} from 'miniflare';
 import {decodeSnapshot} from '../public/swarm/net-protocol.js';
 
 await fs.mkdir('tmp',{recursive:true});
-await build({stdin:{contents:`import {GET,PATCH} from './app/api/rooms/[code]/route.ts';import {POST} from './app/api/rooms/[code]/swarm/route.ts';export default{fetch(request){const url=new URL(request.url),context={params:Promise.resolve({code:url.pathname.split('/')[3]})};return url.pathname.endsWith('/swarm')?POST(request,context):request.method==='GET'?GET(request,context):PATCH(request,context);}};`,resolveDir:process.cwd(),sourcefile:'swarm-audit-entry.ts'},bundle:true,outfile:'tmp/swarm-audit-worker.mjs',format:'esm',platform:'neutral',target:'es2022',external:['cloudflare:workers'],logLevel:'silent'});
+await build({stdin:{contents:`import {GET,PATCH} from './app/api/rooms/[code]/route.ts';import {POST} from './app/api/rooms/[code]/swarm/route.ts';import {GET as EVENTS} from './app/api/rooms/[code]/events/route.ts';export default{fetch(request){const url=new URL(request.url),context={params:Promise.resolve({code:url.pathname.split('/')[3]})};return url.pathname.endsWith('/events')?EVENTS(request,context):url.pathname.endsWith('/swarm')?POST(request,context):request.method==='GET'?GET(request,context):PATCH(request,context);}};`,resolveDir:process.cwd(),sourcefile:'swarm-audit-entry.ts'},bundle:true,outfile:'tmp/swarm-audit-worker.mjs',format:'esm',platform:'neutral',target:'es2022',external:['cloudflare:workers'],logLevel:'silent'});
 const mf=new Miniflare({modules:true,scriptPath:'tmp/swarm-audit-worker.mjs',compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'hanpan-swarm-audit'},port:0,host:'127.0.0.1'});
 const base=String(await mf.ready).replace(/\/$/,''),db=await mf.getD1Database('DB');
 let checks=0,sequence=2000;
@@ -42,8 +42,12 @@ try{
   const returned=await request(room,actors[0],{action:'join',player:{name:'Audit 0',avatar:'🙂'}});ok(returned.status===200&&returned.body.room.meId===actors[0].id,'same Hanpan cookie reconnects');
   const rejoin=await request(room,actors[0],{operation:'join',matchId},true);ok(rejoin.status===200&&rejoin.body.welcome.seat===0,'same battle seat after refresh');
   ok(packet(await request(room,actors[0],{operation:'poll',matchId},true)).players[0].attack===1,'reconnect does not reset battle');
-  await request(room,actors[1],{action:'set-view',view:'lobby'});
+  const parentNow=JSON.parse((await db.prepare('SELECT state FROM rooms WHERE code=?').bind(room.code).first()).state);
+  const watch=fetch(base+`/api/rooms/${room.code}/events?wait=1&revision=${parentNow.revision}`,{headers:{Cookie:`hanpan_room_${room.code}=${actors[1].token}`}});
+  await new Promise(r=>setTimeout(r,80));await request(room,actors[1],{action:'set-view',view:'lobby'});const event=await watch,update=await event.json();
+  ok(event.status===200&&update.room?.view==='lobby','parent watcher still delivers host lobby changes');ok(!JSON.stringify(update).includes(actors[1].hash),'parent event never exposes session hash');
   ok((await request(room,actors[0],{operation:'poll',matchId},true)).status===409,'leaving parent game closes old command boundary');
+  ok((await request(room,actors[0],{operation:'command',matchId,command:{type:'upgrade',kind:'armor',matchId,sequence:2}},true)).status===409,'stale command cannot enter the fast queue');
  }
  const invalid=await fixture(3);ok((await request(invalid.room,invalid.actors[0],{action:'start-game',gameId:'swarm-territory'})).status===422,'three players cannot start a four-player battle');
  const wrongMode=await fixture(4);ok((await request(wrongMode.room,wrongMode.actors[0],{action:'swarm-settings',swarmMode:'duel'})).status===422,'invalid mode count rejected');

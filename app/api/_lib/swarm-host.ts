@@ -2,6 +2,7 @@ import type {RoomState,Player} from './rooms';
 import {D1Rooms} from './vendor/swarm/d1-rooms.js';
 import {makeInitialBattle,swarmDatabase} from './vendor/swarm/bootstrap.js';
 import {authorizedPoll} from './vendor/swarm/hanpan-poll.js';
+import {authorizedCommand} from './vendor/swarm/hanpan-command.js';
 import {getSessionToken,hashToken} from './session';
 
 export type SwarmMatch={mode:'duel'|'team'|'ffa';matchId?:string;playerIds?:string[]};
@@ -12,8 +13,8 @@ const error=(message:string,status=409)=>{throw Object.assign(new Error(message)
 // Authentication still runs before any battle mutation or snapshot is returned.
 export async function readSwarmContext(db:ReturnType<typeof swarmDatabase>,code:string,payload:Record<string,unknown>,request?:Request){
  const key=typeof payload.matchId==='string'?`hanpan:${code}:${payload.matchId}`:'',revision=Number.isSafeInteger(payload.revision)?Number(payload.revision):0;
- if(request&&payload.operation==='poll'&&typeof payload.matchId==='string'){
-  const session=getSessionToken(request,code);if(session){const sessionHash=await hashToken(session),token=await seatToken(sessionHash,payload.matchId);const row=await authorizedPoll(db,{roomCode:code,key,matchId:payload.matchId,sessionHash,token,revision});if(row)return row;}
+ if(request&&['poll','command'].includes(String(payload.operation))&&typeof payload.matchId==='string'){
+  const session=getSessionToken(request,code);if(session){const sessionHash=await hashToken(session),token=await seatToken(sessionHash,payload.matchId),args={roomCode:code,key,matchId:payload.matchId,sessionHash,token,revision},command=payload.command as Record<string,unknown>|undefined;const row=payload.operation==='poll'?await authorizedPoll(db,args):command?.matchId===payload.matchId?await authorizedCommand(db,{...args,command:{...command,matchId:key}}):null;if(row)return row;}
  }
  return db.prepare('SELECT p.state AS parent_state,r.*,CASE WHEN s.revision>? THEN s.snapshot END AS snapshot,s.acks,s.revision AS state_revision FROM rooms p LEFT JOIN swarm_rooms r ON r.code=? AND r.expires>? LEFT JOIN swarm_states s ON r.code=s.code WHERE p.code=?').bind(revision,key,Date.now(),code).first();
 }
