@@ -8,7 +8,7 @@ export class NetworkSession extends EventTarget{
  }
  emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
  connect(){
-  const url=new URL('/api/swarm/ws',location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';url.searchParams.set('room',this.id);this.status='connecting';this.emit('status',this.status);
+  const url=new URL(this.socketAddress||'/api/swarm/ws',location.href);if(url.protocol==='https:'||url.protocol==='http:')url.protocol=url.protocol==='https:'?'wss:':'ws:';if(!this.socketAddress)url.searchParams.set('room',this.id);this.status='connecting';this.emit('status',this.status);
   const socket=this.socket=new WebSocket(url);socket.binaryType='arraybuffer';
   socket.onopen=()=>{this.sendRaw({type:'join',name:this.name,token:this.token});this.lastPong=performance.now();this.heartbeat=setInterval(()=>this.ping(),1000);this.ping();};
   socket.onmessage=e=>{if(socket!==this.socket)return;try{if(typeof e.data==='string')this.message(JSON.parse(e.data));else this.snapshot(e.data);}catch{this.sendRaw({type:'resync'});}};

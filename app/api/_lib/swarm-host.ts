@@ -4,8 +4,9 @@ import {makeInitialBattle,swarmDatabase} from './vendor/swarm/bootstrap.js';
 import {authorizedPoll} from './vendor/swarm/hanpan-poll.js';
 import {authorizedCommand} from './vendor/swarm/hanpan-command.js';
 import {getSessionToken,hashToken} from './session';
+import {realtimeWelcome} from './swarm-realtime';
 
-export type SwarmMatch={mode:'duel'|'team'|'ffa';matchId?:string;playerIds?:string[]};
+export type SwarmMatch={mode:'duel'|'team'|'ffa';matchId?:string;playerIds?:string[];transport?:'durable';endpoint?:string};
 type SwarmGame={id?:string;swarm?:SwarmMatch};
 const error=(message:string,status=409)=>{throw Object.assign(new Error(message),{status});};
 
@@ -23,7 +24,7 @@ export function currentSwarm(room:RoomState,viewer:Player,matchId:unknown){
  const game=room.game as SwarmGame|undefined,match=game?.swarm;
  if(room.view!=='game'||game?.id!=='swarm-territory'||!match?.matchId||match.matchId!==matchId)error('이전 전투 입력입니다. 현재 게임에 다시 연결해 주세요.');
  if(!match!.playerIds?.includes(viewer.id)||viewer.status!=='active')error('이번 전투 참가자가 아닙니다.',403);
- return match as Required<SwarmMatch>;
+ return match as SwarmMatch&Required<Pick<SwarmMatch,'matchId'|'playerIds'>>;
 }
 
 async function seatToken(sessionHash:string,matchId:string){
@@ -32,7 +33,7 @@ async function seatToken(sessionHash:string,matchId:string){
  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
-async function bootstrap(db:ReturnType<typeof swarmDatabase>,room:RoomState,match:Required<SwarmMatch>,key:string){
+async function bootstrap(db:ReturnType<typeof swarmDatabase>,room:RoomState,match:SwarmMatch&Required<Pick<SwarmMatch,'matchId'|'playerIds'>>,key:string){
  const now=Date.now(),seed=parseInt(match.matchId.replaceAll('-','').slice(0,8),16);
  const participants=match.playerIds.map(id=>{const p=room.players.find(p=>p.id===id);if(!p)error('전투 참가자 정보를 찾지 못했습니다.');return p!;});
  const seats=await Promise.all(participants.map(async(p,id)=>({id,name:p.name,token:await seatToken(p.sessionHash,match.matchId),seen:now})));
@@ -46,6 +47,10 @@ async function bootstrap(db:ReturnType<typeof swarmDatabase>,room:RoomState,matc
 
 export async function swarmRequest(db:ReturnType<typeof swarmDatabase>,room:RoomState,viewer:Player,payload:Record<string,unknown>,prefetched=null){
  const match=currentSwarm(room,viewer,payload.matchId),key=`hanpan:${room.code}:${match.matchId}`,token=await seatToken(viewer.sessionHash,match.matchId),service=new D1Rooms(db);
+ if(match.transport==='durable'){
+  if(payload.operation==='join')return realtimeWelcome(room,viewer,match);
+  error('이 전투는 실시간 연결을 사용합니다. 다시 연결해 주세요.');
+ }
  if(payload.operation==='join'){
   await bootstrap(db,room,match,key);
   const {welcome,lobby}=await service.join(key,{token,name:viewer.name});

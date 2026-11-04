@@ -12,6 +12,7 @@ import { PLACE_MAFIA_LOCATION_IDS, type PlaceMafiaBalance, type PlaceMafiaLocati
 import { advanceCashNGunsIfDue, createCashNGunsState, handleCashNGunsAction, removeCashNGunsPlayer } from "../../_lib/cash-n-guns";
 import { advanceMafiaIfDue, createMafiaState, handleMafiaAction, removeMafiaPlayer } from "../../_lib/mafia";
 import { advanceFrontierBeanBots, createFrontierBeanState, handleFrontierBeanAction, replaceFrontierBeanPlayerWithBot } from "../../_lib/frontier-beans";
+import {selectSwarmRealtime} from '../../_lib/swarm-realtime';
 
 function normalizeCode(code: string) { return code.replace(/\D/g, "").slice(0, 4); }
 
@@ -358,7 +359,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
         const mode=pendingGame.swarm?.mode??(room.players.length===2?"duel":"ffa");
         if(room.players.length!==(mode==="duel"?2:4))return Response.json({error:mode==="duel"?"1대1은2명이 필요해요.":"팀전·개인전은4명이 필요해요."},{status:422});
         room.players.forEach(p=>{p.status="active";});
-        room.game={id:gameId,title:GAME_INFO[gameId].title,prompt:"",startedAt:Date.now(),swarm:{mode,matchId:crypto.randomUUID(),playerIds:room.players.map(p=>p.id)}};
+        room.game={id:gameId,title:GAME_INFO[gameId].title,prompt:"",startedAt:Date.now(),swarm:{mode,matchId:crypto.randomUUID(),playerIds:room.players.map(p=>p.id),...await selectSwarmRealtime(room.code)}};
         room.view="game";room.roundNumber++;return persistAndRespond(room,viewer.id);
       }
       if (isClub(gameId)) {
