@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hanpan-swarm-realtime",
+  "main": "index.js",
+  "compatibility_date": "2026-11-04",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGIN": "https://hanpan-mobile-game.oxo012345.chatgpt.site",
+    "SITE_ORIGIN": "https://hanpan-mobile-game.oxo012345.chatgpt.site",
+    "STATE_PATCH_MS": "100"
+  },
+  "durable_objects": {"bindings": [{"name": "SWARM_ROOMS", "class_name": "SwarmRoom"}]},
+  "migrations": [{"tag": "swarm-room-v1", "new_sqlite_classes": ["SwarmRoom"]}]
+}

@@ -3,7 +3,8 @@ import {MODES} from '../../../../../public/swarm/modes.js';
 import {SnapshotEncoder,TICK_MS,PATCH_MS} from '../../../../../public/swarm/net-protocol.js';
 
 export class OnlineRoom{
- constructor({code,mode='duel',seed=Date.now(),now=()=>performance.now(),uuid=()=>crypto.randomUUID(),cpuTiming=true}={}){
+ constructor({code,mode='duel',seed=Date.now(),now=()=>performance.now(),uuid=()=>crypto.randomUUID(),cpuTiming=true,patchMs=PATCH_MS}={}){
+  this.patchMs=patchMs;
   if(!Object.hasOwn(MODES,mode))throw new Error('Unknown mode');this.code=code;this.mode=mode;this.seed=seed;this.now=now;this.uuid=uuid;this.cpuTiming=cpuTiming;this.seats=[];this.peers=new Map();this.session=null;this.encoder=new SnapshotEncoder();this.events=[];this.accumulator=0;this.last=now();this.patchAt=now();this.lastActive=now();this.stats={tickMs:cpuTiming?0:null,tickMaxMs:cpuTiming?0:null,encodeMs:cpuTiming?0:null,timingSource:cpuTiming?'process-monotonic-clock':'worker-cpu-time-unavailable',commands:0,rejected:0,droppedSnapshots:0,lagMs:0};
  }
  checkpoint(){const game=this.session?.game;return {code:this.code,mode:this.mode,seed:this.seed,seats:this.seats,game:game?Object.fromEntries(Object.entries(game).filter(([key])=>!['random','rules','palettes','zoneMap','unitMap','buckets','neighborhoodCache','enemyNeighborhoodCache','separationBuckets','separationCache','duration','events'].includes(key))):null,random:game?.random.getState(),sequences:this.session?[...this.session.sequences]:[]};}
@@ -41,7 +42,7 @@ export class OnlineRoom{
   while(this.accumulator+1e-7>=TICK_MS&&steps<3&&!this.session.game.over){const t=this.now();this.session.tick(1/30);if(this.cpuTiming){const ms=this.now()-t;this.stats.tickMs=ms;this.stats.tickMaxMs=Math.max(this.stats.tickMaxMs,ms);}this.events.push(...this.session.game.events);this.session.game.events.length=0;this.accumulator-=TICK_MS;steps++;}
   // Bound catch-up work; expose overload rather than hiding it with a fake RTT.
   this.stats.lagMs=Math.max(0,this.accumulator-TICK_MS);if(this.accumulator>1000)this.accumulator=1000;
-  if(now-this.patchAt>=PATCH_MS||this.session.game.over&&this.events.length){this.patchAt+=Math.floor((now-this.patchAt)/PATCH_MS)*PATCH_MS;this.patch();}
+  if(now-this.patchAt>=this.patchMs||this.session.game.over&&this.events.length){this.patchAt+=Math.floor((now-this.patchAt)/this.patchMs)*this.patchMs;this.patch();}
  }
  patch(force=false){
   if(!this.session)return;const ready=[];
