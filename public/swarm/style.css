@@ -11,3 +11,5 @@
 .rule-card p{font-size:11px;color:#51425d}.rule-card small{font-size:10px;color:#65576e}.rule-card h3{font-size:13px}.income-line{font-size:10px}.upgrade-tags span{font-size:9px}
 
 .friend-link{display:flex;justify-content:center;align-items:center;min-height:48px;margin:8px 0;color:#287661;font-weight:700;text-decoration:none;border:1px solid #b9cfc3;border-radius:12px;background:#e2f1e8}
+
+.performance-panel{margin-top:12px;padding:12px;border:1px solid #8a809a55;border-radius:12px;text-align:left}.performance-panel[hidden]{display:none}.performance-panel summary{cursor:pointer;font-weight:700}.performance-panel pre{font:12px/1.7 system-ui;white-space:pre-wrap;user-select:text;margin:10px 0}.performance-panel button{min-height:44px;width:100%;margin-bottom:8px}.performance-panel small{display:block;font-size:11px;line-height:1.5}

@@ -25,3 +25,16 @@ test('hit flashes, base strike effects, and projectile visuals advance between p
 test('adaptive interpolation remains bounded across irregular packet timing',()=>{
  const clock=new SnapshotMotion();let at=0,time=0;clock.receive(0,0,0);for(const gap of [100,180,300,450,800,1200]){at+=gap;time+=gap/1000;clock.receive(time,at,time-.05);assert.ok(clock.duration>=100&&clock.duration<=600);assert.ok(clock.phase(at+5000).extraSeconds<=.1);}
 });
+
+test('20Hz state updates do not add the old minimum100ms smoothing delay',()=>{
+ const {c,send,setNow}=fixture();let next=0;const lags=[];
+ for(let frame=0;frame<=240;frame++){
+  const now=frame*1000/60;setNow(100+now);
+  if(now+1e-6>=next){send(next/1000,100+next*.1,100);next+=50;}
+  c.tick();if(now>=500)lags.push((100+now*.1-c.game.units[0].x)/.1);
+ }
+ const mean=lags.reduce((n,v)=>n+v,0)/lags.length,sorted=[...lags].sort((a,b)=>a-b);
+ assert.ok(mean<90,`steady motion visual delay ${mean}ms`);
+ assert.ok(sorted[Math.ceil(sorted.length*.95)-1]<100);
+ assert.equal(c.replica.units.get(c.game.units[0].id).x,500,'only the rendered position is smoothed');
+});

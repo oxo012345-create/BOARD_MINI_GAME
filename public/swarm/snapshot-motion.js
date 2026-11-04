@@ -7,7 +7,7 @@ export class SnapshotMotion{
   if(this.serverTime!==null&&serverTime<=this.serverTime+1e-7)return {advanced:false,reset:false};
   const gap=this.updatedAt===null?null:now-this.updatedAt,reset=this.serverTime===null||gap>2000;
   if(reset){this.intervals=[];this.duration=100;}
-  else if(gap>=30){this.intervals.push(gap);if(this.intervals.length>12)this.intervals.shift();const sorted=[...this.intervals].sort((a,b)=>a-b);this.duration=Math.max(100,Math.min(600,sorted[Math.ceil(sorted.length*.75)-1]*1.1));}
+  else if(gap>=20){this.intervals.push(gap);if(this.intervals.length>12)this.intervals.shift();const sorted=[...this.intervals].sort((a,b)=>a-b);this.duration=Math.max(1000/30,Math.min(600,sorted[Math.ceil(sorted.length*.75)-1]*1.1));}
   this.fromTime=reset?serverTime:Math.min(serverTime,visualTime);this.serverTime=serverTime;this.updatedAt=now;return {advanced:true,reset};
  }
  phase(now){const elapsed=this.updatedAt===null?0:Math.max(0,now-this.updatedAt),blend=Math.min(1,elapsed/this.duration);return {blend,extraSeconds:Math.min(100,Math.max(0,elapsed-this.duration))/1000,time:this.fromTime+((this.serverTime??0)-this.fromTime)*blend};}

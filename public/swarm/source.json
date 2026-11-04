@@ -22,7 +22,9 @@
     "Hanpan navigation messages",
     "Same-origin authenticated room transport",
     "Personal200 mobile balance and AI anti-stall logic",
-    "Current/200 population HUD and rules"
+    "Current/200 population HUD and rules",
+    "Resolution-sized facing sprite cache and20Hz visual interpolation",
+    "Optional local connection/frame diagnostics in rules"
   ],
   "localProfile": {
     "id": "hanpan-personal-200-v1",
@@ -36,13 +38,15 @@
   "localHashes": {
     "engine.js": "357571263558644f6e0e9e70317ebff12ebeec7d30a46e632c1920852d0475ff",
     "rules.js": "c9886affa0367a14608928a71ff8981bfb1acc5906cedb1d464237725aa69e18",
-    "app.js": "7376a2fdf3e616afe6d1ec6c40eaf6518fe4ffb9d5a017452568a6fa1ad9c652",
-    "style.css": "e28653c05e035a9f5701032f816fb909d11d90c2e986f4d37496df20e8aa19c0",
-    "index.html": "07c073beeaecf3b74968f731dba429f64ea92c019fe44484f1fe88b41a1e9f3f",
-    "hanpan.html": "da560dbf96f4ae385f5d4b3199139fcd5d11b7b7549ffdee3953645c57306ba2",
+    "app.js": "dc934673f0b5862a7912ef2797741f592dc2f095bc8d9e70df37b9bf267d9f09",
+    "style.css": "d7c9bdc77b11008d28586b96e3478d3adf9deb0fffea336abf5f3dd623532d73",
+    "index.html": "c43c53b8decb1a1927d2f50b4dbccffe45a422a1c961f4df8855d17e60f4c362",
+    "hanpan.html": "6b4c39b1938d685e615870b443344fb91c7e663838ec082e63b138e57566531b",
     "network.js": "5fd850dbbe3b9b7df1e806c1ef977ba20eac3b42081e41cb1367f61869803ebb",
-    "snapshot-motion.js": "26abdfbb204b7b71467356f8703c1701c8ad139136566c8508214641a27fcd54",
+    "snapshot-motion.js": "f89041036780b60932b59d2d1160f2384ae5784695e1469f729fdf54455f4ba1",
     "hanpan-network.js": "ae2f8d42c08d420cc79efcc826a04ac7b57287c13896248df77c4079e5575eb5",
-    "hanpan-entry.js": "9e755c9c17721af7b1344c460c18eed5501e8fa274b9c5e5ee4cede3c56b76e8"
+    "hanpan-entry.js": "9e755c9c17721af7b1344c460c18eed5501e8fa274b9c5e5ee4cede3c56b76e8",
+    "unit-sprites.js": "51b484651c4577cfa6c22a94f8dbaf0afefe115c264deabebaa671d1bb912022",
+    "connection-status.js": "24b2cad42065210e1778e987570cdb7d84d7c16a311ebc5001885bdcc59f7400"
   }
 }
