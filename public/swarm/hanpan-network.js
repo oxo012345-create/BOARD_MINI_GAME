@@ -25,5 +25,6 @@ export class HanpanSession extends HttpNetworkSession{
   }
  }
  sendRaw(message){return this.socketMode?NetworkSession.prototype.sendRaw.call(this,message):super.sendRaw(message);}
+ latency(now=performance.now()){return this.socketMode?NetworkSession.prototype.latency.call(this,now):super.latency(now);}
  diagnostics(){return this.socketMode?{...NetworkSession.prototype.diagnostics.call(this),transport:'websocket-durable',authority:'server',rttMeaning:'WebSocket ping round trip; command-to-draw and snapshot gaps are measured separately'}:super.diagnostics();}
 }

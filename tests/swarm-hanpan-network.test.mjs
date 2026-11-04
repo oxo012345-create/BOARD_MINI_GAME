@@ -22,3 +22,16 @@ test('a legacy match continues using one non-overlapping HTTP poll loop',async()
  try{globalThis.fetch=async(url,options)=>{active++;maxActive=Math.max(active,maxActive);const body=JSON.parse(options.body);operations.push(body.operation);await pause(2);active--;return Response.json(body.operation==='join'?{welcome:{type:'welcome',room:matchId,seat:0,mode:'duel',sequence:0},lobby:{started:true}}:{lobby:{started:true},acks:[],snapshot:Buffer.from(packet).toString('base64')});};client=new HanpanSession({room:matchId,roomCode:'2468',name:'',storage:null});await client.connect();await pause(30);assert.equal(client.diagnostics().transport,'https-d1');assert.deepEqual(operations,['join','poll']);assert.equal(maxActive,1);assert.equal(client.received,1);
  }finally{client?.close();globalThis.fetch=oldFetch;}
 });
+
+test('live latency uses a matched ping round trip, expires stale values, and identifies HTTP separately',()=>{
+ const client=new HanpanSession({room:crypto.randomUUID(),roomCode:'2468',storage:null});
+ try{
+  client.socketMode=true;client.status='connected';assert.equal(client.latency().ms,null);
+  client.message({type:'pong',id:'not-sent'});assert.equal(client.latency().ms,null,'an unmatched pong is not a measurement');
+  client.pings.set('measured',performance.now()-45);client.message({type:'pong',id:'measured'});
+  const value=client.latency();assert.equal(value.kind,'ping');assert.ok(value.ms>=45&&value.ms<500);
+  assert.equal(client.latency(performance.now()+4000).ms,null,'an old low ping must not imply a healthy connection');
+  client.status='disconnected';assert.equal(client.latency().ms,null);client.status='connected';
+  client.socketMode=false;client.record('rtt',600);assert.deepEqual(client.latency(),{kind:'response',ms:600},'HTTP processing time is not presented as a ping');
+ }finally{client.close();}
+});

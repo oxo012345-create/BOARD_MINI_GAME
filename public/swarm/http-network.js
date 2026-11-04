@@ -52,6 +52,7 @@ export class HttpNetworkSession extends NetworkSession{
    await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)));
   }
  }
+ latency(now=performance.now()){return {...super.latency(now),kind:'response'};}
  diagnostics(){return {...super.diagnostics(),transport:'https-d1',authority:'server',pollsOverlap:false,httpBytesReceived:this.httpBytes,httpRequests:this.requestCount,rttMeaning:'Full state-poll HTTP round trip, including server/DB work; not a WebSocket ping',serverCpuMs:null};}
  close(){super.close();this.abort.abort();}
 }

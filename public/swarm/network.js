@@ -9,7 +9,7 @@ export class NetworkSession extends EventTarget{
  emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
  connect(){
   const url=new URL(this.socketAddress||'/api/swarm/ws',location.href);if(url.protocol==='https:'||url.protocol==='http:')url.protocol=url.protocol==='https:'?'wss:':'ws:';if(!this.socketAddress)url.searchParams.set('room',this.id);this.status='connecting';this.emit('status',this.status);
-  const socket=this.socket=new WebSocket(url);socket.binaryType='arraybuffer';
+  this.latencySampleAt=null;const socket=this.socket=new WebSocket(url);socket.binaryType='arraybuffer';
   socket.onopen=()=>{this.sendRaw({type:'join',name:this.name,token:this.token});this.lastPong=performance.now();this.heartbeat=setInterval(()=>this.ping(),1000);this.ping();};
   socket.onmessage=e=>{if(socket!==this.socket)return;try{if(typeof e.data==='string')this.message(JSON.parse(e.data));else this.snapshot(e.data);}catch{this.sendRaw({type:'resync'});}};
   socket.onerror=()=>{};
@@ -17,7 +17,8 @@ export class NetworkSession extends EventTarget{
  }
  sendRaw(message){if(this.socket?.readyState!==WebSocket.OPEN)return false;if(this.socket.bufferedAmount>32*1024)return false;this.socket.send(JSON.stringify(message));return true;}
  ping(){const now=performance.now();if(now-this.lastPong>8000){this.socket?.close();return;}const id=crypto.randomUUID();this.pings.set(id,now);for(const [key,t]of this.pings)if(now-t>10000)this.pings.delete(key);this.sendRaw({type:'ping',id});}
- record(key,value){const list=this.samples[key];list.push(value);if(list.length>300)list.shift();}
+ record(key,value){const list=this.samples[key];list.push(value);if(list.length>300)list.shift();if(key==='rtt')this.latencySampleAt=performance.now();}
+ latency(now=performance.now()){const stale=this.status!=='connected'||this.latencySampleAt==null||now-this.latencySampleAt>3500;return {kind:'ping',ms:stale?null:this.samples.rtt.at(-1)};}
  message(m){const now=performance.now();
   if(m.type==='welcome'){this.seat=m.seat;this.token=m.token;this.mode=m.mode;this.sequence=m.sequence;this.game=new Game({mode:m.mode,seed:1});this.replica=new SnapshotReplica();this.lastState=0;this.targets.clear();this.droneTargets.clear();this.rawDrones.clear();this.motion.reset();this.lastVisualTick=null;this.pending.clear();this.status='connected';this.retries=0;try{this.storage?.setItem('swarm-room-'+this.id,JSON.stringify({token:m.token,name:this.name}));}catch{}this.emit('welcome',m);this.emit('status',this.status);}
   if(m.type==='lobby')this.emit('lobby',m);
