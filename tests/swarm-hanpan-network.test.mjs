@@ -35,3 +35,27 @@ test('live latency uses a matched ping round trip, expires stale values, and ide
   client.socketMode=false;client.record('rtt',600);assert.deepEqual(client.latency(),{kind:'response',ms:600},'HTTP processing time is not presented as a ping');
  }finally{client.close();}
 });
+
+test('a final authoritative result stops socket heartbeats/retries and keeps the result readable',async()=>{
+ const originals={fetch:globalThis.fetch,WebSocket:globalThis.WebSocket,location:globalThis.location},matchId=crypto.randomUUID(),g=new Game({mode:'team',seed:5}),encoder=new SnapshotEncoder();let requests=0,opens=0,closed=0,client;const errors=[];
+ class Socket{
+  static OPEN=1;
+  constructor(){opens++;this.readyState=1;this.bufferedAmount=0;queueMicrotask(()=>this.onopen?.());}
+  send(raw){const m=JSON.parse(raw);if(m.type==='join')queueMicrotask(()=>{this.onmessage?.({data:JSON.stringify({type:'welcome',seat:0,mode:'team',sequence:0})});this.onmessage?.({data:encoder.encode(g,{full:true})});});}
+  close(){closed++;this.readyState=3;this.onclose?.({code:1000});}
+ }
+ try{
+  globalThis.location={href:'https://hanpan.test/'};globalThis.WebSocket=Socket;globalThis.fetch=async()=>{requests++;return Response.json({transport:'durable',socketUrl:'/api/swarm/realtime-connect?ticket=test-only'});};
+  client=new HanpanSession({room:matchId,roomCode:'2468',storage:null});client.addEventListener('error',e=>errors.push(e.detail));await client.connect();await pause(10);
+  g.players[0].eliminated=true;client.socket.onmessage({data:encoder.encode(g,{full:true})});assert.equal(closed,0,'an eliminated teammate keeps spectating while the match continues');
+  g.finish(1,'annihilation');client.socket.onmessage({data:encoder.encode(g,{full:true})});
+  assert.equal(client.game.over,true);assert.equal(client.game.winner,1);assert.equal(client.game.reason,'annihilation');assert.equal(client.status,'finished');assert.equal(client.disposed,true);assert.equal(client.abort.signal.aborted,true);assert.equal(client.retry,undefined);assert.equal(closed,1);
+  await pause(550);assert.equal(opens,1,'finished socket does not reconnect');assert.equal(requests,1);assert.deepEqual(errors,[],'normal completion never opens a connection-error overlay');
+ }finally{client?.close();Object.assign(globalThis,originals);}
+});
+
+test('a legacy final snapshot also stops polling without discarding the result',async()=>{
+ const oldFetch=globalThis.fetch,matchId=crypto.randomUUID(),g=new Game({seed:5});g.finish(0,'annihilation');const packet=new SnapshotEncoder().encode(g,{full:true}),operations=[];let client;
+ try{globalThis.fetch=async(url,options)=>{const op=JSON.parse(options.body).operation;operations.push(op);return Response.json(op==='join'?{welcome:{type:'welcome',room:matchId,seat:0,mode:'duel',sequence:0},lobby:{started:true}}:{lobby:{started:true},acks:[],snapshot:Buffer.from(packet).toString('base64')});};client=new HanpanSession({room:matchId,roomCode:'2468',storage:null});await client.connect();await pause(120);assert.equal(client.game.winner,0);assert.equal(client.status,'finished');assert.equal(client.disposed,true);assert.deepEqual(operations,['join','poll']);
+ }finally{client?.close();globalThis.fetch=oldFetch;}
+});

@@ -58,6 +58,7 @@ export class SwarmRoom extends DurableObject{
   socket.addEventListener('message',event=>{
    if(typeof event.data!=='string'||event.data.length>4096)return socket.close(4000,'잘못된 메시지');
    try{const input=JSON.parse(event.data);if(input.type==='join')return;
+    if(this.room.session?.game.over){if(input.type==='stateAck')this.room.handle(peer,input);return;}
     if(Date.now()>this.authorityUntil||!this.active[p.seat]){socket.send(JSON.stringify({type:'error',message:'방 연결을 확인하고 있습니다.'}));return;}
     if(input.type==='command')outbox=[];
     this.room.handle(peer,input);
@@ -65,9 +66,9 @@ export class SwarmRoom extends DurableObject{
     if(input.type==='command'){this.save();const messages=outbox;outbox=null;for(const message of messages)socket.send(message);}
    }catch{outbox=null;socket.close(1011,'명령을 저장하지 못했습니다. 다시 연결해 주세요.');}
   });
-  const leave=()=>{if(!this.connections.has(peer))return;this.connections.delete(peer);this.room.leave(peer);if(!this.connections.size){clearInterval(this.timer);this.timer=null;this.save();}};
+  const leave=()=>{if(!this.connections.has(peer))return;this.connections.delete(peer);this.room.leave(peer);if(!this.connections.size){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;this.save();}};
   socket.addEventListener('close',leave);socket.addEventListener('error',leave);
-  if(!this.timer)this.timer=setInterval(()=>this.tick(),1000/60);
+  if(this.room.session.game.over)this.finishBattle();else if(!this.timer)this.timer=setInterval(()=>this.tick(),1000/60);
   return new Response(null,{status:101,webSocket:client});
  }
  tick(){
@@ -76,8 +77,15 @@ export class SwarmRoom extends DurableObject{
    if(Date.now()-this.lastChecked>=2000&&!this.checking)this.ctx.waitUntil(this.authority());
    if(Date.now()<=this.authorityUntil)this.room.advance();else {this.room.last=Date.now();this.room.accumulator=0;}
    if(Date.now()-this.lastSaved>=1000)this.save();
-   if(this.room.session?.game.over){this.save();clearInterval(this.timer);this.timer=null;}
+   if(this.room.session?.game.over)this.finishBattle();
   }catch{this.shutdown(1011,'전투 서버를 다시 연결해 주세요.');}
  }
- shutdown(code,reason){clearInterval(this.timer);this.timer=null;for(const [peer]of this.connections)try{peer.close(code,reason);}catch{}this.connections.clear();if(this.room){this.room.peers.clear();this.save();}}
+ finishBattle(){
+  clearInterval(this.timer);this.timer=null;if(this.finishTimer)return;
+  this.save();this.room.patch(true,{terminal:true});
+  // The final result is sent before closing. Bound the lifetime even for a
+  // backgrounded or older client which doesn't close after receiving it.
+  this.finishTimer=setTimeout(()=>this.shutdown(4000,'전투가 종료되었습니다.'),3000);
+ }
+ shutdown(code,reason){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;for(const [peer]of this.connections)try{peer.close(code,reason);}catch{}this.connections.clear();if(this.room){this.room.peers.clear();this.save();}}
 }

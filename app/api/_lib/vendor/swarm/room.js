@@ -44,9 +44,9 @@ export class OnlineRoom{
   this.stats.lagMs=Math.max(0,this.accumulator-TICK_MS);if(this.accumulator>1000)this.accumulator=1000;
   if(now-this.patchAt>=this.patchMs||this.session.game.over&&this.events.length){this.patchAt+=Math.floor((now-this.patchAt)/this.patchMs)*this.patchMs;this.patch();}
  }
- patch(force=false){
+ patch(force=false,{terminal=false}={}){
   if(!this.session)return;const ready=[];
-  for(const [peer,entry]of this.peers){if((peer.bufferedAmount||0)>128*1024||entry.inFlight.length>=3){entry.needsFull=true;this.stats.droppedSnapshots++;continue;}ready.push([peer,entry]);}
+  for(const [peer,entry]of this.peers){if(!terminal&&((peer.bufferedAmount||0)>128*1024||entry.inFlight.length>=3)){entry.needsFull=true;this.stats.droppedSnapshots++;continue;}ready.push([peer,entry]);}
   if(!ready.length){this.events=[];return;}
   const t=this.now(),full=force||ready.some(([,e])=>e.needsFull),data=this.encoder.encode(this.session.game,{full,events:this.events,stats:this.stats});if(this.cpuTiming)this.stats.encodeMs=this.now()-t;
   for(const [peer,entry]of ready){if(this.send(peer,data)){entry.needsFull=false;entry.lastSent=this.encoder.revision;entry.inFlight.push(this.encoder.revision);}else entry.needsFull=true;}this.events=[];

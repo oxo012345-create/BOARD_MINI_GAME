@@ -11,7 +11,7 @@ export class NetworkSession extends EventTarget{
   const url=new URL(this.socketAddress||'/api/swarm/ws',location.href);if(url.protocol==='https:'||url.protocol==='http:')url.protocol=url.protocol==='https:'?'wss:':'ws:';if(!this.socketAddress)url.searchParams.set('room',this.id);this.status='connecting';this.emit('status',this.status);
   this.latencySampleAt=null;const socket=this.socket=new WebSocket(url);socket.binaryType='arraybuffer';
   socket.onopen=()=>{this.sendRaw({type:'join',name:this.name,token:this.token});this.lastPong=performance.now();this.heartbeat=setInterval(()=>this.ping(),1000);this.ping();};
-  socket.onmessage=e=>{if(socket!==this.socket)return;try{if(typeof e.data==='string')this.message(JSON.parse(e.data));else this.snapshot(e.data);}catch{this.sendRaw({type:'resync'});}};
+  socket.onmessage=e=>{if(socket!==this.socket||this.disposed)return;try{if(typeof e.data==='string')this.message(JSON.parse(e.data));else this.snapshot(e.data);}catch{this.sendRaw({type:'resync'});}};
   socket.onerror=()=>{};
   socket.onclose=e=>{clearInterval(this.heartbeat);if(this.disposed)return;this.status='disconnected';this.emit('status',this.status);if(e.code===4001||e.code===4000){this.emit('error','연결이 종료되었습니다. 방으로 돌아가 다시 참가하세요.');return;}this.retry=setTimeout(()=>this.connect(),Math.min(5000,500*2**this.retries++));};
  }
@@ -33,7 +33,9 @@ export class NetworkSession extends EventTarget{
   for(const z of m.zones){const target=g.zoneMap.get(z[0]);Object.assign(target,{owner:z[1],hp:z[2]/10,maxHp:z[3],captureFlash:z[4],strike:z[5]});}
   const beforeDrones=new Map(g.dispensers.map(d=>[d.id,d])),oldDroneTargets=this.droneTargets,nextRaw=new Map();this.droneTargets=new Map();
   g.dispensers=m.drones.map(d=>{const raw={id:d[0],player:d[1],x:d[2],y:d[3],zone:d[4],hp:d[5],maxHp:d[5]},old=beforeDrones.get(raw.id);nextRaw.set(raw.id,{...raw});if(old&&!phase.reset){const target=phase.advanced?motionTarget(old,raw,this.rawDrones.get(raw.id),seconds):oldDroneTargets.get(raw.id);if(target){this.droneTargets.set(raw.id,target);raw.x=old.x;raw.y=old.y;}}return raw;});this.rawDrones=nextRaw;
-  if(phase.advanced)g.projectiles=m.shots.map(b=>({x:b[0],y:b[1],player:b[2],tx:b[3],ty:b[4]}));g.events.push(...m.events);g.reindex();this.snapshotAt=now;if(phase.reset)this.lastVisualTick=now;this.emit('snapshot',m);
+  if(phase.advanced)g.projectiles=m.shots.map(b=>({x:b[0],y:b[1],player:b[2],tx:b[3],ty:b[4]}));g.events.push(...m.events);g.reindex();this.snapshotAt=now;if(phase.reset)this.lastVisualTick=now;
+  if(g.over){this.status='finished';this.pending.clear();this.pings.clear();this.close();this.emit('status',this.status);}
+  this.emit('snapshot',m);
  }
  tick(){const now=this.now(),dt=this.lastVisualTick===null?0:Math.max(0,Math.min(.1,(now-this.lastVisualTick)/1000));this.lastVisualTick=now;const g=this.game,phase=this.motion.phase(now);g.time=phase.time;
   for(const u of g.units){moveVisual(u,this.targets.get(u.id),phase);u.hit=Math.max(0,u.hit-dt);u.recoil=Math.max(0,u.recoil-dt);}
