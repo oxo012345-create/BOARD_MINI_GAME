@@ -24,7 +24,9 @@
     "Personal200 mobile balance and AI anti-stall logic",
     "Current/200 population HUD and rules",
     "Resolution-sized facing sprite cache and20Hz visual interpolation",
-    "Optional local connection/frame diagnostics in rules"
+    "Optional local connection/frame diagnostics in rules",
+    "Trusted mobile audio activation and interruption recovery",
+    "Seat-relative upright battlefield with inverse command projection"
   ],
   "localProfile": {
     "id": "hanpan-personal-200-v1",
@@ -38,7 +40,7 @@
   "localHashes": {
     "engine.js": "357571263558644f6e0e9e70317ebff12ebeec7d30a46e632c1920852d0475ff",
     "rules.js": "c9886affa0367a14608928a71ff8981bfb1acc5906cedb1d464237725aa69e18",
-    "app.js": "6d7927c08dcfadebdfe9524d0ce42544fff47b5ae0eb91a3e87b585c853c4448",
+    "app.js": "3b537a694afd6e1be7fd1cec760452bda1010d222c18b1a6646efb78f5ac6095",
     "style.css": "3e10dfb1bd51f6882f558096ce6d4959f9cc20be62b5533238a2ab91456aaaa8",
     "index.html": "62f6e21e7bc2e47d2eafb5f41ff30741f6379fd41120d2c16de0bb29533e9d84",
     "hanpan.html": "2a1059df528283e14cfab3172347b70d6fb9b0b996c400f523a5f9af6087446b",
@@ -48,6 +50,8 @@
     "hanpan-entry.js": "9e755c9c17721af7b1344c460c18eed5501e8fa274b9c5e5ee4cede3c56b76e8",
     "unit-sprites.js": "51b484651c4577cfa6c22a94f8dbaf0afefe115c264deabebaa671d1bb912022",
     "connection-status.js": "24b2cad42065210e1778e987570cdb7d84d7c16a311ebc5001885bdcc59f7400",
-    "http-network.js": "dd91a904482b38e63010cb902d77972dbb029460f9049b2c09c71a41d3789e0f"
+    "http-network.js": "dd91a904482b38e63010cb902d77972dbb029460f9049b2c09c71a41d3789e0f",
+    "audio.js": "96ef42c0ebf9aa80e6600e426fc219929f626c76771b4fbe1600c8cb15c78744",
+    "battle-view.js": "b80550f933d46d541810ec6541afa19f8dd71e3f0d716d2ba67e637fa79693a1"
   }
 }
