@@ -14,7 +14,7 @@ export class HanpanSession extends HttpNetworkSession{
   try{
    const data=await this.request('join',{name:this.name});if(this.disposed)return;
    if(data.transport==='durable'){
-    const url=new URL(data.socketUrl);if(!['wss:','ws:'].includes(url.protocol))throw new Error('전투 서버 주소가 잘못되었습니다.');
+    const url=new URL(data.socketUrl,globalThis.location?.href);if(url.protocol==='https:')url.protocol='wss:';else if(url.protocol==='http:')url.protocol='ws:';if(!['wss:','ws:'].includes(url.protocol))throw new Error('전투 서버 주소가 잘못되었습니다.');
     this.socketMode=true;this.socketAddress=url.href;return NetworkSession.prototype.connect.call(this);
    }
    this.socketMode=false;this.message(data.welcome);this.ackCursor=data.welcome.sequence;this.emit('lobby',data.lobby);this.poll();

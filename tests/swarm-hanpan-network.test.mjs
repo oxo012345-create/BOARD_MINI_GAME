@@ -11,9 +11,9 @@ test('browser transport follows the server choice and sends commands over its au
   close(){this.readyState=3;this.onclose?.({code:1000});}
  }
  try{
-  globalThis.location={href:'https://hanpan.test/'};globalThis.WebSocket=Socket;globalThis.fetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body),credentials:options.credentials});return Response.json({transport:'durable',socketUrl:'wss://swarm.test/connect?ticket=test-only'});};
+  globalThis.location={href:'https://hanpan.test/'};globalThis.WebSocket=Socket;globalThis.fetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body),credentials:options.credentials});return Response.json({transport:'durable',socketUrl:'/api/swarm/realtime-connect?ticket=test-only'});};
   client=new HanpanSession({room:matchId,roomCode:'2468',name:'',storage:null});await client.connect();await pause(10);
-  assert.equal(client.diagnostics().transport,'websocket-durable');assert.equal(client.received,1);assert.equal(requests.length,1);assert.equal(requests[0].url,'/api/rooms/2468/swarm');assert.equal(requests[0].credentials,'same-origin');
+  assert.equal(String(client.socket.url),'wss://hanpan.test/api/swarm/realtime-connect?ticket=test-only');assert.equal(client.diagnostics().transport,'websocket-durable');assert.equal(client.received,1);assert.equal(requests.length,1);assert.equal(requests[0].url,'/api/rooms/2468/swarm');assert.equal(requests[0].credentials,'same-origin');
   assert.ok(client.dispatch('untrusted-client-actor',{type:'move',x:500,y:500,fraction:1}));const command=sent.find(m=>m.type==='command').command;assert.equal(command.sequence,5);assert.equal(command.matchId,matchId);assert.equal(requests.length,1,'WS commands never fall back to the D1 HTTP queue');
  }finally{client?.close();Object.assign(globalThis,originals);}
 });
