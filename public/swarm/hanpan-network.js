@@ -10,7 +10,7 @@ export class HanpanSession extends HttpNetworkSession{
   if(!response.ok)throw Object.assign(new Error(data.error||'서버 연결 실패'),{status:response.status});return data;
  }
  async connect(){
-  if(this.disposed)return;this.status='connecting';this.emit('status',this.status);
+  if(this.disposed||this.connectPending)return;this.connectPending=true;this.status='connecting';this.emit('status',this.status);
   try{
    const data=await this.request('join',{name:this.name});if(this.disposed)return;
    if(data.transport==='durable'){
@@ -20,9 +20,9 @@ export class HanpanSession extends HttpNetworkSession{
    this.socketMode=false;this.message(data.welcome);this.ackCursor=data.welcome.sequence;this.emit('lobby',data.lobby);this.poll();
   }catch(error){
    if(this.disposed)return;this.status='disconnected';this.emit('status',this.status);
-   if([400,401,403,404,409].includes(error.status)){this.emit('error',error.message);return;}
+   if([400,401,403,404,409].includes(error.status)){this.terminal=true;this.emit('error',error.message);return;}
    this.retry=setTimeout(()=>this.connect(),Math.min(5000,500*2**this.retries++));
-  }
+  }finally{this.connectPending=false;}
  }
  sendRaw(message){return this.socketMode?NetworkSession.prototype.sendRaw.call(this,message):super.sendRaw(message);}
  latency(now=performance.now()){return this.socketMode?NetworkSession.prototype.latency.call(this,now):super.latency(now);}

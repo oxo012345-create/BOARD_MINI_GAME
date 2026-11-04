@@ -58,7 +58,7 @@ export class SwarmRoom extends DurableObject{
   socket.addEventListener('message',event=>{
    if(typeof event.data!=='string'||event.data.length>4096)return socket.close(4000,'잘못된 메시지');
    try{const input=JSON.parse(event.data);if(input.type==='join')return;
-    if(this.room.session?.game.over){if(input.type==='stateAck')this.room.handle(peer,input);return;}
+    if(this.room.session?.game.over){if(input.type==='stateAck'||Array.isArray(input)&&input[0]==='a')this.room.handle(peer,input);return;}
     if(Date.now()>this.authorityUntil||!this.active[p.seat]){socket.send(JSON.stringify({type:'error',message:'방 연결을 확인하고 있습니다.'}));return;}
     if(input.type==='command')outbox=[];
     this.room.handle(peer,input);

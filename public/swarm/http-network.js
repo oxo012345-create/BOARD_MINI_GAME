@@ -3,7 +3,7 @@ import {NetworkSession} from './network.js';
 // The same server-owned snapshots/rendering as WebSocket, over the Sites D1
 // transport. Polls never overlap; commands are idempotent by seat + sequence.
 export class HttpNetworkSession extends NetworkSession{
- constructor(options){super(options);this.ackCursor=0;this.httpBytes=0;this.requestCount=0;this.abort=new AbortController();}
+ constructor(options){super(options);this.socketMode=false;this.ackCursor=0;this.httpBytes=0;this.requestCount=0;this.abort=new AbortController();}
  async request(path,body){
   const response=await fetch('/api/swarm/http/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({room:this.id,token:this.token,...body}),signal:AbortSignal.any([this.abort.signal,AbortSignal.timeout(12000)])});
   const raw=await response.text();this.httpBytes+=new TextEncoder().encode(raw).length;this.requestCount++;

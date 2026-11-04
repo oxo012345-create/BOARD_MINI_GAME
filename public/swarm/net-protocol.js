@@ -32,7 +32,7 @@ export function decodeSnapshot(input){
 }
 export class SnapshotReplica{
  constructor(){this.revision=0;this.units=new Map();this.meta=null;}
- apply(data){const packet=decodeSnapshot(data),m=packet.meta;if(m.revision<=this.revision)return null;if(!m.full&&m.base!==this.revision)return {resync:true};
+ apply(data,{requireFull=false}={}){const packet=decodeSnapshot(data),m=packet.meta;if(requireFull&&!m.full)return {waitingFull:true};if(m.revision<=this.revision)return null;if(!m.full&&m.base!==this.revision)return {resync:true};
   if(m.full)this.units.clear();for(const id of packet.removed)this.units.delete(id);for(const r of packet.rows){const previous=this.units.get(r[0]),u=previous?{...previous}:{id:r[0],maxHp:40,selectedUntil:0};if(r[1]!==undefined){u.x=r[1];u.y=r[2];}if(r[3]!==undefined)u.hp=r[3];if(r[4]!==undefined){u.phase=r[4];u.player=r[5];}if(r[6]!==undefined){const flags=r[6];Object.assign(u,{face:flags&1?1:-1,walking:!!(flags&2),hit:flags&4?.12:0,recoil:flags&8?.15:0});}if(u.x===undefined||u.hp===undefined||u.phase===undefined||u.face===undefined)throw new Error('Missing full unit');this.units.set(u.id,u);}
   this.revision=m.revision;this.meta=m;return packet;
  }

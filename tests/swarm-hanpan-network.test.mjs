@@ -23,6 +23,15 @@ test('a legacy match continues using one non-overlapping HTTP poll loop',async()
  }finally{client?.close();globalThis.fetch=oldFetch;}
 });
 
+test('the fast WebSocket resume watchdog never duplicates a slow legacy HTTP poll',async()=>{
+ const oldFetch=globalThis.fetch,matchId=crypto.randomUUID(),packet=new SnapshotEncoder().encode(new Game({seed:3}),{full:true}),operations=[];let active=0,maxActive=0,client;
+ try{
+  globalThis.fetch=async(url,options)=>{const {operation}=JSON.parse(options.body);operations.push(operation);active++;maxActive=Math.max(maxActive,active);if(operation==='poll')await pause(950);active--;return Response.json(operation==='join'?{welcome:{type:'welcome',seat:0,mode:'duel',sequence:0},lobby:{started:true}}:{lobby:{started:true},acks:[],snapshot:Buffer.from(packet).toString('base64')});};
+  client=new HanpanSession({room:matchId,roomCode:'2468',storage:null});await client.connect();await pause(1000);
+  assert.equal(operations.filter(s=>s==='join').length,1);assert.equal(maxActive,1);assert.equal(client.received,1);
+ }finally{client?.close();globalThis.fetch=oldFetch;}
+});
+
 test('live latency uses a matched ping round trip, expires stale values, and identifies HTTP separately',()=>{
  const client=new HanpanSession({room:crypto.randomUUID(),roomCode:'2468',storage:null});
  try{

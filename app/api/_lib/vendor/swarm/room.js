@@ -13,7 +13,7 @@ export class OnlineRoom{
   let seat=token&&this.seats.find(s=>s.token===token);
   if(!seat){if(token)throw new Error('재접속 정보가 만료되었습니다');if(this.session)throw new Error('이미 시작한 방입니다');if(this.seats.length>=MODES[this.mode].count)throw new Error('방이 가득 찼습니다');seat={id:this.seats.length,name:String(name).replace(/[\p{C}<>]/gu,'').trim().slice(0,16)||'플레이어',token:this.uuid()};this.seats.push(seat);}
   for(const [old,entry]of this.peers)if(entry.seat===seat.id){old.close?.(4001,'다른 연결에서 재접속');this.peers.delete(old);}
-  this.peers.set(peer,{seat:seat.id,needsFull:true,budget:30,refill:this.now(),inFlight:[],lastSent:0});this.lastActive=this.now();this.send(peer,{type:'welcome',room:this.code,seat:seat.id,token:seat.token,mode:this.mode,matchId:this.code,sequence:this.session?.sequences.get('seat-'+seat.id)||0});this.broadcastLobby();if(this.session)this.patch(true);return seat.id;
+  this.peers.set(peer,{seat:seat.id,needsFull:true,budget:30,refill:this.now(),inFlight:[],lastSent:0});this.lastActive=this.now();this.send(peer,{type:'welcome',room:this.code,seat:seat.id,token:seat.token,mode:this.mode,matchId:this.code,sequence:this.session?.sequences.get('seat-'+seat.id)||0,stateAck:{version:1,window:3,patchMs:this.patchMs,compact:true}});this.broadcastLobby();if(this.session)this.patch(true);return seat.id;
  }
  send(peer,message){try{peer.send(typeof message==='string'||message instanceof ArrayBuffer?message:JSON.stringify(message));return true;}catch{return false;}}
  lobby(){return {type:'lobby',room:this.code,mode:this.mode,started:!!this.session,seats:this.seats.map(s=>({id:s.id,name:s.name,connected:[...this.peers.values()].some(p=>p.seat===s.id)})),capacity:MODES[this.mode].count};}
@@ -21,11 +21,11 @@ export class OnlineRoom{
  leave(peer){this.peers.delete(peer);this.lastActive=this.now();this.broadcastLobby();}
  handle(peer,input){
   const entry=this.peers.get(peer);if(!entry)return;const begin=this.now();this.lastActive=begin;
-  if(input?.type==='stateAck'){if(Number.isSafeInteger(input.revision)&&input.revision<=entry.lastSent)entry.inFlight=entry.inFlight.filter(rev=>rev>input.revision);return;}
+  const compact=Array.isArray(input)&&input.length===2&&input[0]==='a',revision=compact?input[1]:input?.type==='stateAck'?input.revision:input?.stateRevision;if(Number.isSafeInteger(revision)&&revision>=0&&revision<=entry.lastSent)entry.inFlight=entry.inFlight.filter(rev=>rev>revision);if(compact||input?.type==='stateAck')return;
   entry.budget=Math.min(30,entry.budget+(begin-entry.refill)*.02);entry.refill=begin;
   if(!input||typeof input!=='object'||--entry.budget<0){this.stats.rejected++;return this.send(peer,{type:'error',message:'명령이 너무 빠릅니다'});}
   if(input.type==='ping')return this.send(peer,{type:'pong',id:input.id,serverMs:this.cpuTiming?this.now()-begin:null});
-  if(input.type==='resync'){entry.needsFull=true;if(this.session)this.patch(true);return;}
+  if(input.type==='resync'){entry.inFlight=[];entry.needsFull=true;if(this.session)this.patch(true);return;}
   if(input.type==='start'){
    if(entry.seat!==0||this.session||this.seats.length!==MODES[this.mode].count||this.peers.size!==this.seats.length)return this.send(peer,{type:'error',message:'모든 참가자가 연결되면 방장이 시작할 수 있습니다'});
    this.session=new MatchSession({mode:this.mode,seed:this.seed,matchId:this.code,humans:this.seats.map(s=>s.id),participants:this.seats.map(s=>({id:'seat-'+s.id,name:s.name}))});this.last=this.now();this.accumulator=0;this.patchAt=this.last;this.broadcastLobby();this.patch(true);return;

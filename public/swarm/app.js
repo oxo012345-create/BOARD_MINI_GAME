@@ -124,7 +124,7 @@ function draw(dt,now){ctx.setTransform(canvas.width/1000,0,0,canvas.height/1000,
  ctx.restore();
  if(now>toastUntil)$('toast').classList.remove('show');
 }
-function frame(now){const dt=Math.min((now-last)/1000||0,.1);last=now;if(session.online){session.tick();processEvents();if(game.over)finish();}else if(state==='playing'){accumulator+=dt;let steps=0;while(accumulator>=1/30&&steps<3){session.tick(1/30);processEvents();accumulator-=1/30;steps++;if(state!=='playing')break;}}const elapsed=drawClock.advance(dt,state==='playing'?1/30:1/10);if(elapsed!==null){draw(elapsed,now);session.painted?.();}uiClock+=dt;if(uiClock>.15){updateUI();uiClock=0;}requestAnimationFrame(frame);}
+function frame(now){const dt=Math.min((now-last)/1000||0,.1);last=now;if(session.online){session.tick();processEvents();if(game.over)finish();}else if(state==='playing'){accumulator+=dt;let steps=0;while(accumulator>=1/30&&steps<3){session.tick(1/30);processEvents();accumulator-=1/30;steps++;if(state!=='playing')break;}}const elapsed=drawClock.advance(dt,state==='playing'?1/30:1/10);if(elapsed!==null){draw(elapsed,now);session.painted?.({active:state==='playing'});}uiClock+=dt;if(uiClock>.15){updateUI();uiClock=0;}requestAnimationFrame(frame);}
 updateUI();fitLayout();resize();requestAnimationFrame(frame);
 
 // A transport attaches a server-owned view; no local simulation runs online.
