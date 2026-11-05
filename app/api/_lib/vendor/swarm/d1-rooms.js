@@ -7,7 +7,7 @@ const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status
 export function base64(buffer){let text='';const bytes=new Uint8Array(buffer);for(let i=0;i<bytes.length;i+=16384)text+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(text);}
 const equalToken=(a,b)=>typeof b==='string'&&b.length===36&&a===b;
 const publicLobby=row=>({type:'lobby',room:row.code,mode:row.mode,started:!!row.started,capacity:MODES[row.mode].count,seats:JSON.parse(row.seats).map(s=>({id:s.id,name:s.name,connected:Date.now()-s.seen<8000}))});
-const validCommand=c=>c&&Number.isSafeInteger(c.sequence)&&c.sequence>0&&c.sequence<=50000&&(c.type==='move'?Number.isFinite(c.x)&&Number.isFinite(c.y)&&c.x>=0&&c.x<=1000&&c.y>=0&&c.y<=1000&&[.5,1].includes(c.fraction):c.type==='claim'?Number.isInteger(c.zone)&&c.zone>=0&&c.zone<25:c.type==='upgrade'&&['attack','armor'].includes(c.kind));
+const validCommand=c=>c&&Number.isSafeInteger(c.sequence)&&c.sequence>0&&c.sequence<=50000&&(c.type==='move'?Number.isFinite(c.x)&&Number.isFinite(c.y)&&c.x>=0&&c.x<=1000&&c.y>=0&&c.y<=1000&&[.5,1].includes(c.fraction):c.type==='claim'?Number.isInteger(c.zone)&&c.zone>=0&&c.zone<25:c.type==='active'||c.type==='upgrade'&&['attack','armor'].includes(c.kind));
 export function sanitizeCommand(command,matchId){if(!validCommand(command)||command.matchId!==matchId)return null;return {sequence:command.sequence,matchId,type:command.type,...(command.type==='move'?{x:command.x,y:command.y,fraction:command.fraction}:command.type==='claim'?{zone:command.zone}:{kind:command.kind})};}
 
 // No process-local room map: every isolate reads the same D1 state. A fenced
@@ -40,7 +40,7 @@ export class D1Rooms{
   if(!insert.results?.length)fail('현재 방이 가득 찼습니다. 잠시 후 다시 시도하세요',429);
   return {code};
  }
- async hydrate(code,supplied){const saved=supplied||await this.stmt('SELECT checkpoint,acks FROM swarm_states WHERE code=?',code).first();if(!saved)fail('방 상태를 찾지 못했습니다',404);const state=JSON.parse(saved.checkpoint);return {room:OnlineRoom.restore(state.room,{cpuTiming:false}),accumulator:state.accumulator||0,acks:JSON.parse(saved.acks)};}
+ async hydrate(code,supplied){const saved=supplied||await this.stmt('SELECT checkpoint,acks FROM swarm_states WHERE code=?',code).first();if(!saved)fail('방 상태를 찾지 못했습니다',404);const state=JSON.parse(saved.checkpoint);return {room:OnlineRoom.restore(state.room,{now:this.now,cpuTiming:false}),accumulator:state.accumulator||0,acks:JSON.parse(saved.acks)};}
  async commit(row,lease,state,{lastAt=row.last_at,nextTick=row.next_tick,processed=0,changed=true}={}){
   const revision=changed?row.revision+1:row.revision,game=state.room.session?.game;
   let snapshot='';if(game){const encoder=new SnapshotEncoder();encoder.revision=revision-1;snapshot=base64(encoder.encode(game,{full:true,events:game.events,stats:{transport:'https-d1',authority:'server',tickMs:null,encodeMs:null,lagMs:Math.max(0,state.accumulator-1000/30),timingSource:'worker-cpu-time-unavailable'}}));game.events=[];}
@@ -112,6 +112,7 @@ export class D1Rooms{
   try{
    const state=await this.hydrate(code,row),g=state.room.session?.game;if(!g)return;
    state.room.seats=JSON.parse(row.seats);
+   state.room.bindPolicy();state.room.session.policy.update({present:state.room.seats.filter(s=>this.now()-s.seen<8000).map(s=>s.id),force:true});
    let processed=0;for(const c of JSON.parse(row.queued||'[]')){
     const ok=state.room.session.dispatch('seat-'+c.seat,JSON.parse(c.body));
     state.acks.push({seat:c.seat,sequence:c.sequence,ok:!!ok,result:ok,frame:g.frame+1});processed=c.id;

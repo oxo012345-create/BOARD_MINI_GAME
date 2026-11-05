@@ -11,8 +11,8 @@ export class SnapshotEncoder{
   const current=new Map(),rows=[];let rowBytes=0;
   for(const u of game.units){const row=unitRow(u);current.set(u.id,row);const before=this.previous.get(u.id),mask=full||!before?15:(row[1]!==before[1]||row[2]!==before[2]?1:0)|(row[3]!==before[3]?2:0)|(row[4]!==before[4]||row[5]!==before[5]?4:0)|(row[6]!==before[6]?8:0);if(mask){rows.push({row,mask});rowBytes+=5+(mask&1?4:0)+(mask&2?2:0)+(mask&4?3:0)+(mask&8?1:0);}}
   const removed=full?[]:[...this.previous.keys()].filter(id=>!current.has(id));
-  const meta={v:NETWORK_VERSION,full,base:full?null:this.revision,revision:this.revision+1,frame:game.frame,time:game.time,mode:game.mode,over:game.over,winner:game.winner,reason:game.reason,
-   players:game.players.map(({externalId,...p})=>p),zones:game.zones.map(z=>[z.id,z.owner,Math.round(z.hp*10),z.maxHp,z.captureFlash,z.strike||0]),
+  const meta={v:NETWORK_VERSION,full,base:full?null:this.revision,revision:this.revision+1,frame:game.frame,time:game.time,mode:game.mode,over:game.over,winner:game.winner,reason:game.reason,matchClock:game.matchClock,
+   players:game.players.map(({externalId,idleWarning,...p})=>{delete p.away;return {...p,...(Number.isFinite(idleWarning)?{idleWarning}:{})};}),zones:game.zones.map(z=>[z.id,z.owner,Math.round(z.hp*10),z.maxHp,z.captureFlash,z.strike||0]),
    drones:game.dispensers.map(d=>[d.id,d.player,visualCoord(d.x),visualCoord(d.y),d.zone,d.hp]),
    shots:game.projectiles.map(b=>[visualCoord(b.x),visualCoord(b.y),b.player,visualCoord(b.tx),visualCoord(b.ty)]),events:events.slice(-96).map(e=>({...e,x:visualCoord(e.x),y:visualCoord(e.y),tx:visualCoord(e.tx),ty:visualCoord(e.ty)})),stats,count:rows.length,removed:removed.length};
   const json=encoder.encode(JSON.stringify(meta)),out=new ArrayBuffer(4+json.length+rowBytes+removed.length*4),view=new DataView(out);view.setUint32(0,json.length,true);new Uint8Array(out,4,json.length).set(json);let offset=4+json.length;

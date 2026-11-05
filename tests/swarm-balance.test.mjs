@@ -50,11 +50,11 @@ test('a stationary army that is firing is not treated as a stalled army',()=>{
 });
 
 test('server checkpoint restores cap, AI progress, and deterministic continuation',()=>{
- const room=new OnlineRoom({code:'audit-200',mode:'team',seed:503});room.seats=[0,1,2,3].map(id=>({id,name:'Audit '+id,token:crypto.randomUUID(),seen:Date.now()}));
+ let wall=1000;const room=new OnlineRoom({code:'audit-200',mode:'team',seed:503,now:()=>wall});room.seats=[0,1,2,3].map(id=>({id,name:'Audit '+id,token:crypto.randomUUID(),seen:Date.now()}));
  room.session=new MatchSession({mode:'team',seed:503,matchId:room.code,humans:[0,1,2,3],participants:room.seats.map(s=>({id:'seat-'+s.id,name:s.name}))});
  const g=room.session.game;for(const p of g.players)for(let n=0;n<240;n++)g.spawn(g.zonesOf(p.id)[0],p.id);
  g.players[0].aiProgress={x:100,y:900,kills:0,at:2};g.players[0].aiAssaultUntil=12;
- const restored=OnlineRoom.restore(JSON.parse(JSON.stringify(room.checkpoint())));assert.equal(restored.session.game.rules.playerUnitLimit,200);
- for(let n=0;n<30;n++){room.session.tick(1/30);restored.session.tick(1/30);}
+ const restored=OnlineRoom.restore(JSON.parse(JSON.stringify(room.checkpoint())),{now:()=>wall});assert.equal(restored.session.game.rules.playerUnitLimit,200);
+ for(let n=0;n<30;n++){wall+=1000/30;room.session.tick(1/30);restored.session.tick(1/30);}
  assert.deepEqual(restored.checkpoint(),room.checkpoint());assert.ok(g.players.every(p=>g.unitsOf(p.id).length<=200));
 });

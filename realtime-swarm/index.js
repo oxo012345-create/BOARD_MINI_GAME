@@ -35,11 +35,28 @@ export class SwarmRoom extends DurableObject{
    const body={roomCode:this.config.roomCode,matchId:this.config.matchId},token=await signTicket(this.env.SWARM_REALTIME_SECRET,{version:1,kind:'authority',expiresAt:Date.now()+10000,...body});
    const req=new Request(this.env.SITE_ORIGIN+'/api/swarm/realtime-authority',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:AbortSignal.timeout(3000)});
    const r=await (this.env.AUTHORITY?this.env.AUTHORITY.fetch(req):fetch(req));
-   if(r.status===409||r.status===404){this.authorityUntil=0;this.shutdown(4000,'전투가 종료되었습니다.');return false;}
+   if(r.status===409||r.status===404){this.authorityUntil=0;this.room?.session?.game.finish(null,'abandoned');this.shutdown(4000,'전투가 종료되었습니다.');return false;}
    if(!r.ok)throw new Error('Authority unavailable');const data=await r.json();if(!Array.isArray(data.active)||data.active.length!==this.config.roster.length)throw new Error('Invalid authority');
    this.active=data.active.map(v=>v===true);this.authorityUntil=Date.now()+6000;
    for(const [peer,state]of this.connections)if(!this.active[state.seat])peer.close(4003,'방에 다시 참가해 주세요.');return true;
   }catch{return false;}finally{this.lastChecked=Date.now();this.checking=null;}})();return this.checking;
+ }
+ async scheduleAlarm(){
+  if(!this.room?.session)return;
+  const g=this.room.session.game;if(g.over){await this.ctx.storage.deleteAlarm();this.nextAlarmAt=null;return;}
+  const p=this.room.session.policy,at=this.room.startedAt+1000*Math.min(p.rules.limit,p.emptySince===null?Infinity:p.emptySince+p.rules.abandon);
+  const target=Math.max(Date.now()+100,Math.ceil(at));if(this.nextAlarmAt===target)return;
+  const current=await this.ctx.storage.getAlarm();if(current!==target)await this.ctx.storage.setAlarm(target);this.nextAlarmAt=target;
+ }
+ async alarm(){
+  if(!this.room?.session)return;this.nextAlarmAt=null;this.room.policy(true);
+  if(this.room.session.game.over){this.finishBattle();return;}this.save();await this.scheduleAlarm();
+ }
+ wake(){
+  if(!this.room?.session||this.room.session.game.over)return;
+  this.room.policy(true);if(this.room.session.game.over){this.finishBattle();return;}
+  if(!this.timer){this.room.last=Date.now();this.room.accumulator=0;this.timer=setInterval(()=>this.tick(),1000/60);}
+  this.ctx.waitUntil(this.scheduleAlarm());
  }
  async fetch(request){
   if(new URL(request.url).pathname!=='/connect')return reply('NOT_FOUND',404);
@@ -57,23 +74,25 @@ export class SwarmRoom extends DurableObject{
   this.connections.set(peer,{seat:p.seat,socket});this.room.join(peer,{token:this.room.seats[p.seat].token});
   socket.addEventListener('message',event=>{
    if(typeof event.data!=='string'||event.data.length>4096)return socket.close(4000,'잘못된 메시지');
-   try{const input=JSON.parse(event.data);if(input.type==='join')return;
-    if(this.room.session?.game.over){if(input.type==='stateAck'||Array.isArray(input)&&input[0]==='a')this.room.handle(peer,input);return;}
+   try{const input=JSON.parse(event.data);if(input.type==='join')return;this.room.policy();
+    if(this.room.session?.game.over){this.finishBattle();if(input.type==='stateAck'||Array.isArray(input)&&input[0]==='a')this.room.handle(peer,input);return;}
     if(Date.now()>this.authorityUntil||!this.active[p.seat]){socket.send(JSON.stringify({type:'error',message:'방 연결을 확인하고 있습니다.'}));return;}
     if(input.type==='command')outbox=[];
     this.room.handle(peer,input);
     // Store accepted state/sequence before the acknowledgement leaves.
-    if(input.type==='command'){this.save();const messages=outbox;outbox=null;for(const message of messages)socket.send(message);}
+    if(input.type==='command'){this.save();const messages=outbox;outbox=null;for(const message of messages)socket.send(message);}if(this.room.session.game.over)this.finishBattle();else if(!this.timer)this.wake();
    }catch{outbox=null;socket.close(1011,'명령을 저장하지 못했습니다. 다시 연결해 주세요.');}
   });
-  const leave=()=>{if(!this.connections.has(peer))return;this.connections.delete(peer);this.room.leave(peer);if(!this.connections.size){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;this.save();}};
+  const leave=()=>{if(!this.connections.has(peer))return;this.connections.delete(peer);this.room.leave(peer);if(!this.connections.size){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;this.save();this.ctx.waitUntil(this.scheduleAlarm());}};
   socket.addEventListener('close',leave);socket.addEventListener('error',leave);
-  if(this.room.session.game.over)this.finishBattle();else if(!this.timer)this.timer=setInterval(()=>this.tick(),1000/60);
+  if(this.room.session.game.over)this.finishBattle();else this.wake();
   return new Response(null,{status:101,webSocket:client});
  }
  tick(){
   if(!this.room||!this.connections.size)return;
   try{
+   this.room.policy();if(this.room.session.game.over){this.finishBattle();return;}
+   const alive=this.room.session.game.players.filter(p=>!p.eliminated);if(!alive.some(p=>this.room.session.policy.present.has(p.id))){clearInterval(this.timer);this.timer=null;this.save();this.ctx.waitUntil(this.scheduleAlarm());return;}
    if(Date.now()-this.lastChecked>=2000&&!this.checking)this.ctx.waitUntil(this.authority());
    if(Date.now()<=this.authorityUntil)this.room.advance();else {this.room.last=Date.now();this.room.accumulator=0;}
    if(Date.now()-this.lastSaved>=1000)this.save();
@@ -82,10 +101,11 @@ export class SwarmRoom extends DurableObject{
  }
  finishBattle(){
   clearInterval(this.timer);this.timer=null;if(this.finishTimer)return;
-  this.save();this.room.patch(true,{terminal:true});
+  if(this.room.session.game.reason==='abandoned'){this.room.session.game.units=[];this.room.session.game.projectiles=[];this.room.session.game.dispensers=[];}
+  this.save();this.room.patch(true,{terminal:true});this.ctx.waitUntil(this.scheduleAlarm());if(!this.connections.size)return;
   // The final result is sent before closing. Bound the lifetime even for a
   // backgrounded or older client which doesn't close after receiving it.
   this.finishTimer=setTimeout(()=>this.shutdown(4000,'전투가 종료되었습니다.'),3000);
  }
- shutdown(code,reason){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;for(const [peer]of this.connections)try{peer.close(code,reason);}catch{}this.connections.clear();if(this.room){this.room.peers.clear();this.save();}}
+ shutdown(code,reason){clearInterval(this.timer);clearTimeout(this.finishTimer);this.timer=null;this.finishTimer=null;for(const [peer]of this.connections)try{peer.close(code,reason);}catch{}this.connections.clear();if(this.room){this.room.peers.clear();this.room.policy(true);this.save();this.ctx.waitUntil(this.scheduleAlarm());}}
 }

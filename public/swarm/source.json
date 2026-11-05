@@ -28,7 +28,9 @@
     "Trusted mobile audio activation and interruption recovery",
     "Seat-relative upright battlefield with inverse command projection",
     "Adaptive cumulative state receipts and piggybacked acknowledgements",
-    "Authoritative mobile resume recovery and separate frame/network stall metrics"
+    "Authoritative mobile resume recovery and separate frame/network stall metrics",
+    "5m overtime /6m hard draw and authoritative inactivity policy",
+    "Two-minute all-away alarm cleanup and individual team forfeits"
   ],
   "localProfile": {
     "id": "hanpan-personal-200-v1",
@@ -42,11 +44,11 @@
   "localHashes": {
     "engine.js": "357571263558644f6e0e9e70317ebff12ebeec7d30a46e632c1920852d0475ff",
     "rules.js": "c9886affa0367a14608928a71ff8981bfb1acc5906cedb1d464237725aa69e18",
-    "app.js": "d450972e24918b26640565dd140ecb8af881a418160d2267be86738c0d968cf2",
-    "style.css": "3e10dfb1bd51f6882f558096ce6d4959f9cc20be62b5533238a2ab91456aaaa8",
-    "index.html": "62f6e21e7bc2e47d2eafb5f41ff30741f6379fd41120d2c16de0bb29533e9d84",
-    "hanpan.html": "2a1059df528283e14cfab3172347b70d6fb9b0b996c400f523a5f9af6087446b",
-    "network.js": "3ba4254991835076e417cec98795dec02d3383f431f70f2159e1074fb5c6b52d",
+    "app.js": "5c491f023391967f17b8c9d6879453e6e6f6714ec96537eb242719ebf900e8e1",
+    "style.css": "2e221aa5c54345d98c76b7c7ddcf8d7d5559cb2de611e80639d760042f930341",
+    "index.html": "b1df9d5bfe520e595dc01067e0454a87ffc1acef401a42eff01b1b4351f44530",
+    "hanpan.html": "ee240c64852bd012360f9f194059772efa700783051272075a759082c30e8f9e",
+    "network.js": "88ef98dc738c611133500cc5a91b9af4b4a17570e441d54eadd883bd9b246e7d",
     "snapshot-motion.js": "f89041036780b60932b59d2d1160f2384ae5784695e1469f729fdf54455f4ba1",
     "hanpan-network.js": "629d22c3209165c842658b38ab3be6d8041892b1bf43dbc564aa838aee3cda9e",
     "hanpan-entry.js": "2ca435922b884ee4506f97daacf067592316f36aea982455e3ba2c483ea96e06",
@@ -55,9 +57,22 @@
     "http-network.js": "3416dce4fad9b499c7fc4fa20654099efdf3881cf906aefd1108dc8f21bad578",
     "audio.js": "96ef42c0ebf9aa80e6600e426fc219929f626c76771b4fbe1600c8cb15c78744",
     "battle-view.js": "b80550f933d46d541810ec6541afa19f8dd71e3f0d716d2ba67e637fa79693a1",
-    "net-protocol.js": "d0dfbb151ab23d51172aa253f451732ac92957854685f98095539d4f552c1d69",
+    "net-protocol.js": "c8ba5a754aeb6ede1efe50f82190c6b2f41d5f00caf1a5f5639294a4a1b0ff52",
     "state-acks.js": "25df0653f56877d7f129cb307b5f62309c030c54b0b2a2aba6ed876f6edb10b2",
     "connection-health.js": "0c0fea1ead01197a959c5649cc43383e0c877ba1d65959f2081ece05b2c7f421",
-    "session-lifecycle.js": "da39b8da47cc38931c71812b01301805b236ab453b775bbccf88e1dd4b60440f"
+    "session-lifecycle.js": "da39b8da47cc38931c71812b01301805b236ab453b775bbccf88e1dd4b60440f",
+    "integration.js": "09fd18a0f5d5c701610c38a77e711976e9455e8dfbcd1ad97df86aac0c6418fd",
+    "battle-policy.js": "c2085f49d35fd2cbf2ff9f9a1e874211a694de908aaf810f4522020c8b59edb0",
+    "match-result.js": "ffb51f81e89128bfdd2ca6c5067dfcae97903be188c34f689fdbf794959eee4b"
+  },
+  "matchPolicy": {
+    "overtimeSeconds": 300,
+    "hardLimitSeconds": 360,
+    "idleWarningSeconds": 90,
+    "idleForfeitSeconds": 120,
+    "awayGraceSeconds": 120,
+    "allAwaySeconds": 120,
+    "timeoutResult": "draw",
+    "combatWatching": "all connected living players; excludes transport keepalives"
   }
 }
