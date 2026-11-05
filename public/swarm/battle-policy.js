@@ -1,4 +1,4 @@
-export const MATCH_RULES=Object.freeze({overtime:300,limit:360,idleWarning:90,idleForfeit:120,awayForfeit:120,abandon:120});
+export const MATCH_RULES=Object.freeze({idleWarning:90,idleForfeit:120,awayForfeit:120,abandon:120});
 const combat=new Set(['shot','hit','death','destroy','sunkenStrike','capture']);
 
 // Authoritative match policy. Pings/receipts prove connection only, never play.
@@ -20,10 +20,9 @@ export class BattlePolicy{
  observeMovement(at){const next=new Map();for(const u of this.game.units){if(!u.movingOrder||!u.walking)continue;const distance=Math.hypot(u.tx-u.x,u.ty-u.y),old=this.movement.get(u.id);if(old&&old.player===u.player&&old.distance-distance>=12)this.credit(u.player,at);next.set(u.id,{player:u.player,distance});}this.movement=next;}
  update({present,force=false}={}){
   const g=this.game,t=Math.max(0,this.clock());if(g.over)return;
-  if(t>=this.rules.limit){g.matchClock={elapsed:this.rules.limit,remaining:0,overtime:true};g.finish(null,'timeout');return;}
   if(present)this.present=new Set(present);
   if(!force&&t-this.lastCheck<1)return;this.lastCheck=t;
-  g.matchClock={elapsed:Math.floor(t),remaining:Math.max(0,Math.ceil(this.rules.limit-t)),overtime:t>=this.rules.overtime};
+  g.matchClock={elapsed:Math.floor(t)};
   if(!this.online)return;
   if(t-this.lastMovement>=1){this.observeMovement(t);this.lastMovement=t;}const living=g.players.filter(p=>!p.eliminated),connected=living.filter(p=>this.present.has(p.id));
   for(const p of living){if(this.present.has(p.id)){if(this.absentAt[p.id]!==null){this.progress[p.id]=Math.min(t,this.progress[p.id]+t-this.absentAt[p.id]);this.absentAt[p.id]=null;}this.presentAt[p.id]=t;}else if(this.absentAt[p.id]===null)this.absentAt[p.id]=this.presentAt[p.id];}

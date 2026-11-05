@@ -44,7 +44,10 @@ export class SwarmRoom extends DurableObject{
  async scheduleAlarm(){
   if(!this.room?.session)return;
   const g=this.room.session.game;if(g.over){await this.ctx.storage.deleteAlarm();this.nextAlarmAt=null;return;}
-  const p=this.room.session.policy,at=this.room.startedAt+1000*Math.min(p.rules.limit,p.emptySince===null?Infinity:p.emptySince+p.rules.abandon);
+  const p=this.room.session.policy;
+  // Active battles have no deadline. Clear alarms retained from older releases.
+  if(p.emptySince===null){await this.ctx.storage.deleteAlarm();this.nextAlarmAt=null;return;}
+  const at=this.room.startedAt+1000*(p.emptySince+p.rules.abandon);
   const target=Math.max(Date.now()+100,Math.ceil(at));if(this.nextAlarmAt===target)return;
   const current=await this.ctx.storage.getAlarm();if(current!==target)await this.ctx.storage.setAlarm(target);this.nextAlarmAt=target;
  }

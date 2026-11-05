@@ -29,7 +29,7 @@
     "Seat-relative upright battlefield with inverse command projection",
     "Adaptive cumulative state receipts and piggybacked acknowledgements",
     "Authoritative mobile resume recovery and separate frame/network stall metrics",
-    "5m overtime /6m hard draw and authoritative inactivity policy",
+    "Unlimited match duration and authoritative inactivity policy",
     "Two-minute all-away alarm cleanup and individual team forfeits"
   ],
   "localProfile": {
@@ -44,10 +44,10 @@
   "localHashes": {
     "engine.js": "357571263558644f6e0e9e70317ebff12ebeec7d30a46e632c1920852d0475ff",
     "rules.js": "c9886affa0367a14608928a71ff8981bfb1acc5906cedb1d464237725aa69e18",
-    "app.js": "5c491f023391967f17b8c9d6879453e6e6f6714ec96537eb242719ebf900e8e1",
+    "app.js": "6647f7f6418000772db94dd45b10e08ec73627705522ffc10b6865a3658b77da",
     "style.css": "2e221aa5c54345d98c76b7c7ddcf8d7d5559cb2de611e80639d760042f930341",
-    "index.html": "b1df9d5bfe520e595dc01067e0454a87ffc1acef401a42eff01b1b4351f44530",
-    "hanpan.html": "ee240c64852bd012360f9f194059772efa700783051272075a759082c30e8f9e",
+    "index.html": "73182474e0b1baf4e70b8284336df88ba505e5776fb79eb8f4bbea73d58e8f8c",
+    "hanpan.html": "2ebe7af0f88b45e899b60909cb8c40dc641cd120745b09418dc54af1c3c28791",
     "network.js": "88ef98dc738c611133500cc5a91b9af4b4a17570e441d54eadd883bd9b246e7d",
     "snapshot-motion.js": "f89041036780b60932b59d2d1160f2384ae5784695e1469f729fdf54455f4ba1",
     "hanpan-network.js": "629d22c3209165c842658b38ab3be6d8041892b1bf43dbc564aa838aee3cda9e",
@@ -62,17 +62,15 @@
     "connection-health.js": "0c0fea1ead01197a959c5649cc43383e0c877ba1d65959f2081ece05b2c7f421",
     "session-lifecycle.js": "da39b8da47cc38931c71812b01301805b236ab453b775bbccf88e1dd4b60440f",
     "integration.js": "09fd18a0f5d5c701610c38a77e711976e9455e8dfbcd1ad97df86aac0c6418fd",
-    "battle-policy.js": "c2085f49d35fd2cbf2ff9f9a1e874211a694de908aaf810f4522020c8b59edb0",
-    "match-result.js": "ffb51f81e89128bfdd2ca6c5067dfcae97903be188c34f689fdbf794959eee4b"
+    "battle-policy.js": "cadf447d3cc0fc390118014cb5d48c50cd17022f5dab145ed5fdcf8d48bb0a26",
+    "match-result.js": "546e97be0eba1a33f6138a0ddf4041c01df077d1fca8c862edbe9d8f3f115761"
   },
   "matchPolicy": {
-    "overtimeSeconds": 300,
-    "hardLimitSeconds": 360,
     "idleWarningSeconds": 90,
     "idleForfeitSeconds": 120,
     "awayGraceSeconds": 120,
     "allAwaySeconds": 120,
-    "timeoutResult": "draw",
-    "combatWatching": "all connected living players; excludes transport keepalives"
+    "combatWatching": "all connected living players; excludes transport keepalives",
+    "timeLimit": null
   }
 }

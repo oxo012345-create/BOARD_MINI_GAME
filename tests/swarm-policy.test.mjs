@@ -9,18 +9,18 @@ function fixture(mode='duel'){
  s.policy=new BattlePolicy(g,{clock:()=>time,online:true});const p=s.policy;
  return{s,g,p,at:t=>{time=t;},update:(t,present=ids)=>{time=t;p.update({present,force:true});},ids};
 }
-for(const mode of ['duel','team','ffa'])test(`${mode}: combat spectators remain eligible, overtime starts at5m and hard6m ends in a draw`,()=>{
+for(const mode of ['duel','team','ffa'])test(`${mode}: combat spectators can play beyond6minutes with no deadline or overtime`,()=>{
  const {g,p,at,update,ids}=fixture(mode);
- for(let t=0;t<=350;t+=10){at(t);p.events(ids.map(player=>({type:'shot',player})));update(t);assert.equal(g.over,false);}
- assert.equal(g.matchClock.overtime,true);assert.equal(g.matchClock.remaining,10);update(360);assert.equal(g.over,true);assert.equal(g.reason,'timeout');assert.equal(g.winner,null);assert.ok(g.players.every(p=>!p.eliminated));
+ for(let t=0;t<=3600;t+=10){at(t);p.events(ids.map(player=>({type:'shot',player})));update(t);assert.equal(g.over,false);}
+ assert.deepEqual(g.matchClock,{elapsed:3600});assert.ok(g.players.every(p=>!p.eliminated));
 });
-test('5m overtime and6m cap apply to AI practice too',()=>{
- const s=new MatchSession({seed:3});s.game.time=299.99;s.tick(1/30);assert.equal(s.game.over,false);assert.equal(s.game.matchClock.overtime,true);s.game.time=359.99;s.tick(1/30);assert.equal(s.game.reason,'timeout');
+test('AI practice continues beyond6minutes with an elapsed clock',()=>{
+ const s=new MatchSession({seed:3});for(const time of [299.99,359.99,1800,3600]){s.game.time=time;s.tick(1/30);assert.equal(s.game.over,false);assert.deepEqual(s.game.matchClock,{elapsed:Math.floor(s.game.time)});}
 });
 test('all connected but inactive receive30s warning, then a simultaneous draw',()=>{
  const {g,update}=fixture('ffa');update(89);assert.ok(g.players.every(p=>p.idleWarning===null));update(90);assert.ok(g.players.every(p=>p.idleWarning===30));update(119);assert.equal(g.over,false);update(120);assert.equal(g.reason,'inactive');assert.equal(g.winner,null);
 });
-test('explicit continue is sequenced, clears inactivity and cannot evade the absolute deadline',()=>{
+test('explicit continue is sequenced and clears only personal inactivity',()=>{
  const {s,g,update}=fixture();update(90);assert.ok(s.dispatch('seat-0',{type:'active',sequence:1,matchId:s.id}));update(110);assert.equal(g.players[0].idleWarning,null);assert.equal(s.dispatch('seat-0',{type:'active',sequence:1,matchId:s.id}),false);update(120);assert.equal(g.reason,'forfeit');assert.equal(g.winner,0);
 });
 test('one2v2 forfeit removes only that seat and the teammate keeps playing',()=>{
@@ -51,15 +51,15 @@ test('all absent, including when only eliminated spectators remain, is an abando
 test('a temporary absence pauses the personal idle budget but does not reset the match clock',()=>{
  const {p,g,update}=fixture();update(20);update(21,[]);update(100,[0,1]);assert.equal(p.progress[0],80);assert.equal(g.matchClock.elapsed,100);assert.equal(g.players[0].idleWarning,null);update(170);assert.equal(g.players[0].idleWarning,30);
 });
-test('checkpoint/reconnect preserves both deadline and abandonment; ping/ACK traffic cannot cancel idle forfeits',()=>{
+test('checkpoint/reconnect preserves elapsed time and abandonment; ping/ACK traffic cannot cancel idle forfeits',()=>{
  let wall=1000;const room=new OnlineRoom({code:'policy-clock',mode:'duel',seed:3,now:()=>wall}),peers=[{send(){},close(){}},{send(){},close(){}}];for(const peer of peers)room.join(peer);room.handle(peers[0],{type:'start'});room.policy(true);const started=room.startedAt;
  for(let seconds=10;seconds<=110;seconds+=10){wall=1000+seconds*1000;for(const peer of peers)room.handle(peer,{type:'ping',id:'not-play'});room.policy(true);}
  const restored=OnlineRoom.restore(JSON.parse(JSON.stringify(room.checkpoint())),{now:()=>wall});assert.equal(restored.startedAt,started);
  wall=121000;for(const peer of peers)room.handle(peer,{type:'stateAck',revision:0});room.policy(true);assert.equal(room.session.game.reason,'inactive');
  restored.peers.clear();wall=240000;restored.policy(true);assert.equal(restored.session.game.reason,'abandoned');
 });
-test('new result reasons describe timeout, abandonment and forfeits without falsely claiming an annihilation',()=>{
- const {g}=fixture('team');g.winner=null;g.reason='timeout';assert.match(matchResult(g,0).description,/6분/);g.players[0].eliminated=true;assert.equal(matchResult(g,0).draw,true,'a surviving ally still earns the team draw');g.players[2].eliminated=true;assert.equal(matchResult(g,0).draw,false,'an already defeated team does not regain a draw');g.reason='abandoned';assert.match(matchResult(g,0).title,/경기 중단/);g.reason='forfeit';g.winner=1;assert.equal(matchResult(g,1).title,'기권승');assert.equal(matchResult(g,0).title,'기권패');
+test('result reasons describe abandonment and forfeits without falsely claiming an annihilation',()=>{
+ const {g}=fixture('team');g.winner=null;g.reason='abandoned';assert.match(matchResult(g,0).title,/경기 중단/);g.reason='forfeit';g.winner=1;assert.equal(matchResult(g,1).title,'기권승');assert.equal(matchResult(g,0).title,'기권패');
 });
 test('an inactivity final state is broadcast even to a peer whose receipt window is full',()=>{
  let wall=100;const packets=[[],[]],room=new OnlineRoom({code:'idle-final',now:()=>wall,patchMs:50,cpuTiming:false}),peers=packets.map(list=>({send:data=>{if(data instanceof ArrayBuffer)list.push(decodeSnapshot(data).meta);},close(){}}));

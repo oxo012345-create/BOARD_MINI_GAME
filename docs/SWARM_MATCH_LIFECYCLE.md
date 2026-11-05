@@ -1,11 +1,10 @@
-# Bounded battles and inactivity
+# Unlimited battles and inactivity
 
 ## Rules
 
-- The normal phase lasts5minutes. The final minute is marked overtime. At6minutes,
-  an unfinished match is a draw. Territory count does not decide this result.
-  Annihilation can still finish the battle earlier. AI practice has the same cap;
-  its clock pauses with the practice game. Online limits use server wall time.
+- Battles have no time limit, overtime or automatic time draw in any mode.
+  The header shows elapsed time. AI practice pauses its clock when paused;
+  online elapsed time uses server wall time. Annihilation determines victory.
 - Online connected players receive a warning after90seconds with no meaningful
   progress, followed by30seconds to press **계속 플레이** or play normally.
   Actual combat/capture anywhere counts as watching a progressing battle for
@@ -14,7 +13,7 @@
   research count as personal activity. Production, regeneration, transport ping,
   state receipts, invalid orders and repeated no-op destinations do not count.
 - A missing player has120seconds to return. Away time pauses the personal idle
-  budget, but never resets the match deadline. Once forfeited, the seat cannot
+  budget, while the elapsed match clock continues. Once forfeited, the seat cannot
   regain its army by reconnecting. A timely reconnect retains authoritative state.
 - A personal forfeit removes that player's units, projectiles and overlord and
   neutralizes only their bases, without kill bounty. Their ally continues playing.
@@ -34,17 +33,18 @@ expensive simulation alive. Real socket closes are observed immediately.
 Policy progress, absence budgets and the absolute server start timestamp survive
 checkpoints. Movement samples are transient and bounded by the population. Clock
 updates/movement observation run at most once per second during normal ticks;
-commands recheck expiry before execution. Reconnect and manual continue never
-reset the6minute deadline. Legacy checkpoints acquire a deadline from their
-already elapsed simulation time on first access.
+commands recheck inactivity before execution. Reconnect and manual continue never
+reset elapsed time. Legacy checkpoints retain their start time, but old countdown
+metadata is replaced and old deadline alarms cannot end an active battle.
 
 The existing three-state receipt window,20Hz broadcast,30Hz simulation and
 authentication remain. No heartbeat or continuous AFK HTTP request is added.
 Only a deliberate continue button sends the new sequenced `active` command.
 False/unused policy fields are omitted from wire player metadata.
 
-One persisted Durable Object alarm covers the earliest of the absolute deadline
-and all-away cleanup. It is installed on lifecycle changes, not on every tick.
+One persisted Durable Object alarm covers all-away cleanup only. Active battles
+have no deadline alarm; any old one is cleared. The cleanup alarm is installed
+on lifecycle changes, not on every tick.
 It can finish an empty room without a live socket or a repeating simulation loop.
 Duplicate alarm delivery is safe. Final results delete their pending alarm and
 stop computation; sockets still receive a final authoritative snapshot before
@@ -60,22 +60,24 @@ public Hanpan matches use the Durable Object path.
 
 ## UI and validation
 
-The header shows remaining time and overtime. The warning includes a48px-high
-continue button, including inside the online rules/pause menu. Results distinguish
-time draw, inactivity draw, abandonment and forfeit instead of claiming every
-result was an annihilation. A previously defeated team does not regain a draw
-when surviving teams later reach the time limit.
+The header shows elapsed time without overtime or countdown messaging. The warning
+includes a48px-high continue button, including inside the online rules/pause menu.
+Results distinguish inactivity draw, abandonment and forfeit instead of claiming
+every result was an annihilation.
 
-Policy tests cover all modes, watching others' combat, team-only forfeits,
+Policy tests cover all modes beyond an hour without a time draw, AI practice,
+watching others' combat, team-only forfeits,
 simultaneous inactivity, meaningful movement versus jitter, invalid/no-op orders,
 sequenced confirmation, absence/reconnect budgets, persisted clocks and a final
 snapshot bypassing a full receipt window. Real workerd/SQLite tests exercise
 an actual persisted alarm firing after every client leaves, cleanup, duplicate
-alarm delivery and final-state replay after object restart.
+alarm delivery, a legacy deadline alarm during active play after6minutes,
+and final-state replay after object restart.
 
 Browser QA uses a disposable800-unit local fixture, with clock controls excluded
 from production.393×665 and320×568 viewports cover warnings, confirmation inside
-rules, individual2v2 forfeit and time-draw results. Small screens scroll rather
+rules and individual2v2 forfeit. The removed time-draw UI was previously covered;
+regression tests now require play to continue after6minutes. Small screens scroll rather
 than clipping controls. Physical phone-call/OS behavior is not reproduced by this
 fixture. Source images, combat tuning and other games are unchanged.
 

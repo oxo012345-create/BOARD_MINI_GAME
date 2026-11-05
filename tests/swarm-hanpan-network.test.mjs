@@ -71,9 +71,9 @@ test('a legacy final snapshot also stops polling without discarding the result',
 
 test('a backgrounded client missing its final packet fetches the saved result once after terminal close',async()=>{
  const original={fetch:globalThis.fetch,WebSocket:globalThis.WebSocket,location:globalThis.location},g=new Game({seed:4}),encoder=new SnapshotEncoder(),id=crypto.randomUUID();let client,opens=0,joins=0;
- class Socket{static OPEN=1;constructor(){this.readyState=1;this.bufferedAmount=0;opens++;queueMicrotask(()=>this.onopen?.());}send(raw){const m=JSON.parse(raw);if(m.type==='join')queueMicrotask(()=>{this.onmessage?.({data:JSON.stringify({type:'welcome',seat:0,mode:'duel',sequence:0})});if(opens===2)g.finish(null,'timeout');this.onmessage?.({data:encoder.encode(g,{full:true})});});}close(){this.readyState=3;this.onclose?.({code:1000});}}
+ class Socket{static OPEN=1;constructor(){this.readyState=1;this.bufferedAmount=0;opens++;queueMicrotask(()=>this.onopen?.());}send(raw){const m=JSON.parse(raw);if(m.type==='join')queueMicrotask(()=>{this.onmessage?.({data:JSON.stringify({type:'welcome',seat:0,mode:'duel',sequence:0})});if(opens===2)g.finish(null,'inactive');this.onmessage?.({data:encoder.encode(g,{full:true})});});}close(){this.readyState=3;this.onclose?.({code:1000});}}
  try{
   globalThis.location={href:'https://hanpan.test/'};globalThis.WebSocket=Socket;globalThis.fetch=async()=>{joins++;return Response.json({transport:'durable',socketUrl:'/api/swarm/realtime-connect?ticket=fixture'});};
-  client=new HanpanSession({room:id,roomCode:'2468',storage:null});await client.connect();await pause(10);assert.equal(client.game.over,false);client.socket.readyState=3;client.socket.onclose({code:4000});await pause(40);assert.equal(opens,2);assert.equal(joins,2);assert.equal(client.game.over,true);assert.equal(client.game.reason,'timeout');assert.equal(client.disposed,true);
+  client=new HanpanSession({room:id,roomCode:'2468',storage:null});await client.connect();await pause(10);assert.equal(client.game.over,false);client.socket.readyState=3;client.socket.onclose({code:4000});await pause(40);assert.equal(opens,2);assert.equal(joins,2);assert.equal(client.game.over,true);assert.equal(client.game.reason,'inactive');assert.equal(client.disposed,true);
  }finally{client?.close();Object.assign(globalThis,original);}
 });
