@@ -37,3 +37,13 @@ test('persistent write contention is bounded and reports a retryable conflict',a
  const result=await commitClubAction(q.read(),'a','a',{action:'club-guess',clubId:q.club.id,requestId:crypto.randomUUID(),round:1,value:'123'},{...q.io,write:async()=>{attempts++;return false;}});
  assert.equal(attempts,8);assert.equal(result.status,409);assert.equal(result.code,'ROOM_CONFLICT');
 });
+
+
+test('gomoku fast path validates turns and preserves the winning board under concurrent requests',async()=>{
+ const q=fixture(),room=q.read(),s=createClub('gomoku',q.ids,{mode:'team',redIds:['a','c']});room.game={id:'gomoku',club:s};q.set(room);
+ const payload={action:'club-place',clubId:s.id,requestId:crypto.randomUUID(),matchId:s.matches[0].id,attempt:1,turn:0,cell:112};
+ const responses=await Promise.all([commitClubAction(q.read(),'a','a',payload,q.io),commitClubAction(q.read(),'a','a',{...payload,requestId:crypto.randomUUID(),cell:111},q.io)]);
+ assert.equal(responses.filter(r=>r.status===200).length,1);assert.equal(q.read().game!.club!.matches[0].turn,1);
+ assert.equal((await commitClubAction(q.read(),'a','a',payload,q.io)).status,200);
+ assert.equal((await commitClubAction(q.read(),'c','c',{...payload,requestId:crypto.randomUUID(),turn:1,cell:111},q.io)).status,422);
+});

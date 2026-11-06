@@ -4,12 +4,16 @@ import { ShotPlayback } from '../app/club-motion';
 import { initialDiscs, simulateShot } from '../app/api/_lib/club-physics';
 const before=initialDiscs(),after=before.map(d=>({...d,x:d.x+10})),frames=[before,after];
 
-test('late remote frames catch up to server time instead of restarting the full animation',()=>{
- const p=new ShotPlayback(0,before);p.receive(1,frames,after,1000,25);
- assert.equal(p.sample(1000).discs[0].x,before[0].x+5);assert.equal(p.sample(1025).locked,false);
- p.receive(2,frames,before,2000,500);assert.equal(p.sample(2000).locked,false);
- assert.deepEqual(p.sample(2000).discs,before);
+test('late remote shots always show the full path; long animations finish within 1.2 seconds',()=>{
+ const longFrames=Array.from({length:81},(_,i)=>before.map(d=>({...d,x:d.x+i})));
+ const p=new ShotPlayback(0,before);p.receive(1,longFrames,longFrames.at(-1)!,90000);
+ assert.deepEqual(p.sample(90000).discs,before);assert.equal(p.sample(90600).discs[0].x,before[0].x+40);
+ p.receive(1,longFrames,longFrames.at(-1)!,90800);assert.equal(p.sample(90800).moving,true);
+ assert.equal(p.sample(91200).locked,false);assert.deepEqual(p.sample(91200).discs,longFrames.at(-1));
+ // Opening a completed snapshot is a reconnect, not a new live shot.
+ const rejoined=new ShotPlayback(1,longFrames.at(-1)!);rejoined.receive(1,longFrames,longFrames.at(-1)!,100000);assert.equal(rejoined.sample(100000).moving,false);
 });
+
 test('local release moves before network acknowledgement, waits without replay, then unlocks',()=>{
  const p=new ShotPlayback(0,before);assert.ok(p.predict(1,frames,100));assert.ok(p.sample(125).discs[0].x>before[0].x);
  assert.equal(p.sample(2000).awaiting,true);assert.equal(p.predict(1,frames,2100),false);

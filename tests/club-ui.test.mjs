@@ -48,3 +48,11 @@ test('black forbidden moves show X and disabled cells; white can select the same
  m.turn=9;assert.doesNotMatch(render(),/data-forbidden=/);
 });
 test('new screens render only the three separate games and required controls',()=>{for(const kind of ['gomoku','alkkagi','number-baseball']){const state=createClub(kind,ids,{mode:kind==='number-baseball'?'individual':'team',redIds:['a','c']});const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(state,'a'),players,meId:'a',isHost:true,onAction:action,onReplay:noop,onLobby:noop}));assert.doesNotMatch(html,/무르기|새 게임|제한시간|시간 초과|가입 없이|YOUR LITTLE|만든 이야기|작은 클럽/);if(kind==='gomoku'){assert.equal((html.match(/role="gridcell"/g)||[]).length,225);assert.match(html,/>착수</);}if(kind==='number-baseball')assert.match(html,/추리 숫자/);if(kind==='alkkagi')assert.match(html,/알까기 게임판/);const briefing=renderToStaticMarkup(createElement(ClubBriefing,{kind,players,isHost:true,onAction:action,onStart:noop}));if(kind==='alkkagi')assert.match(briefing,/장애물 OFF/);if(kind==='number-baseball')assert.match(briefing,/4자리/);}});
+
+
+test('gomoku final board keeps the winning line and last move visible without an automatic overlay',()=>{
+ const s=createClub('gomoku',ids,{mode:'team',redIds:['a','c']}),m=s.matches[0];
+ for(const i of [112,113,114,115,116])m.board[i]=1;m.lastMove=116;m.winner=0;m.turn=9;s.finished=true;s.ranking=[['a','c'],['b','d']];
+ for(const meId of ids){const html=renderToStaticMarkup(createElement(ClubGame,{s:clubClientState(s,meId),players,meId,isHost:meId==='a',onAction:action,onReplay:noop,onLobby:noop}));
+ assert.match(html,/data-winning-line="true"/);assert.match(html,/마지막 착수 L8/);assert.match(html,/흑 5목/);assert.match(html,/class="club-result-inline"/);assert.doesNotMatch(html,/<dialog|class="club-panel club-result"/);assert.doesNotMatch(html,/data-forbidden=/);}
+});

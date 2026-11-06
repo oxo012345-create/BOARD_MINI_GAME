@@ -3,7 +3,7 @@ import type { RoomState } from './rooms';
 import type { GameRound } from './rounds';
 import { canMergeIndividual } from './club-submit';
 
-export const isFastClub = (id: unknown) => id === 'number-baseball' || id === 'alkkagi';
+export const isFastClub = (id: unknown) => id === 'number-baseball' || id === 'alkkagi' || id === 'gomoku';
 
 /** Retry CAS beside D1, instead of making each phone repeat a WAN round trip.
  * Revalidate the session, game and turn against every fresh snapshot. */

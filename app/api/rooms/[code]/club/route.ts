@@ -10,7 +10,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const { code } = await context.params;
     if (!/^\d{4}$/.test(code)) return Response.json({ error: '방 코드를 확인해 주세요.' }, { status: 400 });
     const payload = await request.json() as Record<string, unknown>;
-    if (!['club-guess', 'club-secret', 'club-shot'].includes(String(payload.action))) return Response.json({ error: '지원하지 않는 행동이에요.' }, { status: 422 });
+    if (!['club-guess', 'club-secret', 'club-shot', 'club-place'].includes(String(payload.action))) return Response.json({ error: '지원하지 않는 행동이에요.' }, { status: 422 });
     const room = await readExistingClubRoom(code);
     if (!room) return Response.json({ error: '방을 찾을 수 없어요.' }, { status: 404 });
     const viewer = await authenticatePlayer(request, room);

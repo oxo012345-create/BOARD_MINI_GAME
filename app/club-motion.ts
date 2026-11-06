@@ -4,7 +4,7 @@ import { FRAME_MS, type Disc } from './api/_lib/club-physics';
 export class ShotPlayback {
   private confirmed: number;
   private settled: Disc[];
-  private active?: { shot: number; start: number; frames: Disc[][]; acknowledged: boolean };
+  private active?: { shot: number; start: number; frames: Disc[][]; duration: number; acknowledged: boolean };
 
   constructor(shot: number, discs: Disc[]) {
     this.confirmed = shot;
@@ -13,11 +13,11 @@ export class ShotPlayback {
 
   predict(shot: number, frames: Disc[][], now: number) {
     if (shot <= this.confirmed || this.active || frames.length < 2) return false;
-    this.active = { shot, start: now, frames, acknowledged: false };
+    this.active = { shot, start: now, frames, duration: Math.min(1200,(frames.length-1)*FRAME_MS), acknowledged: false };
     return true;
   }
 
-  receive(shot: number, frames: Disc[][], discs: Disc[], now: number, elapsedMs = 0) {
+  receive(shot: number, frames: Disc[][], discs: Disc[], now: number) {
     if (shot < this.confirmed) return;
     const newer = shot > this.confirmed;
     this.confirmed = shot;
@@ -27,7 +27,7 @@ export class ShotPlayback {
       // Keep the original start time: a response must never replay our shot.
       if (frames.length > 1) this.active.frames = frames;
     } else if (newer) {
-      this.active = frames.length > 1 ? { shot, start: now - Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0), frames, acknowledged: true } : undefined;
+      this.active = frames.length > 1 ? { shot, start: now, frames, duration: Math.min(1200,(frames.length-1)*FRAME_MS), acknowledged: true } : undefined;
     }
   }
 
@@ -38,7 +38,9 @@ export class ShotPlayback {
   sample(now: number) {
     const a = this.active;
     if (!a) return { discs: this.settled, moving: false, awaiting: false, locked: false };
-    const position = Math.max(0, now - a.start) / FRAME_MS;
+    // Show the complete path even when delivery took longer than the shot.
+    // Compress long physics tails instead of skipping collisions at the start.
+    const position = Math.max(0, now - a.start) / a.duration * (a.frames.length-1);
     const index = Math.floor(position);
     if (index >= a.frames.length - 1) {
       if (a.acknowledged) {

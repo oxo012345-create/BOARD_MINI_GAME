@@ -46,7 +46,7 @@ async function winnerCheck(){
  const names=ids.map(id=>rooms[0].players.find(p=>p.id===id).name);
  for(const r of rooms){const v=r.game.club;assert.deepEqual(v.ranking,s.ranking);assert.deepEqual(v.winners,s.winners);assert.equal(v.finished,true);
  const html=renderToStaticMarkup(createElement(ClubGame,{s:v,players:r.players,meId:r.meId,isHost:false,onAction:async()=>{},onReplay:()=>{},onLobby:()=>{}}));
- const winnerHtml=s.kind==='number-baseball'?html.slice(html.indexOf('class="nb-winners"'),html.indexOf('class="nb-reveals"')):html.slice(html.indexOf('class="club-panel club-result"')).split('</p>')[0];
+ const winnerHtml=s.kind==='number-baseball'?html.slice(html.indexOf('class="nb-winners"'),html.indexOf('class="nb-reveals"')):html.slice(html.indexOf('class="club-result-inline"')).split('</strong>')[0];
  for(const name of names)assert.ok(winnerHtml.includes(name),'Winner missing for '+r.meId);
  }
  return names;

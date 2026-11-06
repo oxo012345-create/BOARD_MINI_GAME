@@ -4,7 +4,7 @@ import { type Match } from './api/_lib/club';
 import { simulateShot } from './api/_lib/club-physics';
 import { ShotPlayback } from './club-motion';
 
-export function useClubShot(m: Match, obstacles: boolean, onShot: (p: Record<string, unknown>) => Promise<Match | null>, onMotion: (locked: boolean) => void, sampledAt?: number) {
+export function useClubShot(m: Match, obstacles: boolean, onShot: (p: Record<string, unknown>) => Promise<Match | null>, onMotion: (locked: boolean) => void) {
   const [controller] = useState(() => new ShotPlayback(m.shot ?? 0, m.discs));
   const [view, setView] = useState(() => controller.sample(0));
   const raf = useRef(0), mounted = useRef(false), reported = useRef(false), callback = useRef(onMotion);
@@ -21,7 +21,7 @@ export function useClubShot(m: Match, obstacles: boolean, onShot: (p: Record<str
   }, [controller]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; cancelAnimationFrame(raf.current); callback.current(false); }; }, []);
   // A fresh room response may contain identical frames. It must not restart or cancel playback.
-  useEffect(() => { controller.receive(m.shot ?? 0, m.frames ?? [], m.discs, performance.now(), m.shotStartedAt && sampledAt ? Math.max(0, sampledAt - m.shotStartedAt) : 0); wake(); }, [controller, m.shot, m.frames, m.discs, m.shotStartedAt, sampledAt, wake]);
+  useEffect(() => { controller.receive(m.shot ?? 0, m.frames ?? [], m.discs, performance.now()); wake(); }, [controller, m.shot, m.frames, m.discs, wake]);
   async function fire(id: number, dx: number, dy: number) {
     if (controller.sample(performance.now()).locked) return;
     const shot = (m.shot ?? 0) + 1;
