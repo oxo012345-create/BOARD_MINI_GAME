@@ -6,7 +6,7 @@ export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
 export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4 | 5; allowDuplicates?: boolean; obstacles: boolean; redIds?: string[] };
 export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, allowDuplicates: false, obstacles: false });
-export type ShotLaunch = { id:string; shot:number; discId:number; dx:number; dy:number; discs:Disc[]; startedAt:number; settled:boolean };
+export type ShotLaunch = { id:string; shot:number; discId:number; dx:number; dy:number; discs:Disc[]; startedAt:number; settled:boolean; provisional?:boolean };
 export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; launch?: ShotLaunch; shot?: number; shotStartedAt?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
 export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; pendingResults?: Record<string, Guess>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[]; baseball?: BaseballState };

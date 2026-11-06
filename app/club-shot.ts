@@ -8,6 +8,7 @@ export function useClubShot(m: Match, obstacles: boolean, onShot: (p: Record<str
   const [controller] = useState(() => new ShotPlayback(m.shot ?? 0, m.discs));
   const [view, setView] = useState(() => controller.sample(0));
   const raf = useRef(0), mounted = useRef(false), reported = useRef(false), callback = useRef(onMotion), settleCallback=useRef(onSettle);
+  const provisional=useRef<{id:string;shot:number}|null>(null);
   useEffect(() => { callback.current = onMotion; settleCallback.current=onSettle; }, [onMotion,onSettle]);
   const wake = useCallback(() => {
     cancelAnimationFrame(raf.current);
@@ -21,15 +22,19 @@ export function useClubShot(m: Match, obstacles: boolean, onShot: (p: Record<str
   }, [controller]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; cancelAnimationFrame(raf.current); callback.current(false); }; }, []);
   // A fresh room response may contain identical frames. It must not restart or cancel playback.
-  useEffect(() => { controller.sync(m,obstacles,performance.now()); wake(); }, [controller,m,obstacles,wake]);
-  const pendingLaunch=m.launch&&!m.launch.settled?m.launch.id:undefined;
+  useEffect(() => {
+    if(provisional.current&&provisional.current.id!==m.launch?.id)controller.reject(provisional.current.shot);
+    provisional.current=m.launch?.provisional?{id:m.launch.id,shot:m.launch.shot}:null;
+    controller.sync(m,obstacles,performance.now()); wake();
+  }, [controller,m,obstacles,wake]);
+  const pendingLaunch=m.launch&&!m.launch.settled&&!m.launch.provisional?m.launch.id:undefined;
   useEffect(()=>{
     if(!pendingLaunch||!settleCallback.current)return;
     let cancelled=false,timer:ReturnType<typeof setTimeout>|undefined,attempt=0;
     // Every connected client can recover a launch if the shooter disappears.
     async function settle(){
       try{const result=await settleCallback.current?.(pendingLaunch!);if(cancelled)return;
-        if(result?.launch?.id===pendingLaunch&&result.launch.settled){controller.sync(result,obstacles,performance.now());wake();return;}
+        if(result&&result.launch&&result.launch.id===pendingLaunch&&result.launch.settled){controller.sync(result,obstacles,performance.now());wake();return;}
       }catch{/* Retry transport errors without restarting the local animation. */}
       if(!cancelled)timer=setTimeout(settle,Math.min(3000,500*2**Math.min(attempt++,3)));
     }

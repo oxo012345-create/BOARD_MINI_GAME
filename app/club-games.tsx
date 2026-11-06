@@ -6,6 +6,7 @@ import { ClubBoard } from './club-board';
 import { ClubSheet } from './club-sheet';
 import { StoneSound } from './club-stone-sound';
 import { ClubBaseball, BaseballBriefing } from './club-baseball';
+import { useClubInput } from './club-input-client';
 import './club-games.css';
 type Player = {id:string;name:string};
 type Action = (p:Record<string,unknown>)=>Promise<unknown>;
@@ -25,22 +26,24 @@ export function ClubBriefing({kind,setup,players,isHost,onAction,onStart,topBar,
   {s.mode==='team'&&<p>흑1 → 백1 → 흑2 → 백2</p>}
   <p role="alert">{error}</p><p>{players.length}/{required}명</p>{isHost?<button className="button primary xl" disabled={busy||players.length!==required||(s.mode==='team'&&!!s.redIds&&s.redIds.length!==2)} onClick={onStart}>게임 시작</button>:<p>방장이 시작하기를 기다리는 중</p>}</section>{overlays}</main>;
 }
-export function ClubGame({s,players,meId,isHost,onAction,onReplay,onLobby,topBar,overlays}:{s:ClubView;players:Player[];meId?:string;isHost:boolean;onAction:Action;onReplay:()=>void;onLobby:()=>void;topBar:ReactNode;overlays:ReactNode}) {
+export function ClubGame({s,players,meId,roomCode,isHost,onAction,onReplay,onLobby,topBar,overlays}:{s:ClubView;players:Player[];meId?:string;roomCode?:string;isHost:boolean;onAction:Action;onReplay:()=>void;onLobby:()=>void;topBar:ReactNode;overlays:ReactNode}) {
+ const instant=useClubInput(roomCode,s,meId);
  const [selected,setSelected]=useState<number|null>(null),[watch,setWatch]=useState(()=>s.matches.findLast(m=>m.sides.flat().includes(meId??''))?.id??s.matches[0]?.id??''),[busy,setBusy]=useState(false),[moving,setMoving]=useState(false),[error,setError]=useState('');
  const lock=useRef(false);
  const [resultOpen,setResultOpen]=useState(false),[placement,setPlacement]=useState<{matchId:string;attempt:number;turn:number;cell:number;color:number}|null>(null);
  const name=(id?:string)=>players.find(p=>p.id===id)?.name??'참가자';
  const own=s.matches.find(m=>m.sides.flat().includes(meId??'')&&m.winner===undefined&&!m.draw)??s.matches.findLast(m=>m.sides.flat().includes(meId??''));
  const m=s.matches.find(m=>m.id===watch)??own??s.matches[0];
- const shownMatch=m&&placement&&placement.matchId===m.id&&placement.attempt===m.attempt&&placement.turn===m.turn?{...m,board:m.board.map((v,i)=>i===placement.cell?placement.color:v),lastMove:placement.cell}:m;
- const canPlay=!!m&&!busy&&!moving&&!s.finished&&!s.paused?.length&&!m.draw&&m.winner===undefined&&matchActor(m)===meId;
- async function send(p:Record<string,unknown>){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{const result=await onAction({clubId:s.id,requestId:crypto.randomUUID(),...p});setSelected(null);return result;}catch(e){setError((e as Error).message);}finally{setPlacement(null);setBusy(false);lock.current=false;}}
+ const preview=instant.preview?.id===m?.id?instant.preview:null;
+ const shownMatch=m&&placement&&placement.matchId===m.id&&placement.attempt===m.attempt&&placement.turn===m.turn?{...m,board:m.board.map((v,i)=>i===placement.cell?placement.color:v),lastMove:placement.cell}:preview??m;
+ const canPlay=!!m&&!preview&&!busy&&!moving&&!s.finished&&!s.paused?.length&&!m.draw&&m.winner===undefined&&matchActor(m)===meId;
+ async function send(p:Record<string,unknown>){if(lock.current)return;lock.current=true;setBusy(true);setError('');const payload={clubId:s.id,requestId:crypto.randomUUID(),...p};try{instant.publish(payload);const result=await onAction(payload);if(!result)instant.cancel(payload.requestId);setSelected(null);return result;}catch(e){instant.cancel(payload.requestId);setError((e as Error).message);}finally{setPlacement(null);setBusy(false);lock.current=false;}}
  const matchPayload=m?{matchId:m.id,turn:m.turn,attempt:m.attempt}:{};
  return <main className={`app-shell club-shell club-fullscreen ${s.kind}`} >{topBar}{s.kind!=='number-baseball'&&<div className="club-mode">{s.setup.mode==='duel'?'1대1':s.setup.mode==='team'?'2대2 팀전':'4인 토너먼트'}</div>}
  {!!s.paused?.length&&<p className="club-paused">{s.paused.map(name).join(' · ')} 복귀 대기</p>}
  {s.kind==='number-baseball'?<ClubBaseball key={s.id} s={s} name={name} meId={meId} busy={busy} isHost={isHost} onReplay={onReplay} onLobby={onLobby} onSecret={value=>void send({action:'club-secret',value})} onGuess={value=>void send({action:'club-guess',round:s.round,turn:s.baseball?.turn,value})}/>:m&&<>
  {s.matches.length>1&&<nav className="club-match-tabs" aria-label="경기 관전">{s.matches.map(match=><button key={match.id} aria-pressed={match.id===m.id} onClick={()=>{setWatch(match.id);setSelected(null);}}>{match.label}{match.winner!==undefined?' ✓':''}</button>)}</nav>}
- <section className={`club-panel club-play-panel ${s.kind}`}><div className="club-panel-heading"><h2>{s.kind==='gomoku'?'오목':'알까기'}</h2>{s.kind==='gomoku'&&<StoneSound gameId={s.id} matchId={m.id} attempt={m.attempt} turn={m.turn}/>}<span>{s.kind==='gomoku'?'렌주룰 · 15 × 15':`5알 대전${s.setup.obstacles?' · 장애물 ON':''}`}</span></div>
+ <section className={`club-panel club-play-panel ${s.kind}`}><div className="club-panel-heading"><h2>{s.kind==='gomoku'?'오목':'알까기'}</h2>{s.kind==='gomoku'&&<StoneSound gameId={s.id} matchId={m.id} attempt={m.attempt} turn={m.turn+(preview?1:0)}/>}<span>{s.kind==='gomoku'?'렌주룰 · 15 × 15':`5알 대전${s.setup.obstacles?' · 장애물 ON':''}`}</span></div>
  <div className="club-players">{m.sides.map((ids,side)=><div key={side} className={`club-player ${!s.finished&&m.winner===undefined&&!m.draw&&matchSide(m)===side?'current':''}`}><i className={`club-avatar ${side?'white':'black'}`}/><div><b>{ids.map(name).join(' · ')}</b><small>{side?'백돌':'흑돌'}{ids.includes(meId??'')?' · 나':''}</small></div>{s.kind==='alkkagi'&&<span>{m.discs.filter(d=>d.alive&&d.side===side).length}알</span>}</div>)}</div>
  <ClubBoard key={s.id+'-'+m.id+'-'+m.attempt} kind={s.kind} m={shownMatch!} sampledAt={s.sampledAt} canPlay={canPlay} obstacles={s.setup.obstacles} selected={selected} onSelect={setSelected} onMotion={setMoving} onSettle={async launchId=>{const result=await onAction({action:'club-settle-shot',clubId:s.id,requestId:'settle:'+launchId,matchId:m.id,attempt:m.attempt,launchId}) as {game?:{club?:ClubView}}|null;return result?.game?.club?.matches.find(match=>match.id===m.id)??null;}} onShot={async p=>{const result=await send({action:'club-launch',...matchPayload,...p}) as {game?:{club?:ClubView}}|undefined;return result?.game?.club?.matches.find((match:Match)=>match.id===m.id)??null;}}/>
  <div className="club-status" aria-live="polite"><i/><div><b>{s.kind==='gomoku'&&busy?'착수 확인 중':moving?'발사 진행 중':m.winner!==undefined?`${m.sides[m.winner].map(name).join(' · ')} 승리`:m.draw?'무승부':`${name(matchActor(m))} 차례`}</b><small>{moving?'돌이 멈추고 결과가 확인되면 다음 차례로 넘어갑니다.':m.winner!==undefined?(s.kind==='gomoku'?`${m.winner===0?'흑 5목':'백 5목 이상'} 완성 · 붉은 연결선을 확인하세요.`:'상대 돌이 모두 판 밖으로 나갔어요.'):s.kind==='gomoku'?'놓을 곳을 선택하고, 착수 버튼을 누르세요.':'내 돌을 누른 뒤, 쏘고 싶은 방향의 반대로 당기세요.'}</small></div></div>

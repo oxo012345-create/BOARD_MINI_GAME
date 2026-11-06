@@ -1293,7 +1293,7 @@ export default function Home() {
     </main>;
   }
 
-  if (currentGame?.club && isClub(currentGame.id)) return <ClubGame key={currentGame.club.id} s={currentGame.club} players={room.players} meId={room.meId} isHost={isHost} onAction={applyAction} onReplay={() => gameMeta && void prepareGame(gameMeta)} onLobby={() => void goLobby()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
+  if (currentGame?.club && isClub(currentGame.id)) return <ClubGame key={currentGame.club.id} s={currentGame.club} players={room.players} meId={room.meId} roomCode={room.code} isHost={isHost} onAction={applyAction} onReplay={() => gameMeta && void prepareGame(gameMeta)} onLobby={() => void goLobby()} topBar={topBar(currentGame.title)} overlays={commonOverlays} />;
   if (room.view === "game" && currentGame?.id === "swarm-territory" && currentGame.swarm?.matchId) return <SwarmGame room={room.code} round={currentGame.swarm} onExit={()=>setConfirmType(isHost?"lobby":"leave")} overlays={commonOverlays}/>;
 
   if (room.view === "result" || (currentGame?.id === "apartment" && currentGame.apartmentRevealed)) {

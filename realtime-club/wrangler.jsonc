@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hanpan-club-input",
+  "main": "index.js",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "vars": {"ALLOWED_ORIGIN":"https://hanpan-mobile-game.oxo012345.chatgpt.site"},
+  "durable_objects": {"bindings":[{"name":"CLUB_INPUTS","class_name":"ClubInputRoom"}]},
+  "migrations":[{"tag":"club-input-v1","new_sqlite_classes":["ClubInputRoom"]}]
+}
