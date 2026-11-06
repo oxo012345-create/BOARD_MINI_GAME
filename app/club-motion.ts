@@ -1,7 +1,9 @@
-import { FRAME_MS, type Disc } from './api/_lib/club-physics';
+import type { Match } from './api/_lib/club';
+import { simulateShot, FRAME_MS, type Disc } from './api/_lib/club-physics';
 
 /** Presentation only. A speculative shot cannot advance the server's turn. */
 export class ShotPlayback {
+  private launchCache?: {id:string;frames:Disc[][]};
   private confirmed: number;
   private settled: Disc[];
   private active?: { shot: number; start: number; frames: Disc[][]; duration: number; acknowledged: boolean };
@@ -13,7 +15,7 @@ export class ShotPlayback {
 
   predict(shot: number, frames: Disc[][], now: number) {
     if (shot <= this.confirmed || this.active || frames.length < 2) return false;
-    this.active = { shot, start: now, frames, duration: Math.min(1200,(frames.length-1)*FRAME_MS), acknowledged: false };
+    this.active = { shot, start: now, frames, duration: (frames.length-1)*FRAME_MS, acknowledged: false };
     return true;
   }
 
@@ -27,8 +29,17 @@ export class ShotPlayback {
       // Keep the original start time: a response must never replay our shot.
       if (frames.length > 1) this.active.frames = frames;
     } else if (newer) {
-      this.active = frames.length > 1 ? { shot, start: now, frames, duration: Math.min(1200,(frames.length-1)*FRAME_MS), acknowledged: true } : undefined;
+      this.active = frames.length > 1 ? { shot, start: now, frames, duration: (frames.length-1)*FRAME_MS, acknowledged: true } : undefined;
     }
+  }
+
+  sync(m:Match,obstacles:boolean,now:number){
+    const launch=m.launch;
+    if(launch){
+      if(this.launchCache?.id!==launch.id)this.launchCache={id:launch.id,frames:simulateShot(launch.discs,launch.discId,launch.dx,launch.dy,obstacles).frames};
+      if(launch.settled)this.receive(launch.shot,this.launchCache.frames,m.discs,now);
+      else this.predict(launch.shot,this.launchCache.frames,now);
+    }else this.receive(m.shot??0,m.frames??[],m.discs,now);
   }
 
   reject(shot: number) {
@@ -39,7 +50,7 @@ export class ShotPlayback {
     const a = this.active;
     if (!a) return { discs: this.settled, moving: false, awaiting: false, locked: false };
     // Show the complete path even when delivery took longer than the shot.
-    // Compress long physics tails instead of skipping collisions at the start.
+    // One physics frame remains 50 ms: never accelerate or skip collisions.
     const position = Math.max(0, now - a.start) / a.duration * (a.frames.length-1);
     const index = Math.floor(position);
     if (index >= a.frames.length - 1) {

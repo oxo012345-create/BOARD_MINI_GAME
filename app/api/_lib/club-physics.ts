@@ -6,9 +6,12 @@ export const BARRIERS:Barrier[]=[{x:30,y:30,r:23},{x:570,y:30,r:23},{x:300,y:300
 export function initialDiscs():Disc[]{return [0,1].flatMap(side=>Array.from({length:5},(_,i)=>({id:side*5+i,side,x:(95+i*92)*600/560,y:(side?120:440)*600/560,vx:0,vy:0,alive:true})));}
 /** Original Hansu Matter.js 0.20 simulation scaled from 560 to 600 units.
  * Server authority is preserved. Clients interpolate real-time snapshots. */
+export function validateShotVector(dx:unknown,dy:unknown): asserts dx is number {
+ if(typeof dx!=='number'||typeof dy!=='number'||!Number.isFinite(dx)||!Number.isFinite(dy)||Math.hypot(dx,dy)<3||Math.hypot(dx,dy)>181)throw new Error('힘을 다시 조절해 주세요.');
+}
 export function simulateShot(input:Disc[],id:number,dx:number,dy:number,obstacles:boolean){
+ validateShotVector(dx,dy);
  const length=Math.hypot(dx,dy);
- if(![dx,dy].every(Number.isFinite)||length<3||length>181)throw new Error('힘을 다시 조절해 주세요.');
  const discs=structuredClone(input);
  const engine=Matter.Engine.create({gravity:{x:0,y:0,scale:0},enableSleeping:false});
  const bodies=new Map(discs.filter(d=>d.alive).map(d=>[d.id,Matter.Bodies.circle(d.x,d.y,DISC_RADIUS,{restitution:.86,friction:0,frictionAir:.025,density:.003,slop:.01})]));

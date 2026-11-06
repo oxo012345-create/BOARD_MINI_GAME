@@ -1,4 +1,4 @@
-import { initialDiscs, simulateShot, type Disc } from './club-physics';
+import { initialDiscs, simulateShot, validateShotVector, type Disc } from './club-physics';
 import { baseballAction, baseballInputter, baseballView, scoreNumbers, type BaseballState, type BaseballView } from './club-baseball';
 import { renjuMove } from './renju';
 export const CLUB_IDS = ['gomoku', 'alkkagi', 'number-baseball'] as const;
@@ -6,7 +6,8 @@ export type ClubId = typeof CLUB_IDS[number];
 export const isClub = (id: unknown): id is ClubId => CLUB_IDS.includes(id as ClubId);
 export type ClubSetup = { mode: 'duel' | 'tournament' | 'team' | 'individual'; digits: 3 | 4 | 5; allowDuplicates?: boolean; obstacles: boolean; redIds?: string[] };
 export const defaultClubSetup = (id: ClubId, playerCount = 4): ClubSetup => ({ mode: playerCount === 2 ? 'duel' : id === 'number-baseball' ? 'individual' : 'tournament', digits: 3, allowDuplicates: false, obstacles: false });
-export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; shot?: number; shotStartedAt?: number; lastMove?: number };
+export type ShotLaunch = { id:string; shot:number; discId:number; dx:number; dy:number; discs:Disc[]; startedAt:number; settled:boolean };
+export type Match = { id: string; label: string; sides: [string[], string[]]; turn: number; first: number; attempt: number; board: number[]; discs: Disc[]; winner?: number; draw?: boolean; replayReady: string[]; frames?: Disc[][]; launch?: ShotLaunch; shot?: number; shotStartedAt?: number; lastMove?: number };
 export type Guess = { round: number; value: string; strikes: number; balls: number };
 export type ClubState = { id: string; kind: ClubId; setup: ClubSetup; players: string[]; teams: [string[], string[]]; first: number; matches: Match[]; stage: number; finished: boolean; ranking: string[][]; secret: string; round: number; pending: Record<string, string>; pendingResults?: Record<string, Guess>; histories: Record<string, Guess[]>; winners: string[]; processed: string[]; paused?: string[]; baseball?: BaseballState };
 export type ClubView = Omit<ClubState, 'secret' | 'pending' | 'histories' | 'pendingResults' | 'processed' | 'baseball'> & { baseball?: BaseballView; sampledAt?: number; submitted: string[]; history: Guess[]; myKey?: string; inputter?: string; mySubmitted: boolean };
@@ -50,10 +51,10 @@ export function hasFive(board: number[], cell: number, color: number) {
 export const judge = scoreNumbers;
 export function clubKey(s: ClubState, viewer?: string) { if (!viewer || !s.players.includes(viewer)) return undefined; return s.setup.mode==='team' ? `team-${s.teams.findIndex(t=>t.includes(viewer))}` : viewer; }
 export const baseballActor = baseballInputter;
-export function clubClientState(s: ClubState, viewer?: string): ClubView {
+export function clubClientState(s: ClubState, viewer?: string, compactMotion=false): ClubView {
   // Explicit allowlist: never serialize the secret, guesses in flight, or opponents' histories.
   const key = clubKey(s,viewer);
-  return { ...(s.kind==='alkkagi'?{sampledAt:Date.now()}:{}),id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,baseball:baseballView(s,viewer),submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
+  return { ...(s.kind==='alkkagi'?{sampledAt:Date.now()}:{}),id:s.id,kind:s.kind,setup:s.setup,players:s.players,teams:s.teams,first:s.first,matches:compactMotion?s.matches.map(m=>{if(!m.launch)return m;const copy={...m};delete copy.frames;return copy;}):s.matches,stage:s.stage,finished:s.finished,ranking:s.ranking,round:s.round,winners:s.winners,paused:s.paused,baseball:baseballView(s,viewer),submitted:Object.keys(s.pending),history:key?s.histories[key]??[]:[],myKey:key,inputter:key?baseballActor(s,key):undefined,mySubmitted:Boolean(key && s.pending[key]) };
 }
 function progress(s: ClubState) {
   if (!s.matches.every(m=>m.winner!==undefined)) return;
@@ -67,6 +68,20 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
   if(p.clubId!==s.id) throw new Error('이전 경기 입력이에요.');
   const requestId=String(p.requestId??''); if(!requestId || requestId.length>100) throw new Error('요청 번호가 필요해요.');
   if(s.processed.includes(requestId)) return;
+  // An accepted launch can be finalized by any remaining participant, even
+  // when the shooter disconnects. The server alone computes the result.
+  if(s.kind==='alkkagi'&&p.action==='club-settle-shot'){
+    const m=s.matches.find(m=>m.id===p.matchId),launch=m?.launch;
+    if(!m||p.attempt!==m.attempt||!launch||p.launchId!==launch.id)throw new Error('이전 발사 입력이에요.');
+    if(!launch.settled){
+      const result=simulateShot(launch.discs,launch.discId,launch.dx,launch.dy,s.setup.obstacles);
+      m.discs=result.discs;m.frames=result.frames;m.shot=launch.shot;m.shotStartedAt=launch.startedAt;launch.settled=true;
+      const alive=[0,1].map(side=>m.discs.some(d=>d.alive&&d.side===side));
+      if(!alive[0]&&!alive[1])m.draw=true;else if(!alive[0])m.winner=1;else if(!alive[1])m.winner=0;
+      m.turn++;progress(s);
+    }
+    s.processed.push(requestId);return;
+  }
   if(s.finished || s.paused?.length) throw new Error(s.paused?.length?'참가자의 복귀를 기다리고 있어요.':'경기가 끝났어요.');
   if(s.kind==='number-baseball') {
     baseballAction(s,player,p);
@@ -80,18 +95,25 @@ export function clubAction(s: ClubState, player: string, p: Record<string, unkno
         Object.assign(m,blackStarts(newMatch(m.id,m.label,m.sides,1-m.first,m.attempt+1),s.kind));
         // Optional terminal/animation fields are absent from a fresh match;
         // Object.assign alone would leave the previous draw permanently active.
-        delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.shotStartedAt; delete m.lastMove;
+        delete m.launch; delete m.draw; delete m.winner; delete m.frames; delete m.shot; delete m.shotStartedAt; delete m.lastMove;
       }
     }else{
       if(m.winner!==undefined||m.draw||matchActor(m)!==player)throw new Error('현재 차례가 아니에요.');
+      if(m.launch&&!m.launch.settled)throw new Error('발사를 확인하고 있어요.');
       const side=matchSide(m);
       if(s.kind==='gomoku' && p.action==='club-place') {
         const cell=p.cell;if(typeof cell!=='number'||!Number.isInteger(cell)||cell<0||cell>=225||m.board[cell])throw new Error('빈 교차점을 선택해 주세요.');
         const verdict=renjuMove(m.board,cell,side+1);if(!verdict.legal)throw new Error(verdict.reason);
         m.board[cell]=side+1;m.lastMove=cell;if(verdict.win)m.winner=side;else if(m.board.every(Boolean))m.draw=true;
+      }else if(s.kind==='alkkagi' && p.action==='club-launch'){
+        const disc=m.discs.find(d=>d.id===p.discId&&d.alive&&d.side===side);if(!disc)throw new Error('우리 팀 돌을 선택해 주세요.');
+        validateShotVector(p.dx,p.dy);
+        // Commit the small input before running physics or transmitting frames.
+        m.launch={id:requestId,shot:(m.shot??0)+1,discId:disc.id,dx:p.dx as number,dy:p.dy as number,discs:structuredClone(m.discs),startedAt:Date.now(),settled:false};
+        delete m.frames;s.processed.push(requestId);return;
       }else if(s.kind==='alkkagi' && p.action==='club-shot'){
         const disc=m.discs.find(d=>d.id===p.discId&&d.alive&&d.side===side);if(!disc)throw new Error('우리 팀 돌을 선택해 주세요.');
-        const startedAt=Date.now();const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);m.shotStartedAt=startedAt;m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;
+        const startedAt=Date.now();const result=simulateShot(m.discs,disc.id,Number(p.dx),Number(p.dy),s.setup.obstacles);delete m.launch;m.shotStartedAt=startedAt;m.discs=result.discs;m.frames=result.frames;m.shot=(m.shot??0)+1;
         const alive=[0,1].map(side=>m.discs.some(d=>d.alive&&d.side===side));if(!alive[0]&&!alive[1])m.draw=true;else if(!alive[0])m.winner=1;else if(!alive[1])m.winner=0;
       }else throw new Error('지원하지 않는 행동이에요.');
       m.turn++;progress(s);

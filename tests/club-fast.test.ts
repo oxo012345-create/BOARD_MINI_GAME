@@ -47,3 +47,19 @@ test('gomoku fast path validates turns and preserves the winning board under con
  assert.equal((await commitClubAction(q.read(),'a','a',payload,q.io)).status,200);
  assert.equal((await commitClubAction(q.read(),'c','c',{...payload,requestId:crypto.randomUUID(),turn:1,cell:111},q.io)).status,422);
 });
+
+
+test('launch publishes input atomically; four settlers advance once and recover a disconnected shooter',async()=>{
+ const q=fixture(),room=q.read(),s=createClub('alkkagi',q.ids,{mode:'team',redIds:['a','c'],obstacles:true});room.game={id:'alkkagi',club:s};q.set(room);const m=s.matches[0],disc=m.discs.find(d=>d.side===0)!;
+ const launch={action:'club-launch',clubId:s.id,requestId:'flight',matchId:m.id,attempt:1,turn:0,discId:disc.id,dx:24,dy:0};
+ for(const bad of [{...launch,dx:null},{...launch,dy:'0'},{...launch,discId:9}])assert.equal((await commitClubAction(q.read(),'a','a',bad,q.io)).status,422);
+ assert.equal((await commitClubAction(q.read(),'b','b',launch,q.io)).status,422);
+ assert.equal((await commitClubAction(q.read(),'a','a',launch,q.io)).status,200);
+ const pending=q.read(),flight=pending.game!.club!.matches[0];assert.equal(flight.turn,0);assert.equal(flight.frames,undefined);assert.deepEqual(flight.discs,m.discs);
+ assert.equal((await commitClubAction(q.read(),'a','a',{...launch,requestId:'double'},q.io)).status,422);
+ pending.game!.club!.paused=['a'];q.set(pending);
+ const settle={action:'club-settle-shot',clubId:s.id,requestId:'settle:flight',matchId:m.id,attempt:1,launchId:'flight'};
+ const replies=await Promise.all(q.ids.map(id=>commitClubAction(q.read(),id,id,settle,q.io)));assert.ok(replies.every(r=>r.status===200));
+ const final=q.read().game!.club!;assert.equal(final.matches[0].turn,1);assert.equal(final.matches[0].launch!.settled,true);assert.equal(final.processed.filter(id=>id==='settle:flight').length,1);
+ assert.equal((await commitClubAction(q.read(),'b','b',{...settle,requestId:'old',launchId:'old'},q.io)).status,422);
+});

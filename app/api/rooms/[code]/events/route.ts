@@ -30,7 +30,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
         if (!update) return { revision: known + 1, room: null };
         const latest = update.room;
         if (latest && !latest.players.some(p => p.id === viewer.id && p.sessionHash === viewer.sessionHash)) return { revision: update.revision, room: null };
-        return latest ? { revision: update.revision, room: toClientRoom(latest, viewer.id) } : { revision: update.revision };
+        return latest ? { revision: update.revision, room: toClientRoom(latest, viewer.id, new URL(request.url).searchParams.get('clubMotion')==='2') } : { revision: update.revision };
       }, swarmRunning ? 1_000 : 100);
       return Response.json(snapshot, { headers: { "Cache-Control": "no-store" } });
     }

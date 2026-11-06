@@ -42,7 +42,7 @@ export type ClientRoom = Omit<RoomState, "players" | "game" | "surprise"> & {
   surprise?: Record<string, unknown>;
 };
 
-export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
+export function toClientRoom(room: RoomState, viewerId?: string, compactMotion=false): ClientRoom {
   const game = room.game ? JSON.parse(JSON.stringify(room.game)) as Record<string, unknown> : undefined;
   if (game) {
     const internal = room.game as GameRound;
@@ -99,7 +99,7 @@ export function toClientRoom(room: RoomState, viewerId?: string): ClientRoom {
     delete game.mafia;
     delete game.frontierBeans;
     delete game.club;
-    if (internal.club) game.club = clubClientState(internal.club, viewerId);
+    if (internal.club) game.club = clubClientState(internal.club, viewerId, compactMotion);
 
     if (internal.id === "place-mafia" && placeMafia) {
       game.placeMafia = placeMafiaClientState(placeMafia, viewerId);

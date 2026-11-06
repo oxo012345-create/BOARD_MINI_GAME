@@ -28,7 +28,7 @@ async function request(p,body,path=`/api/rooms/${code}`,retry=true){
  }
  throw Error('Client conflict retries exhausted');
 }
-async function send(p,body){const path=`/api/rooms/${code}${!before&&['club-guess','club-secret','club-shot'].includes(body.action)?'/club':''}`;const r=await request(p,body,path);assert.equal(r.status,200,r.error);return r.room;}
+async function send(p,body){const path=`/api/rooms/${code}${!before&&['club-guess','club-secret','club-shot','club-launch','club-settle-shot'].includes(body.action)?'/club':''}`;const r=await request(p,body,path);assert.equal(r.status,200,r.error);return r.room;}
 async function read(p=clients[0]){const r=await request(p);assert.equal(r.status,200,r.error);return r.room;}
 async function start(kind,setup){await send(clients[0],{action:'prepare-game',gameId:kind});await send(clients[0],{action:'club-settings',clubSetup:setup});return(await send(clients[0],{action:'start-game',gameId:kind})).game.club;}
 async function watch(p,revision,predicate,begin){
@@ -77,9 +77,15 @@ function outward(m,side,obstacles){let best;
 async function alkkagi(setup){let s=await start('alkkagi',setup);const shots=[];
  for(let count=0;!s.finished&&count<100;count++){
  const room=await read();s=room.game.club;const m=s.matches.find(m=>m.winner===undefined&&!m.draw);assert.ok(m,'No playable match');const side=(m.turn+m.first)%2,p=clients.find(p=>p.id===m.sides[side][Math.floor(m.turn/2)%m.sides[side].length]);const shot=outward(m,side,setup.obstacles),begin=performance.now();
- const updates=clients.filter(c=>c!==p).map(c=>watch(c,room.revision,v=>v.matches.find(x=>x.id===m.id)?.turn>m.turn,begin));
- s=(await send(p,{action:'club-shot',clubId:s.id,requestId:crypto.randomUUID(),matchId:m.id,attempt:m.attempt,turn:m.turn,discId:shot.discId,dx:shot.dx,dy:shot.dy})).game.club;
- const acknowledgedMs=Math.round(performance.now()-begin),peerUpdateMs=await Promise.all(updates);assert.equal(s.matches.find(x=>x.id===m.id).turn,m.turn+1);shots.push({match:m.id,turn:m.turn+1,acknowledgedMs,peerUpdateMs});
+ const launchId=crypto.randomUUID();
+ const updates=clients.filter(c=>c!==p).map(c=>watch(c,room.revision,v=>v.matches.find(x=>x.id===m.id)?.launch?.id===launchId,begin));
+ const launched=await send(p,{action:'club-launch',clubId:s.id,requestId:launchId,matchId:m.id,attempt:m.attempt,turn:m.turn,discId:shot.discId,dx:shot.dx,dy:shot.dy});
+ const acknowledgedMs=Math.round(performance.now()-begin),peerUpdateMs=await Promise.all(updates);
+ const pending=launched.game.club.matches.find(x=>x.id===m.id);assert.equal(pending.turn,m.turn);assert.equal(pending.launch.settled,false);assert.equal(pending.frames,undefined);
+ // All four have the launch before any final result exists; any seat can recover it.
+ await Promise.all(clients.map(c=>send(c,{action:'club-settle-shot',clubId:s.id,requestId:'settle:'+launchId,matchId:m.id,attempt:m.attempt,launchId})));
+ s=(await read()).game.club;const settled=s.matches.find(x=>x.id===m.id);assert.equal(settled.turn,m.turn+1);
+ shots.push({match:m.id,turn:m.turn+1,acknowledgedMs,peerUpdateMs,naturalDurationMs:(settled.frames.length-1)*50});
  if(s.matches.some(m=>m.draw))throw Error('Controlled audit shot produced draw; review replay separately');
  }
  result.alkkagi.push({setup,shots,winnerNames:await winnerCheck()});console.log('alkkagi complete',setup,'shots',shots.length);
@@ -87,8 +93,8 @@ async function alkkagi(setup){let s=await start('alkkagi',setup);const shots=[];
 try{
  const made=await request(null,{player:{name:'연속검수민수',avatar:'🐻'}},'/api/rooms');assert.equal(made.status,201,made.error);code=made.room.code;result.room=code;clients.push({id:made.room.meId,cookie:made.cookie});
  for(const name of ['연속검수지영','연속검수현우','연속검수지수']){const j=await request(null,{action:'join',player:{name,avatar:'🐥'}});assert.equal(j.status,200,j.error);clients.push({id:j.room.meId,cookie:j.cookie});}
- for(const digits of [4,5])for(const allowDuplicates of [false,true])await baseball({mode:'individual',digits,allowDuplicates});
- await teamBaseball({digits:5,allowDuplicates:true});await teamBaseball({digits:5,allowDuplicates:false});
+ if(!process.argv.includes('--alkkagi-only')){for(const digits of [4,5])for(const allowDuplicates of [false,true])await baseball({mode:'individual',digits,allowDuplicates});
+ await teamBaseball({digits:5,allowDuplicates:true});await teamBaseball({digits:5,allowDuplicates:false});}
  for(const mode of ['team','tournament'])for(const obstacles of [false,true])await alkkagi({mode,obstacles,redIds:mode==='team'?[clients[0].id,clients[2].id]:undefined});
  assert.equal(result.requests.filter(r=>r.status>=400).length,0,'Unexpected request rejection');
 }finally{
