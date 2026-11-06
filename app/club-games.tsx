@@ -27,13 +27,13 @@ export function ClubBriefing({kind,setup,players,isHost,onAction,onStart,topBar,
   <p role="alert">{error}</p><p>{players.length}/{required}명</p>{isHost?<button className="button primary xl" disabled={busy||players.length!==required||(s.mode==='team'&&!!s.redIds&&s.redIds.length!==2)} onClick={onStart}>게임 시작</button>:<p>방장이 시작하기를 기다리는 중</p>}</section>{overlays}</main>;
 }
 export function ClubGame({s,players,meId,roomCode,isHost,onAction,onReplay,onLobby,topBar,overlays}:{s:ClubView;players:Player[];meId?:string;roomCode?:string;isHost:boolean;onAction:Action;onReplay:()=>void;onLobby:()=>void;topBar:ReactNode;overlays:ReactNode}) {
- const instant=useClubInput(roomCode,s,meId);
  const [selected,setSelected]=useState<number|null>(null),[watch,setWatch]=useState(()=>s.matches.findLast(m=>m.sides.flat().includes(meId??''))?.id??s.matches[0]?.id??''),[busy,setBusy]=useState(false),[moving,setMoving]=useState(false),[error,setError]=useState('');
  const lock=useRef(false);
  const [resultOpen,setResultOpen]=useState(false),[placement,setPlacement]=useState<{matchId:string;attempt:number;turn:number;cell:number;color:number}|null>(null);
  const name=(id?:string)=>players.find(p=>p.id===id)?.name??'참가자';
  const own=s.matches.find(m=>m.sides.flat().includes(meId??'')&&m.winner===undefined&&!m.draw)??s.matches.findLast(m=>m.sides.flat().includes(meId??''));
  const m=s.matches.find(m=>m.id===watch)??own??s.matches[0];
+ const instant=useClubInput(roomCode,s,meId,m?.id);
  const preview=instant.preview?.id===m?.id?instant.preview:null;
  const shownMatch=m&&placement&&placement.matchId===m.id&&placement.attempt===m.attempt&&placement.turn===m.turn?{...m,board:m.board.map((v,i)=>i===placement.cell?placement.color:v),lastMove:placement.cell}:preview??m;
  const canPlay=!!m&&!preview&&!busy&&!moving&&!s.finished&&!s.paused?.length&&!m.draw&&m.winner===undefined&&matchActor(m)===meId;

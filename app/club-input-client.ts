@@ -3,9 +3,9 @@ import {useEffect,useRef,useState} from 'react';
 import type {ClubView} from './api/_lib/club';
 import {previewClubInput,type ClubIntent} from './club-input';
 
-export function useClubInput(code:string|undefined,s:ClubView,meId:string|undefined){
- const socket=useRef<WebSocket|null>(null),latest=useRef(s),[intent,setIntent]=useState<ClubIntent|null>(null);
- useEffect(()=>{latest.current=s;},[s]);
+export function useClubInput(code:string|undefined,s:ClubView,meId:string|undefined,matchId:string|undefined){
+ const socket=useRef<WebSocket|null>(null),latest=useRef(s),watching=useRef(matchId),[intent,setIntent]=useState<ClubIntent|null>(null);
+ useEffect(()=>{latest.current=s;watching.current=matchId;},[s,matchId]);
  const enabled=!!code&&!s.finished&&(s.kind==='gomoku'||s.kind==='alkkagi');
  useEffect(()=>{
   if(!enabled)return;
@@ -17,7 +17,7 @@ export function useClubInput(code:string|undefined,s:ClubView,meId:string|undefi
    try{const t=await ticket();if(stopped||!t)return;
     const ws=new WebSocket(t.socketUrl);socket.current=ws;
     ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.type==='cancel'){setIntent(old=>old&&old.playerId===m.playerId&&old.payload.requestId===m.requestId?null:old);return;}
-     if(m.type!=='intent'||m.playerId===meId||!previewClubInput(latest.current,m))return;
+     if(m.type!=='intent'||m.playerId===meId||m.payload?.matchId!==watching.current||!previewClubInput(latest.current,m))return;
      setIntent(m);clearTimeout(expiry);expiry=setTimeout(()=>setIntent(null),5000);
     }catch{/* Invalid peer data never affects gameplay. */}};
     ws.onclose=()=>{if(socket.current===ws)socket.current=null;if(!stopped)retry=setTimeout(()=>void connect(),1000);};
